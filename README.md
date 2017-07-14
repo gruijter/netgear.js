@@ -9,6 +9,16 @@ const NetgearRouter = require('netgear.js');
 // host, username and port are optional. Defaults are: 'routerlogin.net', 'admin', 5000
 const router = new NetgearRouter(password, [host], [username], [port]);
 
+//Get router type, soap version, firmware version and internet connection status
+router.getCurrentSetting()
+	.then((result) => {
+		console.log(result);
+	})
+	.catch((error) => {
+		console.log(error);
+	});
+
+// get a list of attached devices
 router.getAttachedDevices()
 	.then((result) => {
 		console.log(result);
@@ -17,6 +27,16 @@ router.getAttachedDevices()
 		console.log(error);
 	});
 
+// get a list of attached devices with more information (only for certain firmwares?)
+router.getAttachedDevices2()
+	.then((result) => {
+		console.log(result);
+	})
+	.catch((error) => {
+		console.log(error);
+	});
+
+// get traffic statistics for this day
 router.getTrafficMeter()
 	.then((result) => {
 		console.log(result);
@@ -30,7 +50,7 @@ router.getTrafficMeter()
 # Supported routers
 
 It has been tested with the Netgear R7000 router.
-According to the NETGEAR Genie app description, the following routers should work:
+According to the NETGEAR Genie app description, the following routers might also work:
 
 Wi-Fi Routers:
 AC1450
@@ -95,6 +115,7 @@ DGN2200v4
 DGND3700v2
 DGND3800B
 DGND4000
+
 Cable Gateway:
 C7000
 C6300

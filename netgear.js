@@ -1,9 +1,11 @@
 'use strict';
 
 const request = require('request');
+const parseString = require('xml2js').parseString;
 
 const ACTION_LOGIN = 'urn:NETGEAR-ROUTER:service:ParentalControl:1#Authenticate';
 const ACTION_GET_ATTACHED_DEVICES = 'urn:NETGEAR-ROUTER:service:DeviceInfo:1#GetAttachDevice';
+const ACTION_GET_ATTACHED_DEVICES2 = 'urn:NETGEAR-ROUTER:service:DeviceInfo:1#GetAttachDevice2';
 const ACTION_GET_TRAFFIC_METER = 'urn:NETGEAR-ROUTER:service:DeviceConfig:1#GetTrafficMeterStatistics';
 const SESSION_ID = 'A7D88AE69687E58D9A00';
 
@@ -18,18 +20,18 @@ const DEFAULT_USER = 'admin';
 const DEFAULT_PORT = 5000;
 
 function soapLogin(sessionId, username, password) {
-	return `<?xml version="1.0" encoding="utf-8" ?> +
-	    <SOAP-ENV:Envelope xmlns:SOAP-ENV="http://schemas.xmlsoap.org/soap/envelope/"> +
-	    <SOAP-ENV:Header> +
-	    <SessionID xsi:type="xsd:string" xmlns:xsi="http://www.w3.org/1999/XMLSchema-instance">${sessionId}</SessionID> +
-	    </SOAP-ENV:Header> +
-	    <SOAP-ENV:Body> +
-	    <Authenticate> +
-	      <NewUsername>${username}</NewUsername> +
-	        <NewPassword>${password}</NewPassword> +
-	        </Authenticate> +
-	        </SOAP-ENV:Body> +
-	        </SOAP-ENV:Envelope>`;
+	return `<?xml version="1.0" encoding="utf-8" standalone="no"?>
+	  <SOAP-ENV:Envelope xmlns:SOAPSDK1="http://www.w3.org/2001/XMLSchema" xmlns:SOAPSDK2="http://www.w3.org/2001/XMLSchema-instance" xmlns:SOAPSDK3="http://schemas.xmlsoap.org/soap/encoding/" xmlns:SOAP-ENV="http://schemas.xmlsoap.org/soap/envelope/">
+	    <SOAP-ENV:Header>
+	    	<SessionID xsi:type="xsd:string" xmlns:xsi="http://www.w3.org/1999/XMLSchema-instance">${sessionId}</SessionID>
+	    </SOAP-ENV:Header>
+	    <SOAP-ENV:Body>
+		    <Authenticate>
+		    <NewUsername xsi:type="xsd:string" xmlns:xsi="http://www.w3.org/1999/XMLSchema-instance">${username}</NewUsername>
+		    <NewPassword xsi:type="xsd:string" xmlns:xsi="http://www.w3.org/1999/XMLSchema-instance">${password}</NewPassword>
+		    </Authenticate>
+	    </SOAP-ENV:Body>
+	  </SOAP-ENV:Envelope>`;
 }
 
 function soapAttachedDevices(sessionId) {
@@ -47,6 +49,20 @@ function soapAttachedDevices(sessionId) {
     </SOAP-ENV:Body> +
     </SOAP-ENV:Envelope>`;
 }
+
+function soapAttachedDevices2(sessionId) {
+	return `<?xml version="1.0" encoding="utf-8" standalone="no"?>
+	<SOAP-ENV:Envelope xmlns:SOAPSDK1="http://www.w3.org/2001/XMLSchema" xmlns:SOAPSDK2="http://www.w3.org/2001/XMLSchema-instance" xmlns:SOAPSDK3="http://schemas.xmlsoap.org/soap/encoding/" xmlns:SOAP-ENV="http://schemas.xmlsoap.org/soap/envelope/">
+		<SOAP-ENV:Header>
+			<SessionID>${sessionId}</SessionID>
+		</SOAP-ENV:Header>
+		<SOAP-ENV:Body>
+			<M1:GetAttachDevice2 xmlns:M1="urn:NETGEAR-ROUTER:service:DeviceInfo:1">
+			</M1:GetAttachDevice2>
+		</SOAP-ENV:Body>
+	</SOAP-ENV:Envelope>`;
+}
+
 
 function soapTrafficMeter(sessionId) {
 	return `<?xml version="1.0" encoding="UTF-8" standalone="no"?> +
@@ -81,6 +97,29 @@ class NetgearRouter {
 		this.port = port || DEFAULT_PORT;
 		this.soap_url = `http://${this.host}:${this.port}/soap/server_sa/`;
 		this.logged_in = false;
+	}
+
+	getCurrentSetting() {
+		// Get router information without need for credentials
+		return new Promise((resolve, reject) => {
+			request(`http://${this.host}/currentsetting.htm`, (error, response, body) => {
+				if (error) { reject(error); }	else {
+					if (!body.includes('SOAPVersion=') && !body.includes('Model=')) {
+						reject('This is not a valid Netgear router');
+						return;
+					}
+					const currentSetting = {};
+					const entries = body.split('\r\n');
+					for (const entry in entries) {
+						const info = entries[entry].split('=');
+						if (info.length === 2) {
+							currentSetting[info[0]] = info[1];
+						}
+					}
+					resolve(currentSetting);
+				}
+			});
+		});
 	}
 
 	login() {
@@ -120,11 +159,11 @@ class NetgearRouter {
 				const raw = REGEX_ATTACHED_DEVICES.exec(result.body)[1];
 				const decoded = raw.replace(UNKNOWN_DEVICE_ENCODED, UNKNOWN_DEVICE_DECODED);
 				const entries = decoded.split('@');
-				// First element is the total device count
 				if (entries.length <= 1) {
 					reject(Error('Error parsing device-list'));
 					return;
 				}
+				// First element is the total device count
 				const entryCount = parseInt(entries.shift(), 10);
 				if (entryCount <= 0 || NaN) {
 					reject(Error('Error parsing device-list'));
@@ -137,26 +176,71 @@ class NetgearRouter {
 						return;
 					}
 					const device = {
-						mac: info[3],						// e.g. '61:56:FA:1B:E1:21'
-						name: info[2],					// '--' for unknown
-						ipv4: info[1],					// e.g. '10.0.0.10'
-						linkType: 'unknown',		// 'wired' or 'wireless'
-						linkRate: 0,						// number >= 0, or NaN for wired linktype
-						signal: 0,							// number <= 100
-						access: 'unknown',			// 'Allow' or 'Block'
+						IP: info[1],									// e.g. '10.0.0.10'
+						Name: info[2],								// '--' for unknown
+						MAC: info[3],									// e.g. '61:56:FA:1B:E1:21'
+						ConnectionType: 'unknown',		// 'wired' or 'wireless'
+						Linkspeed: 0,									// number >= 0, or NaN for wired linktype
+						SignalStrength: 0,						// number <= 100
+						AllowOrBlock: 'unknown',			// 'Allow' or 'Block'
 					};
 					// Not all routers will report link type and rate
 					if (info.length >= 7) {
-						device.linkType = info[4];
-						device.linkRate = parseInt(info[5], 10);
-						device.signal = parseInt(info[6], 10);
+						device.ConnectionType = info[4];
+						device.Linkspeed = parseInt(info[5], 10);
+						device.SignalStrength = parseInt(info[6], 10);
 					}
 					if (info.length >= 8) {
-						device.access = info[7];
+						device.AllowOrBlock = info[7];
 					}
 					devices.push(device);
 				}
 				resolve(devices);
+			})
+			.catch((error) => {
+				reject(Error(error));	// reuest failed because login failed
+			});
+		});
+	}
+
+	getAttachedDevices2() {
+		// Resolves promise list of connected devices to the router. Rejects if error occurred.
+		console.log('Get attached devices2');
+		return new Promise((resolve, reject) => {
+			const message = soapAttachedDevices2({ sessionId: SESSION_ID });
+			this.makeRequest(ACTION_GET_ATTACHED_DEVICES2, message)
+			.then((result) => {
+				parseString(result.body, (err, res) => {
+					if (err) { reject(err); return; }
+					const entries = res['soap-env:Envelope']['soap-env:Body'][0]['m:GetAttachDevice2Response'][0]['NewAttachDevice'][0]['Device'];
+					if (entries.length < 1) {
+						reject(Error('Error parsing device-list'));
+						return;
+					}
+					const entryCount = entries.length;
+					const devices = [];
+					for (let i = 0; i < entryCount; i++) {
+						const device = {
+							IP: entries[i].IP[0],																	// e.g. '10.0.0.10'
+							Name: entries[i].Name[0],															// '--' for unknown
+							NameUserSet: entries[i].NameUserSet[0] === 'true',		// e.g. 'false'
+							MAC: entries[i].NameUserSet[0],												// e.g. '61:56:FA:1B:E1:21'
+							ConnectionType: entries[i].ConnectionType[0],					// e.g. 'wired', '2.4GHz', 'Guest Wireless 2.4G'
+							SSID: entries[i].ConnectionType[0],										// e.g. 'MyWiFi'
+							Linkspeed: entries[i].Linkspeed[0],
+							SignalStrength: Number(entries[i].SignalStrength[0]),	// number <= 100
+							AllowOrBlock: entries[i].AllowOrBlock[0],							// 'Allow' or 'Block'
+							Schedule: entries[i].Schedule[0],											// e.g. 'false'
+							DeviceType: Number(entries[i].DeviceType[0]),					// a number
+							DeviceTypeUserSet: entries[i].DeviceTypeUserSet[0] === 'true',		// e.g. 'false',
+							Upload: Number(entries[i].Upload[0]),
+							Download: Number(entries[i].Download[0]),
+							QosPriority: Number(entries[i].QosPriority[0]),				// 1, 2, 3, 4
+						};
+						devices.push(device);
+					}
+					resolve(devices);
+				});
 			})
 			.catch((error) => {
 				reject(Error(error));	// reuest failed because login failed
