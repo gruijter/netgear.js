@@ -32,6 +32,7 @@ router.getTrafficMeter()
 It has been tested with the Netgear R7000 router.
 According to the NETGEAR Genie app description, the following routers should work:
 
+Wi-Fi Routers:
 AC1450
 Centria (WNDR4700, WND4720)
 JNR1010
@@ -73,3 +74,31 @@ WNR2500
 WNR3500Lv2
 WNR612v2
 WNR614
+
+DSL Modem Gateways:
+DGN2200B
+DGND3700B
+D3600
+D6000
+D6100
+D6200
+D6000
+D6200B
+D6300
+D6300B
+D6400
+D7000
+D7800
+DGN1000
+DGN2200v3
+DGN2200v4
+DGND3700v2
+DGND3800B
+DGND4000
+Cable Gateway:
+C7000
+C6300
+C6250
+C3700
+C3000
+N450
