@@ -27,7 +27,7 @@ router.getAttachedDevices()
 		console.log(error);
 	});
 
-// get a list of attached devices with more information (only for certain firmwares?)
+// get a list of attached devices with more information (only for SOAP V3?)
 router.getAttachedDevices2()
 	.then((result) => {
 		console.log(result);
@@ -44,6 +44,25 @@ router.getTrafficMeter()
 	.catch((error) => {
 		console.log(error);
 	});
+
+// function to block or allow an attached device
+async function blockOrAllow(mac, action) {
+	try {
+		 await router.login();
+		 await router.configurationStarted();
+		 await router.setBlockDevice(mac, action);
+		 await router.configurationFinished();
+	}
+	catch (error) {
+		console.log(error);
+	}
+}
+
+// block a device with mac "AA:BB:CC:DD:EE:FF"
+blockOrAllow("AA:BB:CC:DD:EE:FF", 'Block');
+
+// allow a device with mac "AA:BB:CC:DD:EE:FF"
+blockOrAllow("AA:BB:CC:DD:EE:FF", 'Allow');
 ```
 
 
