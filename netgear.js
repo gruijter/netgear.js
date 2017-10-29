@@ -3,6 +3,7 @@
 const http = require('http');
 const parseString = require('xml2js').parseString;
 // const util = require('util');
+const crypto = require('crypto');
 
 const ACTION_LOGIN = 'urn:NETGEAR-ROUTER:service:ParentalControl:1#Authenticate';
 const ACTION_GET_INFO = 'urn:NETGEAR-ROUTER:service:DeviceInfo:1#GetInfo';
@@ -12,17 +13,21 @@ const ACTION_GET_TRAFFIC_METER = 'urn:NETGEAR-ROUTER:service:DeviceConfig:1#GetT
 const ACTION_CONFIGURATION_STARTED = 'urn:NETGEAR-ROUTER:service:DeviceConfig:1#ConfigurationStarted';
 const ACTION_CONFIGURATION_FINISHED = 'urn:NETGEAR-ROUTER:service:DeviceConfig:1#ConfigurationFinished';
 const ACTION_SET_BLOCK_DEVICE = 'urn:NETGEAR-ROUTER:service:DeviceConfig:1#SetBlockDeviceByMAC';
+const ACTION_REBOOT = 'urn:NETGEAR-ROUTER:service:DeviceConfig:1#Reboot';
 
-const SESSION_ID = 'A7D88AE69687E58D9A00'; // '10588AE69687E58D9A00'
+const SESSION_ID = crypto.randomBytes(Math.ceil(20/2)).toString('hex').slice(0,20).toUpperCase(); //'A7D88AE69687E58D9A00'; // '10588AE69687E58D9A00'
 
 const REGEX_ATTACHED_DEVICES = new RegExp('<NewAttachDevice>(.*)</NewAttachDevice>');
 const REGEX_NEW_TODAY_UPLOAD = new RegExp('<NewTodayUpload>(.*)</NewTodayUpload>');
 const REGEX_NEW_TODAY_DOWNLOAD = new RegExp('<NewTodayDownload>(.*)</NewTodayDownload>');
+const REGEX_NEW_MONTH_UPLOAD = new RegExp('<NewMonthUpload>(.*)</NewMonthUpload>');
+const REGEX_NEW_MONTH_DOWNLOAD = new RegExp('<NewMonthDownload>(.*)</NewMonthDownload>');
 const UNKNOWN_DEVICE_DECODED = '<unknown>';
 const UNKNOWN_DEVICE_ENCODED = '&lt;unknown&gt;';
 
 const DEFAULT_HOST = 'routerlogin.net';
 const DEFAULT_USER = 'admin';
+const DEFAULT_PASSWORD = 'password';
 const DEFAULT_PORT = 5000;
 
 function soapLogin(sessionId, username, password) {
@@ -142,39 +147,77 @@ function soapTrafficMeter(sessionId) {
 		`;
 }
 
+function soapReboot(sessionId) {
+	return `<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+		<SOAP-ENV:Envelope xmlns:SOAPSDK1="http://www.w3.org/2001/XMLSchema" xmlns:SOAPSDK2="http://www.w3.org/2001/XMLSchema-instance" xmlns:SOAPSDK3="http://schemas.xmlsoap.org/soap/encoding/" xmlns:SOAP-ENV="http://schemas.xmlsoap.org/soap/envelope/">
+		<SOAP-ENV:Header>
+		<SessionID>${sessionId}</SessionID>
+		</SOAP-ENV:Header>
+		<SOAP-ENV:Body>
+		<M1:Reboot xmlns:M1="urn:NETGEAR-ROUTER:service:DeviceConfig:1"></M1:Reboot>
+		</SOAP-ENV:Body>
+		</SOAP-ENV:Envelope>
+		`;
+}
 
 function isValidResponse(resp) {
 	const validResponse = resp.statusCode === 200 && resp.body.includes('<ResponseCode>000</ResponseCode>');
 	if (!validResponse) {
-		console.log(resp.body);
-		console.log(resp.statusCode);
+		// console.log(resp.body);
+		// console.log(resp.statusCode);
 	}
 	return (validResponse);
 }
 
 class NetgearRouter {
 	// Represents a session to a Netgear Router.
-	constructor(password, host, user, port) {
-		this.password = password;
+	constructor(password, user, host, port) {
 		this.host = host || DEFAULT_HOST;
-		this.username = user || DEFAULT_USER;
 		this.port = port || DEFAULT_PORT;
 		this.soap_url = `http://${this.host}:${this.port}/soap/server_sa/`;
+		this.username = user || DEFAULT_USER;
+		this.password = password || DEFAULT_PASSWORD;
+		this.sessionId = SESSION_ID;
 		this.logged_in = false;
-		this.login();
 	}
 
-	getCurrentSetting() {
+	login(password, user, host, port) {
+		// Resolves promise of login status. Rejects if login fails or error occurred.
+		// console.log('Login');
+		this.host = host || this.host;
+		this.port = port || this.port;
+		this.soap_url = `http://${this.host}:${this.port}/soap/server_sa/`;
+		this.username = user || this.username;
+		this.password = password || this.password;
+		return new Promise((resolve, reject) => {
+			const message = soapLogin(SESSION_ID, this.username, this.password);
+			this._makeRequest(ACTION_LOGIN, message)
+				.then((result) => {
+					this.logged_in = isValidResponse(result);
+					if (this.logged_in) {
+						resolve(this.logged_in);
+						// console.log('Login succesfull!');
+					} else {
+						if (result.body.includes('<ResponseCode>401</ResponseCode>')) {
+							reject(Error('incorrect username/password, or reboot netgear required'));
+						} else { reject(Error(`${result.statusCode}`)); }
+					}
+				})
+				.catch((err) => {	// login failed...
+					if (err.message.includes('<ResponseCode>401</ResponseCode>')) {
+						reject(Error('incorrect username/password'));
+					} else reject(err);
+				});
+		});
+	}
+
+	getCurrentSetting(host) {
 		// Get router information without need for credentials
 		// console.log('Get current settings');
+		this.host = host || this.host;
 		return new Promise((resolve, reject) => {
-			http.get(`http://${this.host}/currentsetting.htm`, (res) => {
+			const req = http.get(`http://${this.host}/currentsetting.htm`, (res) => {
 				// res.setEncoding('utf8');
-				const { statusCode } = res;
-				if (statusCode !== 200) {
-					reject(Error(statusCode));
-					return;
-				}
 				let resBody = '';
 				res.on('data', (chunk) => {
 					resBody += chunk;
@@ -182,9 +225,9 @@ class NetgearRouter {
 				});
 				res.on('end', () => {
 					res.body = resBody;
+					if (res.body == '') { return reject(Error('Error getting current setting')); }
 					if (!res.body.includes('SOAPVersion=') && !res.body.includes('Model=')) {
-						reject(Error('This is not a valid Netgear router'));
-						return;
+						return reject(Error('This is not a valid Netgear router'));
 					}
 					const currentSetting = {};
 					const entries = res.body.split('\r\n');
@@ -197,47 +240,24 @@ class NetgearRouter {
 					resolve(currentSetting);
 				});
 			});
-		});
-	}
-
-	login() {
-		// Resolves promise of login status. Rejects if login fails or error occurred.
-		console.log('Login');
-		return new Promise((resolve, reject) => {
-			const message = soapLogin(SESSION_ID, this.username, this.password);
-			this._makeRequest(ACTION_LOGIN, message, false)
-				.then((result) => {
-					this.logged_in = isValidResponse(result);
-					if (this.logged_in) { 
-						resolve(this.logged_in);
-						console.log('Login succesfull!');
-					} else {
-						if (result.body.includes('<ResponseCode>401</ResponseCode>')) {
-							reject(Error('incorrect username/password, or reboot netgear required'));
-						} else { reject(Error(`${result.statusCode}`)); }
-					}
-				})
-				.catch((err) => {	// login failed...
-					if (err.message.includes('<ResponseCode>401</ResponseCode>')) {		// should I make it err.includes ?
-						reject(Error('incorrect username/password, or reboot netgear required'));
-					} else reject(Error(err));
-				});
+			req.on('error', (e) => {
+				return reject(e);
+			});
 		});
 	}
 
 	getInfo() {
 		// Resolves promise of device information. Rejects if error occurred.
-		console.log('Get router info');
+		// console.log('Get router info');
 		return new Promise((resolve, reject) => {
 			const message = soapGetInfo(SESSION_ID);
 			this._makeRequest(ACTION_GET_INFO,	message)
 				.then((result) => {
 					parseString(result.body, (err, res) => {
-						if (err) { reject(Error(err)); return; }
+						if (err) { return reject(err); }
 						const entries = res['soap-env:Envelope']['soap-env:Body'][0]['m:GetInfoResponse'][0];
 						if (Object.keys(entries).length < 2) {
-							reject(Error('Error parsing device-list'));
-							return;
+							return reject(Error('Error parsing device-list'));
 						}
 						const info = {};
 						for (const property in entries) {
@@ -261,7 +281,7 @@ class NetgearRouter {
 					});
 				})
 				.catch((error) => {
-					reject(Error(error));
+					reject(error);
 				});
 		});
 	}
@@ -278,20 +298,17 @@ class NetgearRouter {
 					const decoded = raw.replace(UNKNOWN_DEVICE_ENCODED, UNKNOWN_DEVICE_DECODED);
 					const entries = decoded.split('@');
 					if (entries.length <= 1) {
-						reject(Error('Error parsing device-list'));
-						return;
+						return reject(Error('Error parsing device-list'));
 					}
 					// First element is the total device count
 					const entryCount = parseInt(entries.shift(), 10);
 					if (entryCount <= 0 || NaN) {
-						reject(Error('Error parsing device-list'));
-						return;
+						return reject(Error('Error parsing device-list'));
 					}
 					for (const entry in entries) {
 						const info = entries[entry].split(';');
 						if (info.length === 0) {
-							reject(Error('Error parsing device-list'));
-							return;
+							return reject(Error('Error parsing device-list'));
 						}
 						const device = {
 							IP: info[1],				// e.g. '10.0.0.10'
@@ -316,7 +333,7 @@ class NetgearRouter {
 					resolve(devices);
 				})
 				.catch((error) => {
-					reject(Error(error));	// reuest failed because login failed
+					reject(error);	// request failed because login failed
 				});
 		});
 	}
@@ -332,8 +349,7 @@ class NetgearRouter {
 						if (err) { reject(Error(err)); return; }
 						const entries = res['soap-env:Envelope']['soap-env:Body'][0]['m:GetAttachDevice2Response'][0]['NewAttachDevice'][0]['Device'];
 						if (entries.length < 1) {
-							reject(Error('Error parsing device-list'));
-							return;
+							return reject(Error('Error parsing device-list'));
 						}
 						const entryCount = entries.length;
 						const devices = [];
@@ -361,7 +377,7 @@ class NetgearRouter {
 					});
 				})
 				.catch((error) => {
-					reject(Error(error));	// reuest failed because login failed
+					reject(error);	// request failed because login failed
 				});
 		});
 	}
@@ -376,73 +392,92 @@ class NetgearRouter {
 					// console.log(result.body);
 					const newTodayUpload = Number(REGEX_NEW_TODAY_UPLOAD.exec(result.body)[1]);
 					const newTodayDownload = Number(REGEX_NEW_TODAY_DOWNLOAD.exec(result.body)[1]);
-					const traffic = {	newTodayUpload, newTodayDownload };	// in Mbytes
+					const NewMonthUpload = Number(REGEX_NEW_MONTH_UPLOAD.exec(result.body)[1].split('/')[0]);
+					const NewMonthDownload = Number(REGEX_NEW_MONTH_DOWNLOAD.exec(result.body)[1].split('/')[0]);
+					const traffic = {	newTodayUpload, newTodayDownload, NewMonthUpload, NewMonthDownload };	// in Mbytes
 					resolve(traffic);
 				})
 				.catch((error) => {
-					reject(Error(error));
+					reject(error);
 				});
 		});
 	}
 
+	reboot() {
+		// console.log('router reboot requested');
+		return new Promise((resolve, reject) => {
+			const message = soapReboot(SESSION_ID);
+			this._makeRequest(ACTION_REBOOT,	message)
+				.then((result) => {
+					// console.log(result.body);
+					resolve(true); // reboot initiated
+				})
+				.catch((error) => {
+					reject(error);
+				});
+		});
+	}
 
 	configurationStarted() {
-	    // Resolves promise of config start status. Rejects if error occurred.
-		console.log('start configuration');
+		// Resolves promise of config start status. Rejects if error occurred.
+		// console.log('start configuration');
 		return new Promise((resolve, reject) => {
 			const message = soapConfigurationStarted(SESSION_ID);
-			this._makeRequest(ACTION_CONFIGURATION_STARTED, message, false)
+			this._makeRequest(ACTION_CONFIGURATION_STARTED, message)
 				.then((result) => {
-					if (isValidResponse(result)) { 
+					if (isValidResponse(result)) {
 						resolve(true);
 						// console.log(result.body);
 					}
-				    else { reject(Error(`${result.statusCode}`)); }
+					else { reject(Error(`${result.statusCode}`)); }
 				})
 				.catch((err) => {	// config start failed...
-                  reject(Error(err));
+					reject(err);
 				});
 		});
 	}
-	
-	
+
+
 	configurationFinished() {
-	    // Resolves promise of config finish status. Rejects if error occurred.
-		console.log('finish configuration');
+		// Resolves promise of config finish status. Rejects if error occurred.
+		// console.log('finish configuration');
 		return new Promise((resolve, reject) => {
 			const message = soapConfigurationFinished(SESSION_ID);
-			this._makeRequest(ACTION_CONFIGURATION_FINISHED, message, false)
+			this._makeRequest(ACTION_CONFIGURATION_FINISHED, message)
 				.then((result) => {
-					if (isValidResponse(result)) { 
+					if (isValidResponse(result)) {
 						resolve(true);
 						// console.log(result.body);
 					}
-				    else { reject(Error(`${result.statusCode}`)); }
+					else { reject(Error(`${result.statusCode}`)); }
 				})
 				.catch((err) => {	// config start failed...
-                  reject(Error(err));
+					reject(err);
 				});
 		});
 	}
 
 	setBlockDevice(MAC, AllowOrBlock) {
 		// Resolves promise of AllowOrBlock status. Rejects if error occurred.
-		console.log('setBlockDevice started');
+		// console.log('setBlockDevice started');
 		return new Promise((resolve, reject) => {
 			const message = soapSetBlockDevice(SESSION_ID, MAC, AllowOrBlock);
 			this._makeRequest(ACTION_SET_BLOCK_DEVICE, message)
-			  .then((res) => {
-				console.log('finished doing setblockdevice');
-				resolve(res.body);
-			  })
-			  .catch((error) => {
-				reject(error);
-			  });
+				.then((res) => {
+				// console.log('finished doing setblockdevice');
+					resolve(res.body);
+				})
+				.catch((error) => {
+					reject(error);
+				});
 		});
 	}
 
-	_makeRequest(action, message, tryLoginAfterFailure) {
+	_makeRequest(action, message) {
 		return new Promise((resolve, reject) => {
+			if (!this.logged_in && action != ACTION_LOGIN) {
+				return reject(Error('Not logged in'));
+			}
 			const headers = {SOAPAction: action};
 			const options = {
 				host: this.host,
@@ -459,14 +494,13 @@ class NetgearRouter {
 				res.on('end', () => {
 					res.body = resBody;
 					const success = isValidResponse(res);
-					if (success) { resolve(res); return; } // resolve the request
-					else { reject(res.body); } // request failed after retry
+					if (success) { return resolve(res); } // resolve the request
+					else { reject(Error(res.body)); } // request failed
 				});
 			});
 			req.on('error', (e) => {
-				console.log(`problem with request: ${e.message}`);
-				reject(e.message);
-				return;
+				// console.log(`problem with request: ${e.message}`);
+				return reject(e);
 			});
 			req.write(message);
 			req.end();

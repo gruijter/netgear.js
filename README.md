@@ -1,13 +1,22 @@
 Javascript / Nodejs Module to communicate with Netgear routers via soap interface. The code
-is based on this Python version: https://github.com/balloob/pynetgear
+is inspired on this Python version: https://github.com/balloob/pynetgear
 
 # How to use:
 
 ```
 const NetgearRouter = require('netgear.js');
 
-// host, username and port are optional. Defaults are: 'routerlogin.net', 'admin', 5000
-const router = new NetgearRouter(password, [host], [username], [port]);
+// password, username, host and port are optional. Defaults are: 'password', 'admin', 'routerlogin.net', 5000
+const router = new NetgearRouter([password], [user], [host], [port]);
+
+// first you need to be logged in
+ router.login([password], [user], [host], [port])
+ 	.then(
+ 		console.log(router)
+ 	)
+ 	.catch((error) => {
+ 		console.log(error);
+ 	});
 
 //Get router type, soap version, firmware version and internet connection status
 router.getCurrentSetting()
@@ -36,7 +45,7 @@ router.getAttachedDevices2()
 		console.log(error);
 	});
 
-// get traffic statistics for this day
+// get traffic statistics for this day and this month
 router.getTrafficMeter()
 	.then((result) => {
 		console.log(result);
@@ -63,6 +72,15 @@ blockOrAllow("AA:BB:CC:DD:EE:FF", 'Block');
 
 // allow a device with mac "AA:BB:CC:DD:EE:FF"
 blockOrAllow("AA:BB:CC:DD:EE:FF", 'Allow');
+
+// function to reboot the router
+router.reboot()
+	.then((result) => {
+ 		console.log(result);
+ 	})
+ 	.catch((error) => {
+ 		console.log(error);
+ 	});
 ```
 
 
