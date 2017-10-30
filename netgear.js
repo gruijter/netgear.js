@@ -213,7 +213,7 @@ class NetgearRouter {
 
 	getCurrentSetting(host) {
 		// Get router information without need for credentials
-		// console.log('Get current settings');
+		// console.log('Get current setting');
 		this.host = host || this.host;
 		return new Promise((resolve, reject) => {
 			const req = http.get(`http://${this.host}/currentsetting.htm`, (res) => {
@@ -486,6 +486,7 @@ class NetgearRouter {
 				headers,
 				method: 'POST',
 			};
+			const router = this;
 			const req = http.request(options, (res) => {
 				let resBody = '';
 				res.on('data', (chunk) => {
@@ -495,7 +496,10 @@ class NetgearRouter {
 					res.body = resBody;
 					const success = isValidResponse(res);
 					if (success) { return resolve(res); } // resolve the request
-					else { reject(Error(res.body)); } // request failed
+					else {
+						router.logged_in = false;
+						reject(Error('invalid response code from router'));
+					} // request failed
 				});
 			});
 			req.on('error', (e) => {
