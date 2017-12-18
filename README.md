@@ -6,20 +6,29 @@ is inspired on this Python version: https://github.com/balloob/pynetgear
 ```
 const NetgearRouter = require('netgear.js');
 
-// password, username, host and port are optional. Defaults are: 'password', 'admin', 'routerlogin.net', 5000
+// password, username, host and port are optional. Defaults are: 'password', 'admin', 'routerlogin.net', 80/5000
 const router = new NetgearRouter([password], [user], [host], [port]);
 
-// first you need to be logged in
- router.login([password], [user], [host], [port])
- 	.then(
- 		console.log(router)
- 	)
- 	.catch((error) => {
- 		console.log(error);
- 	});
-
-//Get router type, soap version, firmware version and internet connection status
+//Get router type, soap version, firmware version and internet connection status without login
 router.getCurrentSetting()
+	.then((result) => {
+		console.log(result);
+	})
+	.catch((error) => {
+		console.log(error);
+	});
+
+// for other methods you first need to be logged in. Optional use of password, user, host and port will override previous settings
+router.login([password], [user], [host], [port])
+	.then(
+		console.log(router)
+	)
+	.catch((error) => {
+		console.log(error);
+	});
+
+//Get router type, serial number, hardware version, firmware version, soap version, firewall version, etc.
+router.getInfo()
 	.then((result) => {
 		console.log(result);
 	})
@@ -36,7 +45,7 @@ router.getAttachedDevices()
 		console.log(error);
 	});
 
-// get a list of attached devices with more information (only for SOAP V3?)
+// get a list of attached devices with more information (only for SOAP V3)
 router.getAttachedDevices2()
 	.then((result) => {
 		console.log(result);
@@ -58,9 +67,7 @@ router.getTrafficMeter()
 async function blockOrAllow(mac, action) {
 	try {
 		 await router.login();
-		 await router.configurationStarted();
 		 await router.setBlockDevice(mac, action);
-		 await router.configurationFinished();
 	}
 	catch (error) {
 		console.log(error);
@@ -85,9 +92,8 @@ router.reboot()
 
 
 # Supported routers
-
-It has been tested with the Netgear R7000 router.
-According to the NETGEAR Genie app description, the following routers might also work:
+In general: If you can use the genie app to manage the router then this module will most likely work. The module is confirmed to work with WNDR4500v2, R6250, R7000, R7800, R8000 and Orbi.
+You can check the router version by browsing to http://routerlogin.net/currentsetting.htm . According to the NETGEAR Genie app description, the following routers might work:
 
 Wi-Fi Routers:
 AC1450
