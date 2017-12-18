@@ -1,7 +1,7 @@
 'use strict';
 
 const http = require('http');
-const parseString = require('xml2js').parseString;
+const { parseString } = require('xml2js');
 
 const actionLogin = 'urn:NETGEAR-ROUTER:service:ParentalControl:1#Authenticate';
 const actionGetInfo = 'urn:NETGEAR-ROUTER:service:DeviceInfo:1#GetInfo';
