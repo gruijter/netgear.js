@@ -4,7 +4,7 @@ is inspired on this Python version: https://github.com/balloob/pynetgear
 # How to use:
 
 ```
-const NetgearRouter = require('netgear.js');
+const NetgearRouter = require('netgear');
 
 // password, username, host and port are optional. Defaults are: 'password', 'admin', 'routerlogin.net', 80/5000
 const router = new NetgearRouter([password], [user], [host], [port]);
