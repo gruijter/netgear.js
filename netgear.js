@@ -161,7 +161,7 @@ function soapReboot(sessionId) {
 
 
 function isValidResponse(resp) {
-	const validResponse = resp.statusCode === 200 && resp.body.includes('<ResponseCode>000</ResponseCode>');
+	const validResponse = resp.body.includes('<ResponseCode>000</ResponseCode>');
 	// const responseCode = regexResponseCode.exec(resp.body)[1];
 	return (validResponse);
 }
@@ -429,7 +429,7 @@ class NetgearRouter {
 						.replace(/<\/DeviceTypeName>/g, ']]></DeviceTypeName>');
 					parseString(patchedBody, async (err, res) => {
 						if (err) {
-							reject(Error(res.body));
+							reject(Error(`Error parsing xml device-list: ${err}`);
 							return;
 						}
 						const soapBody = await getSoapBody(res)
@@ -647,6 +647,18 @@ class NetgearRouter {
 			};
 			const router = this;
 			const req = http.request(options, (res) => {
+				const { statusCode } = res;
+				const contentType = res.headers['content-type'];
+				let error;
+				if (statusCode !== 200) {
+					error = new Error(`Request Failed. Status Code: ${statusCode}`);
+				}
+				if (error) {
+					// consume response data to free up memory
+					res.resume();
+					reject(error);
+					return;
+				}
 				let resBody = '';
 				res.on('data', (chunk) => {
 					resBody += chunk;
@@ -656,7 +668,7 @@ class NetgearRouter {
 					const success = isValidResponse(res);
 					if (success) { return resolve(res); } // resolve the request
 					router.loggedIn = false; // request failed
-					return reject(Error(`invalid response code from router: ${res.body}`));
+					reject(Error(`invalid response code from router: ${res.body}`));
 				});
 			});
 			req.on('error', (e) => {
@@ -664,7 +676,7 @@ class NetgearRouter {
 			});
 			req.setTimeout(15000, () => {
 				req.abort();
-				return reject(Error('Connection timeout'));
+				reject(Error('Connection timeout'));
 			});
 			req.write(message);
 			req.end();
