@@ -429,7 +429,7 @@ class NetgearRouter {
 						.replace(/<\/DeviceTypeName>/g, ']]></DeviceTypeName>');
 					parseString(patchedBody, async (err, res) => {
 						if (err) {
-							reject(Error(`Error parsing xml device-list: ${err}`);
+							reject(Error(`Error parsing xml device-list: ${err}`));
 							return;
 						}
 						const soapBody = await getSoapBody(res)
