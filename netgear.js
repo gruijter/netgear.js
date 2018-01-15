@@ -1,7 +1,9 @@
 'use strict';
 
 const http = require('http');
-const { parseString } = require('xml2js');
+// const { parseString } = require('xml2js');
+// const util = require('util');
+const pjxml = require('pjxml');
 
 const actionLogin = 'urn:NETGEAR-ROUTER:service:ParentalControl:1#Authenticate';
 const actionGetInfo = 'urn:NETGEAR-ROUTER:service:DeviceInfo:1#GetInfo';
@@ -166,27 +168,27 @@ function isValidResponse(resp) {
 	return (validResponse);
 }
 
-function getSoapBody(soapData) {
-	return new Promise((resolve, reject) => {
-		let keyEnvelope;
-		let keyBody;
-		Object.keys(soapData).forEach((key1) => {
-			if (key1.toLowerCase() === 'soap-env:envelope') {
-				keyEnvelope = key1;
-				Object.keys(soapData[key1]).forEach((key2) => {
-					if (key2.toLowerCase() === 'soap-env:body') {
-						keyBody = key2;
-					}
-				});
-			}
-		});
-		try {
-			return resolve(soapData[keyEnvelope][keyBody][0]);
-		} catch (error) {
-			return reject(Error('Error parsing soap body'));
-		}
-	});
-}
+// function getSoapBody(soapData) {
+// 	return new Promise((resolve, reject) => {
+// 		let keyEnvelope;
+// 		let keyBody;
+// 		Object.keys(soapData).forEach((key1) => {
+// 			if (key1.toLowerCase() === 'soap-env:envelope') {
+// 				keyEnvelope = key1;
+// 				Object.keys(soapData[key1]).forEach((key2) => {
+// 					if (key2.toLowerCase() === 'soap-env:body') {
+// 						keyBody = key2;
+// 					}
+// 				});
+// 			}
+// 		});
+// 		try {
+// 			return resolve(soapData[keyEnvelope][keyBody][0]);
+// 		} catch (error) {
+// 			return reject(Error('Error parsing soap body'));
+// 		}
+// 	});
+// }
 
 
 class NetgearRouter {
@@ -320,46 +322,83 @@ class NetgearRouter {
 			const message = soapGetInfo(this.sessionId);
 			this._makeRequest(actionGetInfo,	message)
 				.then((result) => {
-					parseString(result.body, async (err, res) => {
-						if (err) {
-							return reject(err);
+					const doc = pjxml.parse(result.body);
+					var el = doc.select('//m:GetInfoResponse');
+					const info = {};
+					Object.keys(el.content).forEach((key) => {
+						if (Array.isArray(el.content[key].content)) {
+							info[el.content[key].name] = el.content[key].content[0];
 						}
-						const soapBody = await getSoapBody(res)
-							.catch((error) => {
-								reject(error);
-							});
-						// const entries = res['soap-env:Envelope']['soap-env:Body'][0]['m:GetInfoResponse'][0];
-						const entries = soapBody['m:GetInfoResponse'][0];
-						if (Object.keys(entries).length < 2) {
-							return reject(Error('Error parsing device-list'));
-						}
-						const info = {};
-						Object.keys(entries).forEach((property) => {
-							if (entries.hasOwnProperty(property) && Array.isArray(entries[property])) {
-								info[property] = entries[property][0];
-							}
-						});
-						// info is an object with the following properties:
-						// 	ModelName: e.g. 'R7000'
-						// 	Description: e.g. 'Netgear Smart Wizard 3.0, specification 0.7 version'
-						// 	SerialNumber: e.g. '1LG23B71067B2'
-						// 	Firmwareversion: e.g. 'V1.0.9.6'
-						// 	SmartAgentversion: // e.g. '3.0'
-						// 	FirewallVersion: // e.g. 'ACOS NAT-Netfilter v3.0.0.5 (Linux Cone NAT Hot Patch 06/11/2010)'
-						// 	VPNVersion: // e.g. 'N/A'
-						// 	OthersoftwareVersion: // e.g. '1.2.19'
-						// 	Hardwareversion: // e.g. 'R7000'
-						// 	Otherhardwareversion: // e.g. 'N/A'
-						// 	FirstUseDate: // e.g. 'Saturday, 20 Feb 2016 23:40:20'
-						// info.SerialNumber = 'TEST';
-						return resolve(info);
 					});
+					// info is an object with the following properties (depending on router type and fw level):
+					// 	ModelName: e.g. 'R7800'
+					// 	Description: e.g. 'Netgear Smart Wizard 3.0, specification 0.7 version'
+					// 	SerialNumber: e.g. '1LG23B71067B2'
+					// 	Firmwareversion: e.g. 'V1.0.2.40'
+					// 	SmartAgentversion: // e.g. '3.0'
+					// 	FirewallVersion: // e.g. 'ACOS NAT-Netfilter v3.0.0.5 (Linux Cone NAT Hot Patch 06/11/2010)'
+					// 	VPNVersion: // e.g. 'N/A'
+					// 	OthersoftwareVersion: // e.g. '1.2.19'
+					// 	Hardwareversion: // e.g. 'N/A'
+					// 	Otherhardwareversion: // e.g. 'N/A'
+					// 	FirstUseDate: // e.g. 'Saturday, 20 Feb 2016 23:40:20'
+					//	FirmwareDLmethod: 'Null',
+					//	DeviceMode: 'Router'
+					return resolve(info);
 				})
 				.catch((error) => {
 					reject(error);
 				});
 		});
 	}
+
+	// getInfo() {
+	// 	// Resolves promise of device information. Rejects if error occurred.
+	// 	// console.log('Get router info');
+	// 	return new Promise((resolve, reject) => {
+	// 		const message = soapGetInfo(this.sessionId);
+	// 		this._makeRequest(actionGetInfo,	message)
+	// 			.then((result) => {
+	// 				parseString(result.body, async (err, res) => {
+	// 					if (err) {
+	// 						return reject(err);
+	// 					}
+	// 					const soapBody = await getSoapBody(res)
+	// 						.catch((error) => {
+	// 							reject(error);
+	// 						});
+	// 					// const entries = res['soap-env:Envelope']['soap-env:Body'][0]['m:GetInfoResponse'][0];
+	// 					const entries = soapBody['m:GetInfoResponse'][0];
+	// 					if (Object.keys(entries).length < 2) {
+	// 						return reject(Error('Error parsing device-list'));
+	// 					}
+	// 					const info = {};
+	// 					Object.keys(entries).forEach((property) => {
+	// 						if (entries.hasOwnProperty(property) && Array.isArray(entries[property])) {
+	// 							info[property] = entries[property][0];
+	// 						}
+	// 					});
+	// 					// info is an object with the following properties:
+	// 					// 	ModelName: e.g. 'R7000'
+	// 					// 	Description: e.g. 'Netgear Smart Wizard 3.0, specification 0.7 version'
+	// 					// 	SerialNumber: e.g. '1LG23B71067B2'
+	// 					// 	Firmwareversion: e.g. 'V1.0.9.6'
+	// 					// 	SmartAgentversion: // e.g. '3.0'
+	// 					// 	FirewallVersion: // e.g. 'ACOS NAT-Netfilter v3.0.0.5 (Linux Cone NAT Hot Patch 06/11/2010)'
+	// 					// 	VPNVersion: // e.g. 'N/A'
+	// 					// 	OthersoftwareVersion: // e.g. '1.2.19'
+	// 					// 	Hardwareversion: // e.g. 'R7000'
+	// 					// 	Otherhardwareversion: // e.g. 'N/A'
+	// 					// 	FirstUseDate: // e.g. 'Saturday, 20 Feb 2016 23:40:20'
+	// 					// info.SerialNumber = 'TEST';
+	// 					return resolve(info);
+	// 				});
+	// 			})
+	// 			.catch((error) => {
+	// 				reject(error);
+	// 			});
+	// 	});
+	// }
 
 	getAttachedDevices() {
 		// Resolves promise list of connected devices to the router. Rejects if error occurred.
@@ -418,78 +457,150 @@ class NetgearRouter {
 			const message = soapAttachedDevices2(this.sessionId);
 			this._makeRequest(actionGetAttachedDevices2, message)
 				.then((result) => {
-					// Fix use of special characters in the devicename
-					// Netgear output is not conforming to XML standards!
-					const patchedBody = result.body
-						.replace(/<Name>/g, '<Name><![CDATA[')
-						.replace(/<\/Name>/g, ']]></Name>')
-						.replace(/<DeviceModel>/g, '<DeviceModel><![CDATA[')
-						.replace(/<\/DeviceModel>/g, ']]></DeviceModel>')
-						.replace(/<DeviceTypeName>/g, '<DeviceTypeName><![CDATA[')
-						.replace(/<\/DeviceTypeName>/g, ']]></DeviceTypeName>');
-					parseString(patchedBody, async (err, res) => {
-						if (err) {
-							reject(Error(`Error parsing xml device-list: ${err}`));
-							return;
-						}
-						const soapBody = await getSoapBody(res)
-							.catch((error) => {
-								reject(error);
-							});
-						const entries = soapBody['m:GetAttachDevice2Response'][0].NewAttachDevice[0].Device;
-						if (entries === undefined) {
-							reject(Error(`Error parsing device-list (entries undefined) ${res}`));
-							return;
-						}
-						if (entries.length < 1) {
-							reject(Error('Error parsing device-list'));
-						}
-						const entryCount = entries.length;
-						const devices = [];
-						for (let i = 0; i < entryCount; i += 1) {
-							const device = {
-								IP: entries[i].IP[0],						// e.g. '10.0.0.10'
-								Name: entries[i].Name[0],				// '--' for unknown
-								NameUserSet: entries[i].NameUserSet[0] === 'true',	// e.g. 'false'
-								MAC: entries[i].MAC[0],					// e.g. '61:56:FA:1B:E1:21'
-								ConnectionType: entries[i].ConnectionType[0],	// e.g. 'wired', '2.4GHz', 'Guest Wireless 2.4G'
-								SSID: entries[i].SSID[0],				// e.g. 'MyWiFi'
-								Linkspeed: entries[i].Linkspeed[0],
-								SignalStrength: Number(entries[i].SignalStrength[0]),	// number <= 100
-								AllowOrBlock: entries[i].AllowOrBlock[0],			// 'Allow' or 'Block'
-								Schedule: entries[i].Schedule[0],							// e.g. 'false'
-								DeviceType: Number(entries[i].DeviceType[0]),	// a number
-								DeviceTypeUserSet: entries[i].DeviceTypeUserSet[0] === 'true',	// e.g. 'false',
-								DeviceTypeName: '',	// unknown, found in orbi response
-								DeviceModel: '', // unknown, found in R7800 and orbi response
-								DeviceModelUserSet: false, // // unknown, found in orbi response
-								Upload: Number(entries[i].Upload[0]),
-								Download: Number(entries[i].Download[0]),
-								QosPriority: Number(entries[i].QosPriority[0]),	// 1, 2, 3, 4
-								Grouping: '0',
-								SchedulePeriod: '0',
-								ConnAPMAC: '', // unknown, found in orbi response
-							};
-							if (Object.keys(entries[i]).length >= 18) { // only available for certain routers?:
-								device.DeviceModel = entries[i].DeviceModel[0]; // '',
-								device.Grouping = Number(entries[i].Grouping[0]); // 0
-								device.SchedulePeriod = Number(entries[i].SchedulePeriod[0]); // 0
+					// // Fix use of special characters in the devicename
+					// // Netgear output is not conforming to XML standards!
+					// const patchedBody = result.body
+					// 	.replace(/<Name>/g, '<Name><![CDATA[')
+					// 	.replace(/<\/Name>/g, ']]></Name>')
+					// 	.replace(/<DeviceModel>/g, '<DeviceModel><![CDATA[')
+					// 	.replace(/<\/DeviceModel>/g, ']]></DeviceModel>')
+					// 	.replace(/<DeviceTypeName>/g, '<DeviceTypeName><![CDATA[')
+					// 	.replace(/<\/DeviceTypeName>/g, ']]></DeviceTypeName>');
+					const doc = pjxml.parse(result.body);
+					var el = doc.select('//NewAttachDevice');
+					const devices = [];
+					Object.keys(el.content).forEach((deviceKey) => {
+						// util.log(el.content[deviceKey].content);
+						const deviceInfo = el.content[deviceKey].content;
+						if (deviceInfo === undefined) { return; }
+						const device = {};
+						Object.keys(deviceInfo).forEach((key) => {
+							if (deviceInfo[key].hasOwnProperty('content') && Array.isArray(deviceInfo[key].content)) {
+								// adapt types for certain info
+								const infoName = deviceInfo[key].name;
+								const content = deviceInfo[key].content[0];
+								const booleanInfo = ['NameUserSet', 'Schedule', 'DeviceTypeUserSet', 'DeviceModelUserSet'];
+								const numberInfo = ['Linkspeed', 'SignalStrength', 'DeviceType', 'Upload', 'Download', 'QosPriority', 'Grouping', 'SchedulePeriod'];
+								if (booleanInfo.indexOf(infoName) > -1) {	// change text to boolean value
+									device[infoName] = content === 'true';
+								} else if (numberInfo.indexOf(infoName) > -1) {	// change text to number value
+									device[infoName] = Number(content);
+								} else {
+									device[infoName] = content;
+								}
 							}
-							if (Object.keys(entries[i]).length >= 21) { // only available for certain routers?:
-								device.DeviceTypeName = entries[i].DeviceTypeName[0]; // '',
-								device.DeviceModelUserSet = entries[i].DeviceModelUserSet[0] === 'true'; // e.g. 'false',
-								device.ConnAPMAC = entries[i].ConnAPMAC[0]; // MAC of connected orbi?
-							}
-							devices.push(device);
-						}
-						resolve(devices);
-					});
+						});
+						devices.push(device)
+					})
+					resolve(devices);	// devices is an array
+					// device is an object with the following properties (depending on router type and fw level):
+					// 			IP: e.g. '10.0.0.10'
+					// 			Name: '--' for unknown
+					// 			NameUserSet: e.g. false
+					// 			MAC:  e.g. '61:56:FA:1B:E1:21'
+					// 			ConnectionType: e.g. 'wired', '2.4GHz', 'Guest Wireless 2.4G'
+					// 			SSID: e.g. 'MyWiFi'
+					// 			Linkspeed: e.g. 70
+					// 			SignalStrength: number <= 100
+					// 			AllowOrBlock: 'Allow' or 'Block'
+					// 			Schedule: e.g. false
+					// 			DeviceType: e.g. 42
+					// 			DeviceTypeUserSet: e.g. false,
+					// 			DeviceTypeName: e.g. '',	// unknown, found in orbi response
+					// 			DeviceModel: e.g. '', // unknown, found in R7800 and orbi response
+					// 			DeviceModelUserSet: false, // unknown, found in orbi response
+					// 			Upload: e.g. 0.3,
+					// 			Download: e.g. 1.4,
+					// 			QosPriority: e.g. 1	// 1, 2, 3, 4
+					// 			Grouping: e.g. 0, // unknown, found in R7800 and orbi response
+					// 			SchedulePeriod: e.g. 0,
+					// 			ConnAPMAC: '', // unknown, found in orbi response
 				})
 				.catch((error) => {
 					reject(error);	// request failed because login failed
 				});
 		});
 	}
+
+	// getAttachedDevices2() {
+	// 	// Resolves promise list of connected devices to the router. Rejects if error occurred.
+	// 	// console.log('Get attached devices2');
+	// 	return new Promise((resolve, reject) => {
+	// 		const message = soapAttachedDevices2(this.sessionId);
+	// 		this._makeRequest(actionGetAttachedDevices2, message)
+	// 			.then((result) => {
+	// 				// Fix use of special characters in the devicename
+	// 				// Netgear output is not conforming to XML standards!
+	// 				const patchedBody = result.body
+	// 					.replace(/<Name>/g, '<Name><![CDATA[')
+	// 					.replace(/<\/Name>/g, ']]></Name>')
+	// 					.replace(/<DeviceModel>/g, '<DeviceModel><![CDATA[')
+	// 					.replace(/<\/DeviceModel>/g, ']]></DeviceModel>')
+	// 					.replace(/<DeviceTypeName>/g, '<DeviceTypeName><![CDATA[')
+	// 					.replace(/<\/DeviceTypeName>/g, ']]></DeviceTypeName>');
+	// 				parseString(patchedBody, async (err, res) => {
+	// 					if (err) {
+	// 						reject(Error(`Error parsing xml device-list: ${err}`));
+	// 						return;
+	// 					}
+	// 					const soapBody = await getSoapBody(res)
+	// 						.catch((error) => {
+	// 							reject(error);
+	// 						});
+	// 					const entries = soapBody['m:GetAttachDevice2Response'][0].NewAttachDevice[0].Device;
+	// 					if (entries === undefined) {
+	// 						reject(Error(`Error parsing device-list (entries undefined) ${res}`));
+	// 						return;
+	// 					}
+	// 					if (entries.length < 1) {
+	// 						reject(Error('Error parsing device-list'));
+	// 					}
+	// 					const entryCount = entries.length;
+	// 					const devices = [];
+	// 					for (let i = 0; i < entryCount; i += 1) {
+	// 						const device = {
+	// 							IP: entries[i].IP[0],						// e.g. '10.0.0.10'
+	// 							Name: entries[i].Name[0],				// '--' for unknown
+	// 							NameUserSet: entries[i].NameUserSet[0] === 'true',	// e.g. 'false'
+	// 							MAC: entries[i].MAC[0],					// e.g. '61:56:FA:1B:E1:21'
+	// 							ConnectionType: entries[i].ConnectionType[0],	// e.g. 'wired', '2.4GHz', 'Guest Wireless 2.4G'
+	// 							SSID: entries[i].SSID[0],				// e.g. 'MyWiFi'
+	// 							Linkspeed: entries[i].Linkspeed[0],
+	// 							SignalStrength: Number(entries[i].SignalStrength[0]),	// number <= 100
+	// 							AllowOrBlock: entries[i].AllowOrBlock[0],			// 'Allow' or 'Block'
+	// 							Schedule: entries[i].Schedule[0],							// e.g. 'false'
+	// 							DeviceType: Number(entries[i].DeviceType[0]),	// a number
+	// 							DeviceTypeUserSet: entries[i].DeviceTypeUserSet[0] === 'true',	// e.g. 'false',
+	// 							DeviceTypeName: '',	// unknown, found in orbi response
+	// 							DeviceModel: '', // unknown, found in R7800 and orbi response
+	// 							DeviceModelUserSet: false, // // unknown, found in orbi response
+	// 							Upload: Number(entries[i].Upload[0]),
+	// 							Download: Number(entries[i].Download[0]),
+	// 							QosPriority: Number(entries[i].QosPriority[0]),	// 1, 2, 3, 4
+	// 							Grouping: '0',
+	// 							SchedulePeriod: '0',
+	// 							ConnAPMAC: '', // unknown, found in orbi response
+	// 						};
+	// 						if (Object.keys(entries[i]).length >= 18) { // only available for certain routers?:
+	// 							device.DeviceModel = entries[i].DeviceModel[0]; // '',
+	// 							device.Grouping = Number(entries[i].Grouping[0]); // 0
+	// 							device.SchedulePeriod = Number(entries[i].SchedulePeriod[0]); // 0
+	// 						}
+	// 						if (Object.keys(entries[i]).length >= 21) { // only available for certain routers?:
+	// 							device.DeviceTypeName = entries[i].DeviceTypeName[0]; // '',
+	// 							device.DeviceModelUserSet = entries[i].DeviceModelUserSet[0] === 'true'; // e.g. 'false',
+	// 							device.ConnAPMAC = entries[i].ConnAPMAC[0]; // MAC of connected orbi?
+	// 						}
+	// 						devices.push(device);
+	// 					}
+	// 					resolve(devices);
+	// 				});
+	// 			})
+	// 			.catch((error) => {
+	// 				reject(error);	// request failed because login failed
+	// 			});
+	// 	});
+	// }
 
 	getTrafficMeter() {
 		// Resolves promise of traffic meter stats. Rejects if error occurred.
