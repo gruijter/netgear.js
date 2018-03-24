@@ -1,5 +1,5 @@
-Javascript / Nodejs Module to communicate with Netgear routers via soap interface. The code
-is inspired on this Python version: https://github.com/balloob/pynetgear
+Javascript / Nodejs Module to communicate with Netgear routers via soap interface. The initial code
+was inspired on this Python version: https://github.com/balloob/pynetgear
 
 # How to use:
 
@@ -63,6 +63,24 @@ router.getTrafficMeter()
 		console.log(error);
 	});
 
+// enable 2.4GHz guest wifi
+router.setGuestAccessEnabled(true)
+	.then((result) => {
+		console.log(result);
+	})
+	.catch((error) => {
+		console.log(error);
+	});
+
+// disable 5GHz guest wifi
+router.set5GGuestAccessEnabled(false)
+	.then((result) => {
+		console.log(result);
+	})
+	.catch((error) => {
+		console.log(error);
+	});
+
 // function to block or allow an attached device
 async function blockOrAllow(mac, action) {
 	try {
@@ -80,7 +98,7 @@ blockOrAllow("AA:BB:CC:DD:EE:FF", 'Block');
 // allow a device with mac "AA:BB:CC:DD:EE:FF"
 blockOrAllow("AA:BB:CC:DD:EE:FF", 'Allow');
 
-// function to reboot the router
+// Reboot the router
 router.reboot()
 	.then((result) => {
  		console.log(result);

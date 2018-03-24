@@ -1,6 +1,6 @@
 {
   "name": "netgear",
-  "version": "1.2.0",
+  "version": "1.3.0",
   "description": "Node module to interact with Netgear routers via SOAP",
   "main": "netgear.js",
   "scripts": {
@@ -16,13 +16,13 @@
     "soap",
     "genie"
   ],
-  "author": "gruijter <gruijter@hotmail.com>",
-  "license": "ISC",
+  "author": "Robin de Gruijter <gruijter@hotmail.com>",
+  "license": "MPL-2.0",
   "bugs": {
     "url": "https://github.com/gruijter/netgear.js/issues"
   },
   "homepage": "https://github.com/gruijter/netgear.js#readme",
   "dependencies": {
-    "pjxml": "^1.0.1"
+    "xml2js": "^0.4.19"
   }
 }
