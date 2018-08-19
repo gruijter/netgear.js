@@ -1,117 +1,100 @@
 Javascript / Nodejs Module to communicate with Netgear routers via soap interface. The initial code
 was inspired on this Python version: https://github.com/balloob/pynetgear
 
-# How to use:
+# Example code:
 
 ```
 const NetgearRouter = require('netgear');
 
 // password, username, host and port are optional. Defaults are: 'password', 'admin', 'routerlogin.net', 80/5000
-const router = new NetgearRouter([password], [user], [host], [port]);
+const router = new NetgearRouter('your password'); // [password], [user], [host], [port]
 
-//Get router type, soap version, firmware version and internet connection status without login
-router.getCurrentSetting()
-	.then((result) => {
-		console.log(result);
-	})
-	.catch((error) => {
-		console.log(error);
-	});
-
-// for other methods you first need to be logged in. Optional use of password, user, host and port will override previous settings
-router.login([password], [user], [host], [port])
-	.then(
-		console.log(router)
-	)
-	.catch((error) => {
-		console.log(error);
-	});
-
-//Get router type, serial number, hardware version, firmware version, soap version, firewall version, etc.
-router.getInfo()
-	.then((result) => {
-		console.log(result);
-	})
-	.catch((error) => {
-		console.log(error);
-	});
-
-// get a list of attached devices
-router.getAttachedDevices()
-	.then((result) => {
-		console.log(result);
-	})
-	.catch((error) => {
-		console.log(error);
-	});
-
-// get a list of attached devices with more information (only for SOAP V3)
-router.getAttachedDevices2()
-	.then((result) => {
-		console.log(result);
-	})
-	.catch((error) => {
-		console.log(error);
-	});
-
-// get traffic statistics for this day and this month
-router.getTrafficMeter()
-	.then((result) => {
-		console.log(result);
-	})
-	.catch((error) => {
-		console.log(error);
-	});
-
-// enable 2.4GHz guest wifi
-router.setGuestAccessEnabled(true)
-	.then((result) => {
-		console.log(result);
-	})
-	.catch((error) => {
-		console.log(error);
-	});
-
-// disable 5GHz guest wifi
-router.set5GGuestAccessEnabled(false)
-	.then((result) => {
-		console.log(result);
-	})
-	.catch((error) => {
-		console.log(error);
-	});
-
-// function to block or allow an attached device
-async function blockOrAllow(mac, action) {
+// function to get various information
+async function getRouterInfo() {
 	try {
-		 await router.login();
-		 await router.setBlockDevice(mac, action);
-	}
-	catch (error) {
+		// Get router type, soap version, firmware version and internet connection status without login
+		const currentSetting = await router.getCurrentSetting();
+		console.log(currentSetting);
+
+		// for other methods you first need to be logged in.
+		await router.login(); // [password], [username], [host], [port] will override previous settings
+
+		// Get router type, serial number, hardware version, firmware version, soap version, firewall version, etc.
+		const info = await router.getInfo();
+		console.log(info);
+
+		// get a list of attached devices
+		const attachedDevices = await router.getAttachedDevices();
+		console.log(attachedDevices);
+
+		// get a list of attached devices with more information (only for SOAP V3)
+		const attachedDevices2 = await router.getAttachedDevices2();
+		console.log(attachedDevices2);
+
+		// get traffic statistics for this day and this month. Note: traffic monitoring must be enabled in router
+		const traffic = await router.getTrafficMeter();
+		console.log(traffic);
+
+	}	catch (error) {
 		console.log(error);
 	}
 }
 
-// block a device with mac "AA:BB:CC:DD:EE:FF"
-blockOrAllow("AA:BB:CC:DD:EE:FF", 'Block');
+getRouterInfo();
 
-// allow a device with mac "AA:BB:CC:DD:EE:FF"
-blockOrAllow("AA:BB:CC:DD:EE:FF", 'Allow');
 
-// Reboot the router
-router.reboot()
-	.then((result) => {
- 		console.log(result);
- 	})
- 	.catch((error) => {
- 		console.log(error);
- 	});
+// function to block or allow an attached device
+async function blockOrAllow(mac, action) {
+	try {
+		await router.login();
+		const success = await router.setBlockDevice(mac, action);
+		console.log(success);
+	}	catch (error) {
+		console.log(error);
+	}
+}
+
+// block a device with mac 'AA:BB:CC:DD:EE:FF'
+blockOrAllow('AA:BB:CC:DD:EE:FF', 'Block');
+
+// allow a device with mac 'AA:BB:CC:DD:EE:FF'
+blockOrAllow('AA:BB:CC:DD:EE:FF', 'Allow');
+
+
+// function to enable/disable wifi
+async function doWifiStuff() {
+	try {
+		await router.login();
+		// enable 2.4GHz guest wifi
+		router.setGuestAccessEnabled(true);
+		// disable 5GHz guest wifi
+		await router.set5GGuestAccessEnabled(false);
+	}	catch (error) {
+		console.log(error);
+	}
+}
+
+doWifiStuff();
+
+
+// function to reboot router
+async function reboot() {
+	try {
+		await router.login();
+		// Reboot the router
+		router.reboot();
+	}	catch (error) {
+		console.log(error);
+	}
+}
+
+reboot();
 ```
 
 
 # Supported routers
 In general: If you can use the genie app to manage the router then this module will most likely work. The module is confirmed to work with WNDR4500v2, R6250, R7000, R7800, R8000 and Orbi.
-You can check the router version by browsing to http://routerlogin.net/currentsetting.htm . According to the NETGEAR Genie app description, the following routers might work:
+You can check the router version by browsing to http://routerlogin.net/currentsetting.htm . According to the NETGEAR Genie app description, the following routers should work:
 
 Wi-Fi Routers:
 AC1450

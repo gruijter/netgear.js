@@ -1,8 +1,8 @@
 /* This Source Code Form is subject to the terms of the Mozilla Public
- * License, v. 2.0. If a copy of the MPL was not distributed with this
- * file, You can obtain one at http://mozilla.org/MPL/2.0/.
+	License, v. 2.0. If a copy of the MPL was not distributed with this
+	file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
- * Copyright 2017, 2018, Robin de Gruijter <gruijter@hotmail.com>*/
+	Copyright 2017, 2018, Robin de Gruijter <gruijter@hotmail.com> */
 
 'use strict';
 
@@ -31,8 +31,8 @@ const regexNewTodayUpload = new RegExp(/<NewTodayUpload>(.*)<\/NewTodayUpload>/)
 const regexNewTodayDownload = new RegExp(/<NewTodayDownload>(.*)<\/NewTodayDownload>/);
 const regexNewMonthUpload = new RegExp(/<NewMonthUpload>(.*)<\/NewMonthUpload>/);
 const regexNewMonthDownload = new RegExp(/<NewMonthDownload>(.*)<\/NewMonthDownload>/);
-const unknownDeviceDecoded = 'unknown';
-const unknownDeviceEncoded = '&lt;unknown&gt;';
+// const unknownDeviceDecoded = 'unknown';
+// const unknownDeviceEncoded = '&lt;unknown&gt;';
 
 const defaultHost = 'routerlogin.net';
 const defaultUser = 'admin';
@@ -221,185 +221,140 @@ function soapReboot(sessionId) {
 `;
 }
 
-
-function isValidResponse(resp) {
-	const validResponse = resp.body.includes('<ResponseCode>000</ResponseCode>');
-	// if validResponse {
-	// 	const responseCode = regexResponseCode.exec(resp.body)[1];
-	// }
-	return (validResponse);
-}
-
-function getSoapBody(soapData) {
-	return new Promise((resolve, reject) => {
-		let keyEnvelope;
-		let keyBody;
-		Object.keys(soapData).forEach((key1) => {
-			if (key1.toLowerCase() === 'soap-env:envelope') {
-				keyEnvelope = key1;
-				Object.keys(soapData[key1]).forEach((key2) => {
-					if (key2.toLowerCase() === 'soap-env:body') {
-						keyBody = key2;
-					}
-				});
-			}
-		});
-		try {
-			return resolve(soapData[keyEnvelope][keyBody][0]);
-		} catch (error) {
-			return reject(Error('Error parsing soap body'));
-		}
-	});
-}
-
-
 class NetgearRouter {
 	// Represents a session to a Netgear Router.
 	constructor(password, user, host, port) {
 		this.host = host || defaultHost;
-		this.port = port || this.getSoapPort(this.host)
+		this.port = port || this.__getSoapPort(this.host)
 			.catch(() => { this.port = 80; });
 		this.username = user || defaultUser;
 		this.password = password || defaultPassword;
 		this.sessionId = defaultSessionId;
-		this.soapVersion = undefined;	// 2 or 3, will be filled with getSoapVersion() or getCurrentSetting()
+		this.timeout = 15000;
+		this.soapVersion = undefined;	// 2 or 3
 		this.loggedIn = false;
 		this.configStarted = false;
-		// this.httpAgent = new http.Agent({ keepAlive: true, maxSockets: 1, maxFreeSockets: 1 });
 	}
 
 	async login(password, user, host, port) {
-		// Resolves promise of login status. Rejects if login fails or error occurred.
 		// console.log('Login');
-		if (this.soapVerion === undefined) {
-			await this.getCurrentSetting(host)
-				.catch(console.log);
-		}
-		this.host = host || this.host;
-		this.port = port || this.port;
-		this.username = user || this.username;
-		this.password = password || this.password;
-		return new Promise((resolve, reject) => {
+		try {
+			if (this.soapVerion === undefined) {
+				await this.getCurrentSetting(host);
+			}
+			this.host = host || this.host;
+			this.port = port || await this.port;
+			this.username = user || this.username;
+			this.password = password || this.password;
 			const message = soapLogin(this.sessionId, this.username, this.password);
-			this._makeRequest(actionLogin, message)
-				.then((result) => {
-					this.loggedIn = isValidResponse(result);
-					if (this.loggedIn) {
-						return resolve(this.loggedIn);
-					}
-					return reject(Error(`${result.statusCode}`));
-				})
-				.catch((err) => {	// login failed...
-					if (err.message.includes('<ResponseCode>401</ResponseCode>')) {
-						return reject(Error('incorrect username/password'));
-					}
-					if (!err.message.includes('<ResponseCode>')) {
-						return reject(Error('wrong IP or wrong SOAP port'));
-					}
-					return reject(err);
-				});
-		});
+			await this._makeRequest(actionLogin, message);
+			this.loggedIn = true;
+			return Promise.resolve(this.loggedIn);
+		} catch (error) {
+			return Promise.reject(error);
+		}
 	}
 
-	getSoapPort(host) {
+	__getSoapPort(host) {
 		// Resolves promise of soap port without need for credentials. Rejects if error occurred.
 		// console.log('Get soap port');
 		host = host || this.host;
 		return new Promise((resolve, reject) => {
-			const req = http.get(`http://${host}:80/soap/server_sa/`, () => {
-				this.port = 80;
-				return resolve(80);
-			});
-			req.on('error', () => { // try 5000 now
-				const req2 = http.get(`http://${host}:5000/soap/server_sa/`, () => {
-					this.port = 5000;
+			const req1 = http.get(`http://${host}:5000/soap/server_sa/`, (result1) => {
+				if (result1.statusCode === 400 || result1.statusCode === 401) {
 					return resolve(5000);
+				}
+				const req2 = http.get(`http://${host}:80/soap/server_sa/`, (result2) => {
+					if (result2.statusCode === 400 || result2.statusCode === 401) {
+						return resolve(80);
+					}
+					return reject(Error('cannot determine the soap port'));
 				});
-				req2.on('error', () => {
-					reject(Error('cannot determine the soap port'));
-				});
+				// 5000 and 80 failed...
+				req2.on('error', () => reject(Error('cannot determine the soap port')));
+				return reject(Error('cannot determine the soap port'));
 			});
+			// 5000 failed, assume 80...
+			req1.on('error', () => resolve(80));
 		});
 	}
 
-	getSoapVersion(host) {
+	async __getSoapVersion(host) {
 		// Resolves promise of soap version without need for credentials. Rejects if error occurred.
 		// console.log('Get soap version');
 		host = host || this.host;
-		return new Promise(async (resolve, reject) => {
-			try {
-				const currentSetting = await this.getCurrentSetting(host);
-				const soapVersion = parseInt(currentSetting.SOAPVersion, 10) || 2;
-				this.soapVersion = soapVersion;
-				return resolve(soapVersion);
-			} catch (error) {
-				return reject(error);
-			}
-		});
+		try {
+			const currentSetting = await this.getCurrentSetting(host);
+			const soapVersion = parseInt(currentSetting.SOAPVersion, 10) || 2;
+			this.soapVersion = soapVersion;
+			return Promise.resolve(soapVersion);
+		} catch (error) {
+			return Promise.reject(error);
+		}
 	}
 
-	getCurrentSetting(host) {
+	async getCurrentSetting(host) {
 		// Resolves promise of router information without need for credentials. Rejects if error occurred.
 		// console.log('Get current setting');
-		host = host || this.host;
-		return new Promise((resolve, reject) => {
-			const req = http.get(`http://${host}/currentsetting.htm`, (res) => {
-				// res.setEncoding('utf8');
-				let resBody = '';
-				res.on('data', (chunk) => {
-					resBody += chunk;
-				});
-				res.on('end', () => {
-					res.body = resBody;
-					if (res.body === '') { return reject(Error('Error getting current setting')); }
-					if (!res.body.includes('Model=')) {
-						return reject(Error('This is not a valid Netgear router'));
+		try {
+			host = host || this.host;
+			const headers = {
+			};
+			const options = {
+				hostname: host,
+				port: 80,
+				path: '/currentsetting.htm',
+				headers,
+				method: 'GET',
+			};
+			const result = await this._makeHttpRequest(options, '');
+			// request successfull
+			if (result.statusCode === 200 && result.body.includes('Model=')) {
+				const currentSetting = {};
+				const entries = result.body.replace(/\n/g, '').split('\r');
+				Object.keys(entries).forEach((entry) => {
+					const info = entries[entry].split('=');
+					if (info.length === 2) {
+						currentSetting[info[0]] = info[1];
 					}
-					const currentSetting = {};
-					const entries = res.body.replace(/\n/g, '').split('\r');
-					Object.keys(entries).forEach((entry) => {
-						const info = entries[entry].split('=');
-						if (info.length === 2) {
-							currentSetting[info[0]] = info[1];
-						}
-					});
-					this.soapVersion = parseInt(currentSetting.SOAPVersion, 10) || 2;
-					return resolve(currentSetting);
 				});
-			});
-			req.setTimeout(5000, () => {
-				req.abort();
-				return reject(Error('Connection timeout. Wrong ip?'));
-			});
-			req.on('error', (e) => {
-				reject(e);
-			});
-		});
+				this.soapVersion = parseInt(currentSetting.SOAPVersion, 10) || 2;
+				return Promise.resolve(currentSetting);
+			}
+			// request failed
+			if (result.statusCode !== 200) {
+				throw Error(`HTTP request Failed. Status Code: ${result.statusCode}`);
+			}
+			if (!result.body.includes('Model=')) {
+				throw Error('This is not a valid Netgear router');
+			}
+			return Promise.reject(Error('Unknow error'));
+		} catch (error) {
+			return Promise.reject(error);
+		}
 	}
 
 	getInfo() {
-		// Resolves promise of device information. Rejects if error occurred.
+		// Resolves promise of router information. Rejects if error occurred.
 		// console.log('Get router info');
 		return new Promise((resolve, reject) => {
 			const message = soapGetInfo(this.sessionId);
 			this._makeRequest(actionGetInfo,	message)
 				.then((result) => {
-					parseString(result.body, async (err, res) => {
+					const patchedBody = result.body
+						.replace(/soap-env:envelope/gi, 'soap-env:envelope')
+						.replace(/soap-env:body/gi, 'soap-env:body');
+					parseString(patchedBody, async (err, res) => {
 						if (err) {
 							return reject(err);
 						}
-						const soapBody = await getSoapBody(res)
-							.catch((error) => {
-								reject(error);
-							});
-						// const entries = res['soap-env:Envelope']['soap-env:Body'][0]['m:GetInfoResponse'][0];
-						const entries = soapBody['m:GetInfoResponse'][0];
+						const entries = res['soap-env:envelope']['soap-env:body'][0]['m:GetInfoResponse'][0];
 						if (Object.keys(entries).length < 2) {
-							return reject(Error('Error parsing device-list'));
+							return reject(Error('Error parsing router info'));
 						}
 						const info = {};
 						Object.keys(entries).forEach((property) => {
-							if (entries.hasOwnProperty(property) && Array.isArray(entries[property])) {
+							if (Object.prototype.hasOwnProperty.call(entries, property) && Array.isArray(entries[property])) {
 								info[property] = entries[property][0];
 							}
 						});
@@ -425,54 +380,60 @@ class NetgearRouter {
 		});
 	}
 
-	getAttachedDevices() {
+	async getAttachedDevices() {
 		// Resolves promise list of connected devices to the router. Rejects if error occurred.
 		// console.log('Get attached devices');
-		return new Promise((resolve, reject) => {
+		try {
 			const message = soapAttachedDevices(this.sessionId);
-			this._makeRequest(actionGetAttachedDevices, message)
-				.then((result) => {
-					const devices = [];
-					const raw = regexAttachedDevices.exec(result.body)[1];
-					const decoded = raw.replace(unknownDeviceEncoded, unknownDeviceDecoded);
-					const entries = decoded.split('@');
-					if (entries.length < 1) {
-						return reject(Error('Error parsing device-list (soap v2)'));
+			const result = await this._makeRequest(actionGetAttachedDevices, message);
+			const devices = [];
+			const patchedBody = result.body
+				.replace(/\r?\n|\r/g, ' ')
+				.replace(/&lt/g, '')
+				.replace(/&gt/g, '')
+				.replace(/<Name>/g, '<Name><![CDATA[')
+				.replace(/<\/Name>/g, ']]></Name>')
+				.replace(/<DeviceModel>/g, '<DeviceModel><![CDATA[')
+				.replace(/<\/DeviceModel>/g, ']]></DeviceModel>')
+				.replace(/<DeviceTypeName>/g, '<DeviceTypeName><![CDATA[')
+				.replace(/<\/DeviceTypeName>/g, ']]></DeviceTypeName>');
+			const raw = regexAttachedDevices.exec(patchedBody)[1];
+			const entries = raw.split('@');
+			if (entries.length < 1) {
+				throw Error('Error parsing device-list (soap v2)');
+			}
+			Object.keys(entries).forEach((entry) => {
+				const info = entries[entry].split(';');
+				if (info.length === 0) {
+					throw Error('Error parsing device-list (soap v2)');
+				}
+				if (info.length >= 5) { // Ignore first element if it is the total device count (info.length == 1)
+					const device = {
+						IP: info[1],				// e.g. '10.0.0.10'
+						Name: info[2],			// '--' for unknown
+						MAC: info[3],				// e.g. '61:56:FA:1B:E1:21'
+						ConnectionType: 'unknown',	// 'wired' or 'wireless'
+						Linkspeed: 0,				// number >= 0, or NaN for wired linktype
+						SignalStrength: 0,	// number <= 100
+						AllowOrBlock: 'unknown',		// 'Allow' or 'Block'
+					};
+					// Not all routers will report link type and rate
+					if (info.length >= 7) {
+						device.ConnectionType = info[4];
+						device.Linkspeed = parseInt(info[5], 10);
+						device.SignalStrength = parseInt(info[6], 10);
 					}
-					Object.keys(entries).forEach((entry) => {
-						const info = entries[entry].split(';');
-						if (info.length === 0) {
-							return reject(Error('Error parsing device-list (soap v2)'));
-						}
-						if (info.length >= 5) { // Ignore first element if it is the total device count (info.length == 1)
-							const device = {
-								IP: info[1],				// e.g. '10.0.0.10'
-								Name: info[2],			// '--' for unknown
-								MAC: info[3],				// e.g. '61:56:FA:1B:E1:21'
-								ConnectionType: 'unknown',	// 'wired' or 'wireless'
-								Linkspeed: 0,				// number >= 0, or NaN for wired linktype
-								SignalStrength: 0,	// number <= 100
-								AllowOrBlock: 'unknown',		// 'Allow' or 'Block'
-							};
-							// Not all routers will report link type and rate
-							if (info.length >= 7) {
-								device.ConnectionType = info[4];
-								device.Linkspeed = parseInt(info[5], 10);
-								device.SignalStrength = parseInt(info[6], 10);
-							}
-							if (info.length >= 8) {
-								device.AllowOrBlock = info[7];
-							}
-							devices.push(device);
-						}
-						return devices;
-					});
-					return resolve(devices);
-				})
-				.catch((error) => {
-					reject(error);	// request failed because login failed
-				});
-		});
+					if (info.length >= 8) {
+						device.AllowOrBlock = info[7];
+					}
+					devices.push(device);
+				}
+				return devices;
+			});
+			return Promise.resolve(devices);
+		} catch (error) {
+			return Promise.reject(error);
+		}
 	}
 
 	getAttachedDevices2() {
@@ -490,17 +451,15 @@ class NetgearRouter {
 						.replace(/<DeviceModel>/g, '<DeviceModel><![CDATA[')
 						.replace(/<\/DeviceModel>/g, ']]></DeviceModel>')
 						.replace(/<DeviceTypeName>/g, '<DeviceTypeName><![CDATA[')
-						.replace(/<\/DeviceTypeName>/g, ']]></DeviceTypeName>');
+						.replace(/<\/DeviceTypeName>/g, ']]></DeviceTypeName>')
+						.replace(/soap-env:envelope/gi, 'soap-env:envelope')
+						.replace(/soap-env:body/gi, 'soap-env:body');
 					parseString(patchedBody, async (err, res) => {
 						if (err) {
 							reject(Error(`Error parsing xml device-list: ${err}`));
 							return;
 						}
-						const soapBody = await getSoapBody(res)
-							.catch((error) => {
-								reject(error);
-							});
-						const entries = soapBody['m:GetAttachDevice2Response'][0].NewAttachDevice[0].Device;
+						const entries = res['soap-env:envelope']['soap-env:body'][0]['m:GetAttachDevice2Response'][0].NewAttachDevice[0].Device;
 						if (entries === undefined) {
 							reject(Error(`Error parsing device-list (entries undefined) ${res}`));
 							return;
@@ -555,24 +514,23 @@ class NetgearRouter {
 		});
 	}
 
-	getTrafficMeter() {
+	async getTrafficMeter() {
 		// Resolves promise of traffic meter stats. Rejects if error occurred.
 		// console.log('Get traffic meter');
-		return new Promise((resolve, reject) => {
+		try {
 			const message = soapTrafficMeter(this.sessionId);
-			this._makeRequest(actionGetTrafficMeter,	message)
-				.then((result) => {
-					const newTodayUpload = Number(regexNewTodayUpload.exec(result.body)[1].replace(',', ''));
-					const newTodayDownload = Number(regexNewTodayDownload.exec(result.body)[1].replace(',', ''));
-					const newMonthUpload = Number(regexNewMonthUpload.exec(result.body)[1].split('/')[0].replace(',', ''));
-					const newMonthDownload = Number(regexNewMonthDownload.exec(result.body)[1].split('/')[0].replace(',', ''));
-					const traffic = {	newTodayUpload, newTodayDownload, newMonthUpload, newMonthDownload };	// in Mbytes
-					return resolve(traffic);
-				})
-				.catch((error) => {
-					reject(error);
-				});
-		});
+			const result = await this._makeRequest(actionGetTrafficMeter,	message);
+			const newTodayUpload = Number(regexNewTodayUpload.exec(result.body)[1].replace(',', ''));
+			const newTodayDownload = Number(regexNewTodayDownload.exec(result.body)[1].replace(',', ''));
+			const newMonthUpload = Number(regexNewMonthUpload.exec(result.body)[1].split('/')[0].replace(',', ''));
+			const newMonthDownload = Number(regexNewMonthDownload.exec(result.body)[1].split('/')[0].replace(',', ''));
+			const traffic = {
+				newTodayUpload, newTodayDownload, newMonthUpload, newMonthDownload,
+			};	// in Mbytes
+			return Promise.resolve(traffic);
+		} catch (error) {
+			return Promise.reject(error);
+		}
 	}
 
 	setGuestAccessEnabled(enabled) { // true or false
@@ -637,10 +595,11 @@ class NetgearRouter {
 				const message = soapSetBlockDevice(this.sessionId, MAC, AllowOrBlock);
 				await this._makeRequest(actionSetBlockDevice, message)
 					.catch((error) => {
-						if (error.message.includes('<ResponseCode>002</ResponseCode>')) {
+						if (error.message.includes('Invalid response code from router: 001')) {
+							this.loggedIn = true;
 							return reject(Error(`Block/Allow failed for ${MAC}. Unknown MAC address?`));
-						} else if (error.message.includes('<ResponseCode>402</ResponseCode>')) {
-							return reject(Error(`Block/Allow failed for ${MAC}. Unknown MAC address.`));
+						} else if (error.message.includes('Invalid response code from router: 002')) {
+							return reject(Error(`Block/Allow failed for ${MAC}. Device not connected?`));
 						}
 						return reject(error);
 					});
@@ -659,95 +618,73 @@ class NetgearRouter {
 		});
 	}
 
-	reboot() {
+	async reboot() {
 		// Resolves promise of reboot started. Rejects if error occurred.
 		// console.log('router reboot requested');
-		return new Promise(async (resolve, reject) => {
+		try {
 			await this.configurationStarted()
 				.catch((err) => {
-					reject(Error(`Reboot request failed. (config started failure: ${err})`));
+					throw Error(`Reboot request failed. (config started failure: ${err})`);
 				});
 			const message = soapReboot(this.sessionId);
-			this._makeRequest(actionReboot,	message)
-				.then(async (result) => {
-					await this.configurationFinished()
-						.then(() => {
-							resolve(true); // reboot initiated
-						})
-						.catch((err) => {
-							const responseCode = regexResponseCode.exec(err)[1];
-							return reject(Error(`Reboot request finished with warning. (config finished failure: ${responseCode})`));
-						});
-				})
-				.catch((error) => {
-					reject(error);
+			await this._makeRequest(actionReboot,	message);
+			await this.configurationFinished()
+				.catch((err) => {
+					const responseCode = regexResponseCode.exec(err)[1];
+					throw Error(`Reboot request finished with warning. (config finished failure: ${responseCode})`);
 				});
-		});
+			return Promise.resolve(true); // reboot initiated
+		} catch (error) {
+			return Promise.reject(error);
+		}
 	}
 
-	configurationStarted() {
+	async configurationStarted() {
 		// Resolves promise of config start status. Rejects if error occurred.
 		// console.log('start configuration');
-		return new Promise((resolve, reject) => {
+		try {
 			const message = soapConfigurationStarted(this.sessionId);
-			this._makeRequest(actionConfigurationStarted, message)
-				.then((result) => {
-					if (isValidResponse(result)) {
-						this.configStarted = true;
-						return resolve(true);
-					}
-					return reject(Error(`${result.statusCode}`));
-				})
-				.catch((err) => {	// config start failed...
-					reject(err);
-				});
-		});
+			await this._makeRequest(actionConfigurationStarted, message);
+			this.configStarted = true;
+			return Promise.resolve(true);
+		} catch (error) {
+			return Promise.reject(error);
+		}
 	}
 
 
-	configurationFinished() {
+	async configurationFinished() {
 		// Resolves promise of config finish status. Rejects if error occurred.
 		// console.log('finish configuration');
-		return new Promise((resolve, reject) => {
+		try {
 			if (this.configStarted === false) {	// already finished
-				return resolve(true);
+				return Promise.resolve(true);
 			}
 			this.configStarted = false;
 			const message = soapConfigurationFinished(this.sessionId);
-			this._makeRequest(actionConfigurationFinished, message)
-				.then((result) => {
-					if (isValidResponse(result)) {
-						return resolve(true);
-					}
-					return reject(Error(`${result.statusCode}`));
-				})
+			await this._makeRequest(actionConfigurationFinished, message)
 				.catch((err) => {	// config finished failed...
 					if (err.message.includes('<ResponseCode>501</ResponseCode>')) {
-						return resolve('finished with warning');	// config already finished before
+						return Promise.resolve('finished with warning');	// config already finished before
 					}
 					this.configStarted = true;
-					return reject(err);
+					throw err;
 				});
-		});
+			return Promise.resolve(true);
+		} catch (error) {
+			return Promise.reject(error);
+		}
 	}
 
-	_makeRequest(action, message) {
-		// console.log(this.httpAgent);
-		return new Promise((resolve, reject) => {
+	async _makeRequest(action, message) {
+		try {
 			if (!this.loggedIn && action !== actionLogin) {
-				return reject(Error('Not logged in'));
+				return Promise.reject(Error('Not logged in'));
 			}
 			const headers = {
 				SOAPAction: action,
 				Connection: 'keep-alive',
 				'Content-Length': Buffer.byteLength(message),
-				// Host: `${this.host}:${this.port}`,
-				// Pragma: 'no-cache',
-				// Accept: 'text/xml',
-				// 'Accept-Encoding': 'gzip, deflate',
-				// 'Content-Type': 'text/xml; charset="UTF-8"',
-				// 'Cache-Control': 'no-cache',
-				// 'Accept-Language': 'nl-nl',
 				'User-Agent': 'node-netgearjs',
 			};
 			const options = {
@@ -756,46 +693,53 @@ class NetgearRouter {
 				path: '/soap/server_sa/',
 				headers,
 				method: 'POST',
-				// agent: this.httpAgent,
-				// auth: `${this.username}:${this.password}`,
 			};
-			const router = this;
+			const result = await this._makeHttpRequest(options, message);
+			// request successfull
+			if (result.statusCode === 200 && result.body.includes('<ResponseCode>000</ResponseCode>')) {
+				return Promise.resolve(result);
+			}
+			// request failed
+			this.loggedIn = false;
+			if (result.statusCode !== 200) {
+				throw Error(`HTTP request Failed. Status Code: ${result.statusCode}`);
+			}
+			if (result.body.includes('<ResponseCode>401</ResponseCode>')) {
+				throw Error('incorrect username/password');
+			}
+			if (result.body.includes('<ResponseCode>')) {
+				const responseCode = regexResponseCode.exec(result.body)[1];
+				throw Error(`Invalid response code from router: ${responseCode}`);
+			}
+			throw Error('Invalid response. Wrong IP or SOAP port?');
+		} catch (error) {
+			return Promise.reject(error);
+		}
+	}
+
+	_makeHttpRequest(options, postData) {
+		return new Promise((resolve, reject) => {
 			const req = http.request(options, (res) => {
-				const { statusCode } = res;
-				const contentType = res.headers['content-type'];
-				let error;
-				if (statusCode !== 200) {
-					error = new Error(`Request Failed. Status Code: ${statusCode}`);
-				}
-				if (error) {
-					// consume response data to free up memory
-					res.resume();
-					reject(error);
-					return;
-				}
 				let resBody = '';
 				res.on('data', (chunk) => {
 					resBody += chunk;
 				});
-				res.on('end', () => {
+				res.once('end', () => {
 					res.body = resBody;
-					const success = isValidResponse(res);
-					if (success) { return resolve(res); } // resolve the request
-					router.loggedIn = false; // request failed
-					reject(Error(`invalid response code from router`)); //: ${res.body}`));
+					return resolve(res); // resolve the request
 				});
 			});
-			req.on('error', (e) => {
+			req.write(postData);
+			req.end();
+			req.setTimeout(this.timeout, () => {
+				req.abort();
+			});
+			req.once('error', (e) => {
 				reject(e);
 			});
-			req.setTimeout(15000, () => {
-				req.abort();
-				reject(Error('Connection timeout'));
-			});
-			req.write(message);
-			req.end();
 		});
 	}
+
 }
 
 module.exports = NetgearRouter;
