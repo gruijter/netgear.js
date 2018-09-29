@@ -19,8 +19,9 @@ const actionConfigurationStarted = 'urn:NETGEAR-ROUTER:service:DeviceConfig:1#Co
 const actionConfigurationFinished = 'urn:NETGEAR-ROUTER:service:DeviceConfig:1#ConfigurationFinished';
 const actionSetBlockDevice = 'urn:NETGEAR-ROUTER:service:DeviceConfig:1#SetBlockDeviceByMAC';
 const actionSetGuestAccessEnabled = 'urn:NETGEAR-ROUTER:service:WLANConfiguration:1#SetGuestAccessEnabled';
+const actionSetGuestAccessEnabled2 = 'urn:NETGEAR-ROUTER:service:WLANConfiguration:1#SetGuestAccessEnabled2';
 const actionSet5GGuestAccessEnabled = 'urn:NETGEAR-ROUTER:service:WLANConfiguration:1#Set5GGuestAccessEnabled';
-const actionSet5GGuestAccessEnabled2 = 'urn:NETGEAR-ROUTER:service:WLANConfiguration:1#Set5G1GuestAccessEnabled2';
+const actionSet5GGuestAccessEnabled2 = 'urn:NETGEAR-ROUTER:service:WLANConfiguration:1#Set5GGuestAccessEnabled2';
 const actionReboot = 'urn:NETGEAR-ROUTER:service:DeviceConfig:1#Reboot';
 
 const defaultSessionId = 'A7D88AE69687E58D9A00';	// '10588AE69687E58D9A00'
@@ -39,186 +40,141 @@ const defaultUser = 'admin';
 const defaultPassword = 'password';
 // const defaultPort = 5000;	// 80 for orbi and R7800
 
+function soapEnvelope(sessionId, soapBody) {
+	const soapRequest = `<?xml version="1.0" encoding="utf-8" standalone="no"?>
+	<SOAP-ENV:Envelope xmlns:SOAPSDK1="http://www.w3.org/2001/XMLSchema"
+		xmlns:SOAPSDK2="http://www.w3.org/2001/XMLSchema-instance"
+		xmlns:SOAPSDK3="http://schemas.xmlsoap.org/soap/encoding/"
+		xmlns:SOAP-ENV="http://schemas.xmlsoap.org/soap/envelope/">
+	<SOAP-ENV:Header>
+	<SessionID>${sessionId}</SessionID>
+	</SOAP-ENV:Header>
+	${soapBody}
+	</SOAP-ENV:Envelope>`;
+	return soapRequest;
+}
+
 function soapLogin(sessionId, username, password) {
-	return `<?xml version="1.0" encoding="utf-8" standalone="no"?>
-<SOAP-ENV:Envelope xmlns:SOAPSDK1="http://www.w3.org/2001/XMLSchema" xmlns:SOAPSDK2="http://www.w3.org/2001/XMLSchema-instance" xmlns:SOAPSDK3="http://schemas.xmlsoap.org/soap/encoding/" xmlns:SOAP-ENV="http://schemas.xmlsoap.org/soap/envelope/">
-<SOAP-ENV:Header>
-<SessionID>${sessionId}</SessionID>
-</SOAP-ENV:Header>
-<SOAP-ENV:Body>
-<Authenticate>
-<NewUsername xsi:type="xsd:string" xmlns:xsi="http://www.w3.org/1999/XMLSchema-instance">${username}</NewUsername>
-<NewPassword xsi:type="xsd:string" xmlns:xsi="http://www.w3.org/1999/XMLSchema-instance">${password}</NewPassword>
-</Authenticate>
-</SOAP-ENV:Body>
-</SOAP-ENV:Envelope>`;
+	const soapBody = `<SOAP-ENV:Body>
+	<Authenticate>
+		<NewUsername xsi:type="xsd:string" xmlns:xsi="http://www.w3.org/1999/XMLSchema-instance">${username}</NewUsername>
+		<NewPassword xsi:type="xsd:string" xmlns:xsi="http://www.w3.org/1999/XMLSchema-instance">${password}</NewPassword>
+	</Authenticate>
+	</SOAP-ENV:Body>`;
+	return soapEnvelope(sessionId, soapBody);
 }
 
 function soapGetInfo(sessionId) {
-	return `<?xml version="1.0" encoding="utf-8" standalone="no"?>
-<SOAP-ENV:Envelope xmlns:SOAPSDK1="http://www.w3.org/2001/XMLSchema" xmlns:SOAPSDK2="http://www.w3.org/2001/XMLSchema-instance" xmlns:SOAPSDK3="http://schemas.xmlsoap.org/soap/encoding/" xmlns:SOAP-ENV="http://schemas.xmlsoap.org/soap/envelope/">
-<SOAP-ENV:Header>
-<SessionID>${sessionId}</SessionID>
-</SOAP-ENV:Header>
-<SOAP-ENV:Body>
-<M1:GetInfo xmlns:M1="urn:NETGEAR-ROUTER:service:DeviceInfo:1">
-</M1:GetInfo>
-</SOAP-ENV:Body>
-</SOAP-ENV:Envelope>
-`;
+	const soapBody = `<SOAP-ENV:Body>
+		<M1:GetInfo xmlns:M1="urn:NETGEAR-ROUTER:service:DeviceInfo:1">
+		</M1:GetInfo>
+	</SOAP-ENV:Body>`;
+	return soapEnvelope(sessionId, soapBody);
 }
 
 function soapConfigurationStarted(sessionId) {
-	return `<?xml version="1.0" encoding="utf-8" standalone="no"?>
-<SOAP-ENV:Envelope xmlns:SOAPSDK1="http://www.w3.org/2001/XMLSchema" xmlns:SOAPSDK2="http://www.w3.org/2001/XMLSchema-instance" xmlns:SOAPSDK3="http://schemas.xmlsoap.org/soap/encoding/" xmlns:SOAP-ENV="http://schemas.xmlsoap.org/soap/envelope/">
-<SOAP-ENV:Header>
-<SessionID>${sessionId}</SessionID>
-</SOAP-ENV:Header>
-<SOAP-ENV:Body>
-<M1:ConfigurationStarted xmlns:M1="urn:NETGEAR-ROUTER:service:DeviceConfig:1">
-<NewSessionID>${sessionId}</NewSessionID>
-</M1:ConfigurationStarted>
-</SOAP-ENV:Body>
-</SOAP-ENV:Envelope>
-`;
+	const soapBody = `<SOAP-ENV:Body>
+		<M1:ConfigurationStarted xmlns:M1="urn:NETGEAR-ROUTER:service:DeviceConfig:1">
+			<NewSessionID>${sessionId}</NewSessionID>
+			</M1:ConfigurationStarted>
+	</SOAP-ENV:Body>`;
+	return soapEnvelope(sessionId, soapBody);
 }
 
 function soapConfigurationFinished(sessionId) {
-	return `<?xml version="1.0" encoding="utf-8" standalone="no"?>
-<SOAP-ENV:Envelope xmlns:SOAPSDK1="http://www.w3.org/2001/XMLSchema" xmlns:SOAPSDK2="http://www.w3.org/2001/XMLSchema-instance" xmlns:SOAPSDK3="http://schemas.xmlsoap.org/soap/encoding/" xmlns:SOAP-ENV="http://schemas.xmlsoap.org/soap/envelope/">
-<SOAP-ENV:Header>
-<SessionID>${sessionId}</SessionID>
-</SOAP-ENV:Header>
-<SOAP-ENV:Body>
-<M1:ConfigurationFinished xmlns:M1="urn:NETGEAR-ROUTER:service:DeviceConfig:1">
-<NewStatus>ChangesApplied</NewStatus>
-</M1:ConfigurationFinished>
-</SOAP-ENV:Body>
-</SOAP-ENV:Envelope>
-`;
+	const soapBody = `<SOAP-ENV:Body>
+		<M1:ConfigurationFinished xmlns:M1="urn:NETGEAR-ROUTER:service:DeviceConfig:1">
+			<NewStatus>ChangesApplied</NewStatus>
+		</M1:ConfigurationFinished>
+	</SOAP-ENV:Body>`;
+	return soapEnvelope(sessionId, soapBody);
 }
 
 function soapSetBlockDevice(sessionId, mac, AllowOrBlock) {
-	return `<?xml version="1.0" encoding="utf-8" standalone="no"?>
-<SOAP-ENV:Envelope xmlns:SOAPSDK1="http://www.w3.org/2001/XMLSchema" xmlns:SOAPSDK2="http://www.w3.org/2001/XMLSchema-instance" xmlns:SOAPSDK3="http://schemas.xmlsoap.org/soap/encoding/" xmlns:SOAP-ENV="http://schemas.xmlsoap.org/soap/envelope/">
-<SOAP-ENV:Header>
-<SessionID>${sessionId}</SessionID>
-</SOAP-ENV:Header>
-<SOAP-ENV:Body>
-<M1:SetBlockDeviceByMAC xmlns:M1="urn:NETGEAR-ROUTER:service:DeviceConfig:1">
-<NewAllowOrBlock>${AllowOrBlock}</NewAllowOrBlock>
-<NewMACAddress>${mac}</NewMACAddress>
-</M1:SetBlockDeviceByMAC>
-</SOAP-ENV:Body>
-</SOAP-ENV:Envelope>
-`;
+	const soapBody = `<SOAP-ENV:Body>
+		<M1:SetBlockDeviceByMAC xmlns:M1="urn:NETGEAR-ROUTER:service:DeviceConfig:1">
+			<NewAllowOrBlock>${AllowOrBlock}</NewAllowOrBlock>
+			<NewMACAddress>${mac}</NewMACAddress>
+		</M1:SetBlockDeviceByMAC>
+	</SOAP-ENV:Body>`;
+	return soapEnvelope(sessionId, soapBody);
+}
+
+function soapSetBlockDevice(sessionId, mac, AllowOrBlock) {
+	const soapBody = `<SOAP-ENV:Body>
+		<M1:SetBlockDeviceByMAC xmlns:M1="urn:NETGEAR-ROUTER:service:DeviceConfig:1">
+			<NewAllowOrBlock>${AllowOrBlock}</NewAllowOrBlock>
+			<NewMACAddress>${mac}</NewMACAddress>
+		</M1:SetBlockDeviceByMAC>
+	</SOAP-ENV:Body>`;
+	return soapEnvelope(sessionId, soapBody);
 }
 
 function soapAttachedDevices(sessionId) {
-	return `<?xml version="1.0" encoding="utf-8" standalone="no"?>
-<SOAP-ENV:Envelope xmlns:SOAPSDK1="http://www.w3.org/2001/XMLSchema" xmlns:SOAPSDK2="http://www.w3.org/2001/XMLSchema-instance"	xmlns:SOAPSDK3="http://schemas.xmlsoap.org/soap/encoding/" xmlns:SOAP-ENV="http://schemas.xmlsoap.org/soap/envelope/">
-<SOAP-ENV:Header>
-<SessionID>${sessionId}</SessionID>
-</SOAP-ENV:Header>
-<SOAP-ENV:Body>
-<M1:GetAttachDevice xmlns:M1="urn:NETGEAR-ROUTER:service:DeviceInfo:1">
-</M1:GetAttachDevice>
-</SOAP-ENV:Body>
-</SOAP-ENV:Envelope>
-`;
+	const soapBody = `<SOAP-ENV:Body>
+		<M1:GetAttachDevice xmlns:M1="urn:NETGEAR-ROUTER:service:DeviceInfo:1">
+		</M1:GetAttachDevice>
+	</SOAP-ENV:Body>`;
+	return soapEnvelope(sessionId, soapBody);
 }
 
 function soapAttachedDevices2(sessionId) {
-	return `<?xml version="1.0" encoding="utf-8" standalone="no"?>
-<SOAP-ENV:Envelope xmlns:SOAPSDK1="http://www.w3.org/2001/XMLSchema" xmlns:SOAPSDK2="http://www.w3.org/2001/XMLSchema-instance" xmlns:SOAPSDK3="http://schemas.xmlsoap.org/soap/encoding/" xmlns:SOAP-ENV="http://schemas.xmlsoap.org/soap/envelope/">
-<SOAP-ENV:Header>
-<SessionID>${sessionId}</SessionID>
-</SOAP-ENV:Header>
-<SOAP-ENV:Body>
-<M1:GetAttachDevice2 xmlns:M1="urn:NETGEAR-ROUTER:service:DeviceInfo:1">
-</M1:GetAttachDevice2>
-</SOAP-ENV:Body>
-</SOAP-ENV:Envelope>
-`;
+	const soapBody = `<SOAP-ENV:Body>
+		<M1:GetAttachDevice2 xmlns:M1="urn:NETGEAR-ROUTER:service:DeviceInfo:1">
+		</M1:GetAttachDevice2>
+	</SOAP-ENV:Body>`;
+	return soapEnvelope(sessionId, soapBody);
 }
 
 function soapTrafficMeter(sessionId) {
-	return `<?xml version="1.0" encoding="UTF-8" standalone="no"?>
-<SOAP-ENV:Envelope xmlns:SOAPSDK1="http://www.w3.org/2001/XMLSchema" xmlns:SOAPSDK2="http://www.w3.org/2001/XMLSchema-instance" xmlns:SOAPSDK3="http://schemas.xmlsoap.org/soap/encoding/" xmlns:SOAP-ENV="http://schemas.xmlsoap.org/soap/envelope/">
-<SOAP-ENV:Header>
-<SessionID>${sessionId}</SessionID>
-</SOAP-ENV:Header>
-<SOAP-ENV:Body>
-<M1:GetTrafficMeterStatistics xmlns:M1="urn:NETGEAR-ROUTER:service:DeviceConfig:1"></M1:GetTrafficMeterStatistics>
-</SOAP-ENV:Body>
-</SOAP-ENV:Envelope>
-`;
+	const soapBody = `<SOAP-ENV:Body>
+		<M1:GetTrafficMeterStatistics xmlns:M1="urn:NETGEAR-ROUTER:service:DeviceConfig:1"></M1:GetTrafficMeterStatistics>
+	</SOAP-ENV:Body>`;
+	return soapEnvelope(sessionId, soapBody);
 }
 
 function soapSetGuestAccessEnabled(sessionId, enabled) {
-	return `<?xml version="1.0" encoding="UTF-8" standalone="no"?>
-<SOAP-ENV:Envelope xmlns:SOAPSDK1="http://www.w3.org/2001/XMLSchema" xmlns:SOAPSDK2="http://www.w3.org/2001/XMLSchema-instance" xmlns:SOAPSDK3="http://schemas.xmlsoap.org/soap/encoding/" xmlns:SOAP-ENV="http://schemas.xmlsoap.org/soap/envelope/">
-<SOAP-ENV:Header>
-<SessionID>${sessionId}</SessionID>
-</SOAP-ENV:Header>
-<SOAP-ENV:Body>
-<M1:SetGuestAccessEnabled xmlns:M1="urn:NETGEAR-ROUTER:service:WLANConfiguration:1">
-<NewGuestAccessEnabled>${enabled*1}</NewGuestAccessEnabled>
-</M1:SetGuestAccessEnabled>
-</SOAP-ENV:Body>
-</SOAP-ENV:Envelope>
-`;
+	const soapBody = `<SOAP-ENV:Body>
+		<M1:SetGuestAccessEnabled xmlns:M1="urn:NETGEAR-ROUTER:service:WLANConfiguration:1">
+			<NewGuestAccessEnabled>${enabled*1}</NewGuestAccessEnabled>
+		</M1:SetGuestAccessEnabled>
+	</SOAP-ENV:Body>`;
+	return soapEnvelope(sessionId, soapBody);
+}
+
+function soapSetGuestAccessEnabled2(sessionId, enabled) {
+	const soapBody = `<SOAP-ENV:Body>
+		<M1:SetGuestAccessEnabled2 xmlns:M1="urn:NETGEAR-ROUTER:service:WLANConfiguration:1">
+			<NewGuestAccessEnabled>${enabled*1}</NewGuestAccessEnabled>
+		</M1:SetGuestAccessEnabled2>
+	</SOAP-ENV:Body>`;
+	return soapEnvelope(sessionId, soapBody);
 }
 
 function soapSet5GGuestAccessEnabled(sessionId, enabled) {
-	return `<?xml version="1.0" encoding="UTF-8" standalone="no"?>
-<SOAP-ENV:Envelope xmlns:SOAPSDK1="http://www.w3.org/2001/XMLSchema" xmlns:SOAPSDK2="http://www.w3.org/2001/XMLSchema-instance" xmlns:SOAPSDK3="http://schemas.xmlsoap.org/soap/encoding/" xmlns:SOAP-ENV="http://schemas.xmlsoap.org/soap/envelope/">
-<SOAP-ENV:Header>
-<SessionID>${sessionId}</SessionID>
-</SOAP-ENV:Header>
-<SOAP-ENV:Body>
-<M1:Set5GGuestAccessEnabled xmlns:M1="urn:NETGEAR-ROUTER:service:WLANConfiguration:1">
-<NewGuestAccessEnabled>${enabled*1}</NewGuestAccessEnabled>
-</M1:Set5GGuestAccessEnabled>
-</SOAP-ENV:Body>
-</SOAP-ENV:Envelope>
-`;
+	const soapBody = `<SOAP-ENV:Body>
+		<M1:Set5GGuestAccessEnabled xmlns:M1="urn:NETGEAR-ROUTER:service:WLANConfiguration:1">
+			<NewGuestAccessEnabled>${enabled*1}</NewGuestAccessEnabled>
+		</M1:Set5GGuestAccessEnabled>
+	</SOAP-ENV:Body>`;
+	return soapEnvelope(sessionId, soapBody);
 }
 
-// function soapSetGuestAccessEnabled2(sessionId, enabled, ssid, ssid_key1, ssid_key2, ssid_key3, ssid_key4, securityMode) { // max 16 char per ssid_key chunk
-// 	return `<?xml version="1.0" encoding="UTF-8" standalone="no"?>
-// <SOAP-ENV:Envelope xmlns:SOAPSDK1="http://www.w3.org/2001/XMLSchema" xmlns:SOAPSDK2="http://www.w3.org/2001/XMLSchema-instance" xmlns:SOAPSDK3="http://schemas.xmlsoap.org/soap/encoding/" xmlns:SOAP-ENV="http://schemas.xmlsoap.org/soap/envelope/">
-// <SOAP-ENV:Header>
-// <SessionID>${sessionId}</SessionID>
-// </SOAP-ENV:Header>
-// <SOAP-ENV:Body>
-// <M1:SetGuestAccessEnabled2 xmlns:M1="urn:NETGEAR-ROUTER:service:WLANConfiguration:1">
-// <NewGuestAccessEnabled>${enabled*1}</NewGuestAccessEnabled>
-// <NewKey1>${ssid_key1}</NewKey1>
-// <NewKey2>${ssid_key2}</NewKey2>
-// <NewKey3>${ssid_key3}</NewKey3>
-// <NewKey4>${ssid_key4}</NewKey4>
-// <NewSSID>${ssid}</NewSSID>
-// <NewSecurityMode>WPA2-PSK</NewSecurityMode>
-// </M1:SetGuestAccessEnabled2>
-// </SOAP-ENV:Body>
-// </SOAP-ENV:Envelope>
-// `;
-// }
-
+function soapSet5GGuestAccessEnabled2(sessionId, enabled) {
+	const soapBody = `<SOAP-ENV:Body>
+		<M1:Set5GGuestAccessEnabled2 xmlns:M1="urn:NETGEAR-ROUTER:service:WLANConfiguration:1">
+			<NewGuestAccessEnabled>${enabled*1}</NewGuestAccessEnabled>
+		</M1:Set5GGuestAccessEnabled2>
+	</SOAP-ENV:Body>`;
+	return soapEnvelope(sessionId, soapBody);
+}
 
 function soapReboot(sessionId) {
-	return `<?xml version="1.0" encoding="utf-8" standalone="no"?>
-<SOAP-ENV:Envelope xmlns:SOAPSDK1="http://www.w3.org/2001/XMLSchema" xmlns:SOAPSDK2="http://www.w3.org/2001/XMLSchema-instance" xmlns:SOAPSDK3="http://schemas.xmlsoap.org/soap/encoding/" xmlns:SOAP-ENV="http://schemas.xmlsoap.org/soap/envelope/">
-<SOAP-ENV:Header>
-<SessionID>${sessionId}</SessionID>
-</SOAP-ENV:Header>
-<SOAP-ENV:Body>
-<M1:Reboot xmlns:M1="urn:NETGEAR-ROUTER:service:DeviceConfig:1">
-</M1:Reboot>
-</SOAP-ENV:Body>
-</SOAP-ENV:Envelope>
-`;
+	const soapBody = `<SOAP-ENV:Body>
+		<M1:Reboot xmlns:M1="urn:NETGEAR-ROUTER:service:DeviceConfig:1">
+		</M1:Reboot>
+	</SOAP-ENV:Body>`;
+	return soapEnvelope(sessionId, soapBody);
 }
 
 class NetgearRouter {
@@ -558,6 +514,31 @@ class NetgearRouter {
 		});
 	}
 
+	setGuestAccessEnabled2(enabled) { // true or false
+		// Resolves promise of setGuestAccess (wifi). Rejects if error occurred.
+		// console.log('setGuestAccess requested');
+		return new Promise(async (resolve, reject) => {
+			await this.configurationStarted()
+				.catch((err) => {
+					reject(Error(`setGuestAccessEnabled2 request failed. (config started failure: ${err})`));
+				});
+			const message = soapSetGuestAccessEnabled2(this.sessionId, enabled);
+			await this._makeRequest(actionSetGuestAccessEnabled2, message)
+				.catch((error) => {
+					reject(error);
+				});
+			await this.configurationFinished()
+				.catch((err) => {
+					let responseCode = err;
+					if (err.message.includes('<ResponseCode>')) {
+						responseCode = regexResponseCode.exec(err)[1];
+					}
+					reject(Error(`setGuestAccessEnabled2 finished with warning. (config finished failure: ${responseCode})`));
+				});
+			return resolve(true);
+		});
+	}
+
 	set5GGuestAccessEnabled(enabled) { // true or false
 		// Resolves promise of setGuestAccess (wifi). Rejects if error occurred.
 		// console.log('setGuestAccess requested');
@@ -591,7 +572,7 @@ class NetgearRouter {
 				.catch((err) => {
 					reject(Error(`set5GGuestAccessEnabled2 request failed. (config started failure: ${err})`));
 				});
-			const message = soapSet5GGuestAccessEnabled(this.sessionId, enabled);
+			const message = soapSet5GGuestAccessEnabled2(this.sessionId, enabled);
 			await this._makeRequest(actionSet5GGuestAccessEnabled2, message)
 				.catch((error) => {
 					reject(error);
