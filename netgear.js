@@ -20,7 +20,7 @@ const actionConfigurationFinished = 'urn:NETGEAR-ROUTER:service:DeviceConfig:1#C
 const actionSetBlockDevice = 'urn:NETGEAR-ROUTER:service:DeviceConfig:1#SetBlockDeviceByMAC';
 const actionSetGuestAccessEnabled = 'urn:NETGEAR-ROUTER:service:WLANConfiguration:1#SetGuestAccessEnabled';
 const actionSet5GGuestAccessEnabled = 'urn:NETGEAR-ROUTER:service:WLANConfiguration:1#Set5GGuestAccessEnabled';
-// const actionSetGuestAccessEnabled2 = 'urn:NETGEAR-ROUTER:service:WLANConfiguration:1#SetGuestAccessEnabled2';
+const actionSet5GGuestAccessEnabled2 = 'urn:NETGEAR-ROUTER:service:WLANConfiguration:1#Set5G1GuestAccessEnabled2';
 const actionReboot = 'urn:NETGEAR-ROUTER:service:DeviceConfig:1#Reboot';
 
 const defaultSessionId = 'A7D88AE69687E58D9A00';	// '10588AE69687E58D9A00'
@@ -578,6 +578,31 @@ class NetgearRouter {
 						responseCode = regexResponseCode.exec(err)[1];
 					}
 					reject(Error(`set5GGuestAccessEnabled finished with warning. (config finished failure: ${responseCode})`));
+				});
+			return resolve(true);
+		});
+	}
+
+	set5GGuestAccessEnabled2(enabled) { // true or false
+		// Resolves promise of setGuestAccess (wifi). Rejects if error occurred.
+		// console.log('setGuestAccess requested');
+		return new Promise(async (resolve, reject) => {
+			await this.configurationStarted()
+				.catch((err) => {
+					reject(Error(`set5GGuestAccessEnabled2 request failed. (config started failure: ${err})`));
+				});
+			const message = soapSet5GGuestAccessEnabled(this.sessionId, enabled);
+			await this._makeRequest(actionSet5GGuestAccessEnabled2, message)
+				.catch((error) => {
+					reject(error);
+				});
+			await this.configurationFinished()
+				.catch((err) => {
+					let responseCode = err;
+					if (err.message.includes('<ResponseCode>')) {
+						responseCode = regexResponseCode.exec(err)[1];
+					}
+					reject(Error(`set5GGuestAccessEnabled2 finished with warning. (config finished failure: ${responseCode})`));
 				});
 			return resolve(true);
 		});
