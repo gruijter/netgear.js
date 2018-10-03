@@ -21,7 +21,7 @@ const actionSetBlockDevice = 'urn:NETGEAR-ROUTER:service:DeviceConfig:1#SetBlock
 const actionSetGuestAccessEnabled = 'urn:NETGEAR-ROUTER:service:WLANConfiguration:1#SetGuestAccessEnabled';
 const actionSetGuestAccessEnabled2 = 'urn:NETGEAR-ROUTER:service:WLANConfiguration:1#SetGuestAccessEnabled2';
 const actionSet5GGuestAccessEnabled = 'urn:NETGEAR-ROUTER:service:WLANConfiguration:1#Set5GGuestAccessEnabled';
-const actionSet5GGuestAccessEnabled2 = 'urn:NETGEAR-ROUTER:service:WLANConfiguration:1#Set5GGuestAccessEnabled2';
+const actionSet5GGuestAccessEnabled2 = 'urn:NETGEAR-ROUTER:service:WLANConfiguration:1#Set5G1GuestAccessEnabled2';
 const actionReboot = 'urn:NETGEAR-ROUTER:service:DeviceConfig:1#Reboot';
 
 const defaultSessionId = 'A7D88AE69687E58D9A00';	// '10588AE69687E58D9A00'
@@ -156,15 +156,6 @@ function soapSet5GGuestAccessEnabled(sessionId, enabled) {
 		<M1:Set5GGuestAccessEnabled xmlns:M1="urn:NETGEAR-ROUTER:service:WLANConfiguration:1">
 			<NewGuestAccessEnabled>${enabled*1}</NewGuestAccessEnabled>
 		</M1:Set5GGuestAccessEnabled>
-	</SOAP-ENV:Body>`;
-	return soapEnvelope(sessionId, soapBody);
-}
-
-function soapSet5GGuestAccessEnabled2(sessionId, enabled) {
-	const soapBody = `<SOAP-ENV:Body>
-		<M1:Set5GGuestAccessEnabled2 xmlns:M1="urn:NETGEAR-ROUTER:service:WLANConfiguration:1">
-			<NewGuestAccessEnabled>${enabled*1}</NewGuestAccessEnabled>
-		</M1:Set5GGuestAccessEnabled2>
 	</SOAP-ENV:Body>`;
 	return soapEnvelope(sessionId, soapBody);
 }
@@ -572,7 +563,7 @@ class NetgearRouter {
 				.catch((err) => {
 					reject(Error(`set5GGuestAccessEnabled2 request failed. (config started failure: ${err})`));
 				});
-			const message = soapSet5GGuestAccessEnabled2(this.sessionId, enabled);
+			const message = soapSet5GGuestAccessEnabled(this.sessionId, enabled);
 			await this._makeRequest(actionSet5GGuestAccessEnabled2, message)
 				.catch((error) => {
 					reject(error);
