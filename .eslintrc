@@ -1,0 +1,16 @@
+{
+    "env": {
+        "es6": true,
+        "node": true
+    },
+    "extends": "airbnb",
+    "rules": {
+        "indent": [2, "tab", { "SwitchCase": 1, "VariableDeclarator": 1 }],
+        "no-tabs": 0,
+        "linebreak-style": 0,
+        "strict": 0,
+        "padded-blocks": 0,
+        "no-underscore-dangle": 0,
+        "max-len": ["error", { "comments": 250, "code": 150 }]
+    }
+}

@@ -27,13 +27,13 @@ async function getRouterInfo() {
 		const attachedDevices = await router.getAttachedDevices();
 		console.log(attachedDevices);
 
-		// get a list of attached devices with more information (only for SOAP V3)
-		const attachedDevices2 = await router.getAttachedDevices2();
-		console.log(attachedDevices2);
-
 		// get traffic statistics for this day and this month. Note: traffic monitoring must be enabled in router
 		const traffic = await router.getTrafficMeter();
 		console.log(traffic);
+
+		// check for new router firmware and release note
+		const firmware = await router.checkNewFirmware();
+		console.log(firmware);
 
 	}	catch (error) {
 		console.log(error);
@@ -65,14 +65,15 @@ blockOrAllow('AA:BB:CC:DD:EE:FF', 'Allow');
 async function doWifiStuff() {
 	try {
 		await router.login();
-		// enable 2.4GHz guest wifi
-		await router.setGuestAccessEnabled(true);
-		// enable 2nd 2.4GHz guest wifi. Only available on some routers
-		await router.setGuestAccessEnabled2(true);
-		// disable 5GHz guest wifi
-		await router.set5GGuestAccessEnabled(false);
-		// disable 2nd 5GHz guest wifi. Only available on some routers
-		await router.set5GGuestAccessEnabled2(false);
+		// enable 2.4GHz-1 guest wifi
+		await router.setGuestWifi(true);
+		console.log('2.4-1 enabled');
+		// disable 5GHz-1 guest wifi
+		await router.set5GGuestWifi(false);
+		console.log('5-1 disabled');
+		// disable 5GHz-2 guest wifi
+		await router.set5GGuestWifi2(false);
+		console.log('5-2 disabled');
 	}	catch (error) {
 		console.log(error);
 	}
@@ -86,7 +87,7 @@ async function reboot() {
 	try {
 		await router.login();
 		// Reboot the router
-		router.reboot();
+		await router.reboot();
 	}	catch (error) {
 		console.log(error);
 	}
