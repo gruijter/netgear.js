@@ -29,6 +29,9 @@ async function getRouterInfo() {
 		const firmware = await router.checkNewFirmware();
 		console.log(firmware);
 
+		// logout
+		await router.logout();
+
 	}	catch (error) {
 		console.log(error);
 	}
@@ -74,8 +77,35 @@ async function reboot() {
 	}
 }
 
+// function to update router firmware
+async function updateNewFirmware() {
+	try {
+		await router.login();
+		await router.updateNewFirmware();
+	}	catch (error) {
+		console.log(error);
+	}
+}
+
+// function to do internet speed test
+async function speedTest() {
+	try {
+		await router.login();
+		await router.speedTestStart();
+		console.log('speedtest started....');
+		await setTimeout(async () => {
+			const speed = await router.getSpeedTestResult();
+			console.log(speed);
+		}, 50 * 1000); // wait 50 seconds before getting the results
+	}	catch (error) {
+		console.log(error);
+	}
+}
+
 getRouterInfo();
 // blockOrAllow('AA:BB:CC:DD:EE:FF', 'Block');
 // blockOrAllow('AA:BB:CC:DD:EE:FF', 'Allow');
 // doWifiStuff();
 // reboot();
+// updateNewFirmware();
+// speedTest();

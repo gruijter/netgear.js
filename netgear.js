@@ -11,6 +11,7 @@ const { parseString } = require('xml2js');
 // const util = require('util');
 
 const actionLogin = 'urn:NETGEAR-ROUTER:service:ParentalControl:1#Authenticate';
+const actionLogout = 'urn:NETGEAR-ROUTER:service:DeviceConfig:1#SOAPLogout';
 const actionGetInfo = 'urn:NETGEAR-ROUTER:service:DeviceInfo:1#GetInfo';
 const actionGetAttachedDevices = 'urn:NETGEAR-ROUTER:service:DeviceInfo:1#GetAttachDevice';
 const actionGetAttachedDevices2 = 'urn:NETGEAR-ROUTER:service:DeviceInfo:1#GetAttachDevice2';
@@ -25,9 +26,9 @@ const actionSet5G1GuestAccessEnabled2 = 'urn:NETGEAR-ROUTER:service:WLANConfigur
 const actionSet5GGuestAccessEnabled2 = 'urn:NETGEAR-ROUTER:service:WLANConfiguration:1#Set5GGuestAccessEnabled2';
 const actionReboot = 'urn:NETGEAR-ROUTER:service:DeviceConfig:1#Reboot';
 const actionCheckNewFirmware = 'urn:NETGEAR-ROUTER:service:DeviceConfig:1#CheckNewFirmware';
-// const actionUpdateNewFirmware = 'urn:NETGEAR-ROUTER:service:DeviceConfig:1#UpdateNewFirmware';
-// const actionSpeedTest = 'urn:NETGEAR-ROUTER:service:AdvancedQOS:1#SetOOKLASpeedTestStart';
-// const actionSpeedTestResult = 'urn:NETGEAR-ROUTER:service:AdvancedQOS:1#GetOOKLASpeedTestResult';
+const actionUpdateNewFirmware = 'urn:NETGEAR-ROUTER:service:DeviceConfig:1#UpdateNewFirmware';
+const actionSpeedTestStart = 'urn:NETGEAR-ROUTER:service:AdvancedQoS:1#SetOOKLASpeedTestStart';
+const actionSpeedTestResult = 'urn:NETGEAR-ROUTER:service:AdvancedQoS:1#GetOOKLASpeedTestResult';
 
 const regexResponseCode = new RegExp(/<ResponseCode>(.*)<\/ResponseCode>/);
 const regexAttachedDevices = new RegExp(/<NewAttachDevice>(.*)<\/NewAttachDevice>/);
@@ -38,6 +39,9 @@ const regexNewMonthDownload = new RegExp(/<NewMonthDownload>(.*)<\/NewMonthDownl
 const regexCurrentVersion = new RegExp(/<CurrentVersion>(.*)<\/CurrentVersion>/);
 const regexNewVersion = new RegExp(/<NewVersion>(.*)<\/NewVersion>/);
 const regexReleaseNote = new RegExp(/<ReleaseNote>(.*)<\/ReleaseNote>/);
+const regexUplinkBandwidth = new RegExp(/<NewOOKLAUplinkBandwidth>(.*)<\/NewOOKLAUplinkBandwidth>/);
+const regexDownlinkBandwidth = new RegExp(/<NewOOKLADownlinkBandwidth>(.*)<\/NewOOKLADownlinkBandwidth>/);
+const regexAveragePing = new RegExp(/<AveragePing>(.*)<\/AveragePing>/);
 
 const defaultHost = 'routerlogin.net';
 const defaultUser = 'admin';
@@ -91,6 +95,14 @@ function soapLogin(sessionId, username, password) {
 		<NewUsername xsi:type="xsd:string" xmlns:xsi="http://www.w3.org/1999/XMLSchema-instance">${username}</NewUsername>
 		<NewPassword xsi:type="xsd:string" xmlns:xsi="http://www.w3.org/1999/XMLSchema-instance">${password}</NewPassword>
 	</Authenticate>
+	</SOAP-ENV:Body>`;
+	return soapEnvelope(sessionId, soapBody);
+}
+
+function soapLogout(sessionId) {
+	const soapBody = `<SOAP-ENV:Body>
+		<M1:SOAPLogout xmlns:M1="urn:NETGEAR-ROUTER:service:DeviceConfig:1">
+		</M1:SOAPLogout>
 	</SOAP-ENV:Body>`;
 	return soapEnvelope(sessionId, soapBody);
 }
@@ -209,35 +221,36 @@ function soapReboot(sessionId) {
 
 function soapCheckNewFirmware(sessionId) {
 	const soapBody = `<SOAP-ENV:Body>
-		<M1:CheckNewFirmware xsi:nil="true" xmlns:M1="urn:NETGEAR-ROUTER:service:AdvancedQOS:1">
+		<M1:CheckNewFirmware xmlns:M1="urn:NETGEAR-ROUTER:service:DeviceConfig:1">
 		</M1:CheckNewFirmware>
 	</SOAP-ENV:Body>`;
 	return soapEnvelope(sessionId, soapBody);
 }
 
-// function soapUpdateNewFirmware(sessionId) {
-// 	const soapBody = `<SOAP-ENV:Body>
-// 		<M1:UpdateNewFirmware xmlns:M1="urn:NETGEAR-ROUTER:service:DeviceConfig:1">
-// 		</M1:UpdateNewFirmware>
-// 	</SOAP-ENV:Body>`;
-// 	return soapEnvelope(sessionId, soapBody);
-// }
+function soapUpdateNewFirmware(sessionId) {
+	const soapBody = `<SOAP-ENV:Body>
+		<M1:UpdateNewFirmware xmlns:M1="urn:NETGEAR-ROUTER:service:DeviceConfig:1">
+		  <YesOrNo>1</YesOrNo>
+		</M1:UpdateNewFirmware>
+	</SOAP-ENV:Body>`;
+	return soapEnvelope(sessionId, soapBody);
+}
 
-// function soapSpeedTest(sessionId) {
-// 	const soapBody = `<SOAP-ENV:Body>
-// 		<M1:SetOOKLASpeedTestStart xsi:nil="true" xmlns:M1="urn:NETGEAR-ROUTER:service:AdvancedQOS:1">
-// 		</M1:SetOOKLASpeedTestStart>
-// 	</SOAP-ENV:Body>`;
-// 	return soapEnvelope(sessionId, soapBody);
-// }
-//
-// function soapSpeedTestResult(sessionId) {
-// 	const soapBody = `<SOAP-ENV:Body>
-// 		<M1:GetOOKLASpeedTestResult xsi:nil="true" xmlns:M1="urn:NETGEAR-ROUTER:service:AdvancedQOS:1">
-// 		</M1:GetOOKLASpeedTestResult>
-// 	</SOAP-ENV:Body>`;
-// 	return soapEnvelope(sessionId, soapBody);
-// }
+function soapSpeedTestStart(sessionId) {
+	const soapBody = `<SOAP-ENV:Body>
+		<M1:SetOOKLASpeedTestStart xmlns:M1="urn:NETGEAR-ROUTER:service:AdvancedQoS:1">
+		</M1:SetOOKLASpeedTestStart>
+	</SOAP-ENV:Body>`;
+	return soapEnvelope(sessionId, soapBody);
+}
+
+function soapSpeedTestResult(sessionId) {
+	const soapBody = `<SOAP-ENV:Body>
+		<M1:GetOOKLASpeedTestResult xmlns:M1="urn:NETGEAR-ROUTER:service:AdvancedQoS:1">
+		</M1:GetOOKLASpeedTestResult>
+	</SOAP-ENV:Body>`;
+	return soapEnvelope(sessionId, soapBody);
+}
 
 
 class NetgearRouter {
@@ -268,6 +281,18 @@ class NetgearRouter {
 			const message = soapLogin(this.sessionId, this.username, this.password);
 			await this._makeRequest(actionLogin, message);
 			this.loggedIn = true;
+			return Promise.resolve(this.loggedIn);
+		} catch (error) {
+			return Promise.reject(error);
+		}
+	}
+
+	async logout() {
+		// console.log('logout');
+		try {
+			const message = soapLogout(this.sessionId);
+			await this._makeRequest(actionLogout, message);
+			this.loggedIn = false;
 			return Promise.resolve(this.loggedIn);
 		} catch (error) {
 			return Promise.reject(error);
@@ -500,52 +525,54 @@ class NetgearRouter {
 		}
 	}
 
-	// async updateNewFirmware() {
-	// 	// Update the firmware of the router
-	// 	// console.log('router firmware update requested');
-	// 	try {
-	// 		await this._configurationStarted()
-	// 			.catch((err) => {
-	// 				throw Error(`Firmware update request failed. (config started failure: ${err})`);
-	// 			});
-	// 		const message = soapUpdateNewFirmware(this.sessionId);
-	// 		await this._makeRequest(actionUpdateNewFirmware,	message);
-	// 		await this._configurationFinished()
-	// 			.catch((err) => {
-	// 				const responseCode = regexResponseCode.exec(err)[1];
-	// 				throw Error(`Firmware update request finished with warning. (config finished failure: ${responseCode})`);
-	// 			});
-	// 		return Promise.resolve(true); // reboot initiated
-	// 	} catch (error) {
-	// 		return Promise.reject(error);
-	// 	}
-	// }
+	async updateNewFirmware() {
+		// Update the firmware of the router
+		// console.log('router firmware update requested');
+		try {
+			const message = soapUpdateNewFirmware(this.sessionId);
+			await this._makeRequest(actionUpdateNewFirmware,	message);
+			return Promise.resolve(true); // firmware update request successfull
+		} catch (error) {
+			return Promise.reject(error);
+		}
+	}
 
-	// async speedTest() {
-	// 	// start internet bandwith speedtest
-	// 	// console.log('speed test requested');
-	// 	try {
-	// 		const message = soapSpeedTest(this.sessionId);
-	// 		const result = await this._makeRequest(actionSpeedTest,	message);
-	// 		console.log(result.body);
-	// 		return Promise.resolve(result.body);
-	// 	} catch (error) {
-	// 		return Promise.reject(error);
-	// 	}
-	// }
-	//
-	// async getSpeedTestResult() {
-	// 	// get results of internet bandwith speedtest
-	// 	// console.log('speed test results requested');
-	// 	try {
-	// 		const message = soapSpeedTestResult(this.sessionId);
-	// 		const result = await this._makeRequest(actionSpeedTestResult,	message);
-	// 		console.log(result.body);
-	// 		return Promise.resolve(result.body);
-	// 	} catch (error) {
-	// 		return Promise.reject(error);
-	// 	}
-	// }
+	async speedTestStart() {
+		// start internet bandwith speedtest
+		// console.log('speed test requested');
+		try {
+			await this._configurationStarted()
+				.catch((err) => {
+					throw Error(`Speedtest request failed. (config started failure: ${err})`);
+				});
+			const message = soapSpeedTestStart(this.sessionId);
+			await this._makeRequest(actionSpeedTestStart,	message);
+			await this._configurationFinished()
+				.catch((err) => {
+					const responseCode = regexResponseCode.exec(err)[1];
+					throw Error(`Speedtest request finished with warning. (config finished failure: ${responseCode})`);
+				});
+			return Promise.resolve(true); // speedtest initiated
+		} catch (error) {
+			return Promise.reject(error);
+		}
+	}
+
+	async getSpeedTestResult() {
+		// get results of internet bandwith speedtest
+		// console.log('speed test results requested');
+		try {
+			const message = soapSpeedTestResult(this.sessionId);
+			const result = await this._makeRequest(actionSpeedTestResult,	message);
+			const uplinkBandwidth = Number(regexUplinkBandwidth.exec(result.body)[1]);
+			const downlinkBandwidth = Number(regexDownlinkBandwidth.exec(result.body)[1]);
+			const averagePing = Number(regexAveragePing.exec(result.body)[1]);
+			return Promise.resolve({ uplinkBandwidth, downlinkBandwidth, averagePing });
+		} catch (error) {
+			// resultcode 001 or 002 = no results yet?
+			return Promise.reject(error);
+		}
+	}
 
 	async _getAttachedDevices() {
 		// Resolves promise list of connected devices to the router. Rejects if error occurred.
@@ -613,6 +640,8 @@ class NetgearRouter {
 					// Netgear output is not conforming to XML standards!
 					try {
 						const patchedBody = result.body
+							.replace(/&lt/g, '')
+							.replace(/&gt/g, '')
 							.replace(/<Name>/g, '<Name><![CDATA[')
 							.replace(/<\/Name>/g, ']]></Name>')
 							.replace(/<DeviceModel>/g, '<DeviceModel><![CDATA[')
@@ -903,7 +932,8 @@ class NetgearRouter {
 			};
 			const result = await this._makeHttpRequest(options, message);
 			// request successfull
-			if (result.statusCode === 200 && result.body.includes('<ResponseCode>000</ResponseCode>')) {
+			if (result.statusCode === 200 &&
+				(result.body.includes('<ResponseCode>000</ResponseCode>') || result.body.includes('<ResponseCode>0</ResponseCode>'))) {
 				return Promise.resolve(result);
 			}
 			// request failed
