@@ -8,7 +8,9 @@
 
 const http = require('http');
 const { parseString } = require('xml2js');
-// const util = require('util');
+const util = require('util');
+
+const setTimeoutPromise = util.promisify(setTimeout);
 
 const actionLogin = 'urn:NETGEAR-ROUTER:service:ParentalControl:1#Authenticate';
 const actionLogout = 'urn:NETGEAR-ROUTER:service:DeviceConfig:1#SOAPLogout';
@@ -537,7 +539,20 @@ class NetgearRouter {
 		}
 	}
 
-	async speedTestStart() {
+	async speedTest() {
+		// Resolves promise of speed after 1 minute
+		// console.log('internet speed test requested');
+		try {
+			await this._speedTestStart();
+			await setTimeoutPromise(45 * 1000, 'waiting is done');
+			const speed = await this._getSpeedTestResult();
+			return Promise.resolve(speed);
+		} catch (error) {
+			return Promise.reject(error);
+		}
+	}
+
+	async _speedTestStart() {
 		// start internet bandwith speedtest
 		// console.log('speed test requested');
 		try {
@@ -558,7 +573,7 @@ class NetgearRouter {
 		}
 	}
 
-	async getSpeedTestResult() {
+	async _getSpeedTestResult() {
 		// get results of internet bandwith speedtest
 		// console.log('speed test results requested');
 		try {
@@ -849,7 +864,6 @@ class NetgearRouter {
 			return Promise.reject(error);
 		}
 	}
-
 
 	async _configurationFinished() {
 		// Resolves promise of config finish status. Rejects if error occurred.

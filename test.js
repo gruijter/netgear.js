@@ -1,3 +1,11 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+	License, v. 2.0. If a copy of the MPL was not distributed with this
+	file, You can obtain one at http://mozilla.org/MPL/2.0/.
+
+	Copyright 2017, 2018, Robin de Gruijter <gruijter@hotmail.com> */
+
+'use strict';
+
 const NetgearRouter = require('./netgear.js');
 
 // password, username, host and port are optional. Defaults are: 'password', 'admin', 'routerlogin.net', 80/5000
@@ -87,16 +95,12 @@ async function updateNewFirmware() {
 	}
 }
 
-// function to do internet speed test
+// function to do internet speed test (takes long time!)
 async function speedTest() {
 	try {
 		await router.login();
-		await router.speedTestStart();
-		console.log('speedtest started....');
-		await setTimeout(async () => {
-			const speed = await router.getSpeedTestResult();
-			console.log(speed);
-		}, 50 * 1000); // wait 50 seconds before getting the results
+		const speed = await router.speedTest(); // takes 1 minute to respond!
+		console.log(speed);
 	}	catch (error) {
 		console.log(error);
 	}
