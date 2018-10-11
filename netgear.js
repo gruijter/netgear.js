@@ -472,11 +472,11 @@ class NetgearRouter {
 
 	async set5GGuestWifi(enable) { // true or false
 		// turn 5GHz-1 guest wifi on or off
-		// console.log('setGuestWifi started');
-		const method = await this._set5G1GuestAccessEnabled(enable)
+		// console.log('set5GGuestWifi started');
+		const method = await this._set5G1GuestAccessEnabled2(enable)
 			.catch(async () => {
 				// console.log('trying method 2');
-				return this._set5G1GuestAccessEnabled2(enable)
+				return this._set5G1GuestAccessEnabled(enable)
 					.catch((err) => {
 						return Promise.reject(err);
 					});
