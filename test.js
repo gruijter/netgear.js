@@ -8,13 +8,14 @@
 
 const NetgearRouter = require('./netgear.js');
 
-// password, username, host and port are optional. Defaults are: 'password', 'admin', 'routerlogin.net', 80/5000
+// node test password
+// username, host and port are optional. Defaults are: 'admin', 'routerlogin.net', autodetect port: 80 or 5000
 const router = new NetgearRouter(
-	process.argv[2].toString() || 'password',
-	process.argv[3].toString() || 'admin',
-	process.argv[4].toString() || 'routerlogin.net',
-	process.argv[5].toString() || '5000'
-); // [password], [user], [host], [port]
+	process.argv[2], // password
+	process.argv[3], // user
+	process.argv[4], // host
+	process.argv[5], // port
+);
 
 // function to get various information
 async function getRouterInfo() {
@@ -57,6 +58,21 @@ async function blockOrAllow(mac, action) {
 		const success = await router.setBlockDevice(mac, action);
 		console.log(success);
 	}	catch (error) {
+		console.log(error);
+	}
+}
+
+// function to retrieve Guest Wifi status
+async function getGuestWifiStatus() {
+	try {
+		await router.login();
+		const guestWifiEnabled = await router.getGuestWifiEnabled();
+		console.log(`2.4G-1 Guest wifi enabled: ${guestWifiEnabled}`);
+		const guestWifi5GEnabled = await router.get5GGuestWifiEnabled();
+		console.log(`5G-1 Guest wifi enabled: ${guestWifi5GEnabled}`);
+		const guestWifi5G2Enabled = await router.get5GGuestWifi2Enabled();
+		console.log(`5G-2 Guest wifi enabled: ${guestWifi5G2Enabled}`);
+	} catch (error) {
 		console.log(error);
 	}
 }
@@ -111,28 +127,12 @@ async function speedTest() {
 	}
 }
 
-async function getGuestWifiStatus() {
-	try {
-		await router.login();
-		var info = await router.getGuestWifiInfo2G();
-		console.log('2.4: ');
-		console.log(info);
-		var info = await router.getGuestWifiInfo5G1();
-		console.log('5G-1: ');
-		console.log(info);
-		var info = await router.getGuestWifiInfo5G2();
-		console.log('5G-2: ');
-		console.log(info);
-	} catch (error) {
-		console.log(error);
-	}
-}
 
-// getRouterInfo();
+getRouterInfo();
 // blockOrAllow('AA:BB:CC:DD:EE:FF', 'Block');
 // blockOrAllow('AA:BB:CC:DD:EE:FF', 'Allow');
 // doWifiStuff();
 // reboot();
 // updateNewFirmware();
 // speedTest();
-getGuestWifiStatus();
+// getGuestWifiStatus();

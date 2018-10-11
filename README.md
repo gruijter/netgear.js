@@ -64,6 +64,25 @@ blockOrAllow('AA:BB:CC:DD:EE:FF', 'Block');
 blockOrAllow('AA:BB:CC:DD:EE:FF', 'Allow');
 
 
+// function to retrieve Guest Wifi status
+async function getGuestWifiStatus() {
+	try {
+		await router.login();
+		const guestWifiEnabled = await router.getGuestWifiEnabled();
+		console.log(`2.4G-1 Guest wifi enabled: ${guestWifiEnabled}`);
+		const guestWifi5GEnabled = await router.get5GGuestWifiEnabled();
+		console.log(`5G-1 Guest wifi enabled: ${guestWifi5GEnabled}`);
+		const guestWifi5G2Enabled = await router.get5GGuestWifi2Enabled();
+		console.log(`5G-2 Guest wifi enabled: ${guestWifi5G2Enabled}`);
+	} catch (error) {
+		console.log(error);
+	}
+}
+
+getGuestWifiStatus();
+
+
+
 // function to enable/disable wifi
 async function doWifiStuff() {
 	try {
@@ -98,16 +117,12 @@ async function updateNewFirmware() {
 updateNewFirmware();
 
 
-// function to do internet speed test
+// function to do internet speed test (takes long time!)
 async function speedTest() {
 	try {
 		await router.login();
-		await router.speedTestStart();
-		console.log('speedtest started....');
-		await setTimeout(async () => {
-			const speed = await router.getSpeedTestResult();
-			console.log(speed);
-		}, 50 * 1000); // wait 50 seconds before getting the results
+		const speed = await router.speedTest(); // takes 1 minute to respond!
+		console.log(speed);
 	}	catch (error) {
 		console.log(error);
 	}

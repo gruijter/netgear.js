@@ -21,14 +21,15 @@ const actionGetTrafficMeter = 'urn:NETGEAR-ROUTER:service:DeviceConfig:1#GetTraf
 const actionConfigurationStarted = 'urn:NETGEAR-ROUTER:service:DeviceConfig:1#ConfigurationStarted';
 const actionConfigurationFinished = 'urn:NETGEAR-ROUTER:service:DeviceConfig:1#ConfigurationFinished';
 const actionSetBlockDevice = 'urn:NETGEAR-ROUTER:service:DeviceConfig:1#SetBlockDeviceByMAC';
-const actionGetGuestAccessEnabled = 'urn:NETGEAR-ROUTER:service:WLANConfiguration:1#GetGuestAccessEnabled';
-const actionGet5G1GuestAccessEnabled = 'urn:NETGEAR-ROUTER:service:WLANConfiguration:1#Get5G1GuestAccessEnabled';
-const actionGet5GGuestAccessEnabled2 = 'urn:NETGEAR-ROUTER:service:WLANConfiguration:1#Get5GGuestAccessEnabled2';
-const actionSetGuestAccessEnabled = 'urn:NETGEAR-ROUTER:service:WLANConfiguration:1#SetGuestAccessEnabled';
-const actionSetGuestAccessEnabled2 = 'urn:NETGEAR-ROUTER:service:WLANConfiguration:1#SetGuestAccessEnabled2';
-const actionSet5G1GuestAccessEnabled = 'urn:NETGEAR-ROUTER:service:WLANConfiguration:1#Set5GGuestAccessEnabled';
-const actionSet5G1GuestAccessEnabled2 = 'urn:NETGEAR-ROUTER:service:WLANConfiguration:1#Set5G1GuestAccessEnabled2';
-const actionSet5GGuestAccessEnabled2 = 'urn:NETGEAR-ROUTER:service:WLANConfiguration:1#Set5GGuestAccessEnabled2';
+const actionGetGuestAccessEnabled = 'urn:NETGEAR-ROUTER:service:WLANConfiguration:1#GetGuestAccessEnabled';	// 2.4G-1 R7800/R8000
+const actionGet5G1GuestAccessEnabled = 'urn:NETGEAR-ROUTER:service:WLANConfiguration:1#Get5GGuestAccessEnabled';	// 5G-1 R7800
+const actionGet5G1GuestAccessEnabled2 = 'urn:NETGEAR-ROUTER:service:WLANConfiguration:1#Get5G1GuestAccessEnabled';	// 5G-1 R8000
+const actionGet5GGuestAccessEnabled2 = 'urn:NETGEAR-ROUTER:service:WLANConfiguration:1#Get5GGuestAccessEnabled2';	// 5G-2 R8000
+const actionSetGuestAccessEnabled = 'urn:NETGEAR-ROUTER:service:WLANConfiguration:1#SetGuestAccessEnabled';	// 2.4G-1 R7800
+const actionSetGuestAccessEnabled2 = 'urn:NETGEAR-ROUTER:service:WLANConfiguration:1#SetGuestAccessEnabled2';	// 2.4G-1 R8000
+const actionSet5G1GuestAccessEnabled = 'urn:NETGEAR-ROUTER:service:WLANConfiguration:1#Set5GGuestAccessEnabled';	// 5G-1 R7800
+const actionSet5G1GuestAccessEnabled2 = 'urn:NETGEAR-ROUTER:service:WLANConfiguration:1#Set5G1GuestAccessEnabled2';	// 5G-1 R8000
+const actionSet5GGuestAccessEnabled2 = 'urn:NETGEAR-ROUTER:service:WLANConfiguration:1#Set5GGuestAccessEnabled2';	// 5G-2 R8000
 const actionReboot = 'urn:NETGEAR-ROUTER:service:DeviceConfig:1#Reboot';
 const actionCheckNewFirmware = 'urn:NETGEAR-ROUTER:service:DeviceConfig:1#CheckNewFirmware';
 const actionUpdateNewFirmware = 'urn:NETGEAR-ROUTER:service:DeviceConfig:1#UpdateNewFirmware';
@@ -120,30 +121,6 @@ function soapGetInfo(sessionId) {
 	return soapEnvelope(sessionId, soapBody);
 }
 
-function soapGet5G1GuestAccessEnabled(sessionId) {
-	const soapBody = `<SOAP-ENV:Body>
-		<M1:Get5G1GuestAccessEnabled xmlns:M1="urn:NETGEAR-ROUTER:service:WLANConfiguration:1">
-		</M1:Get5G1GuestAccessEnabled>
-	</SOAP-ENV:Body>`;
-	return soapEnvelope(sessionId, soapBody);
-}
-
-function soapGet5GGuestAccessEnabled2(sessionId) {
-	const soapBody = `<SOAP-ENV:Body>
-		<M1:Get5GGuestAccessEnabled2 xmlns:M1="urn:NETGEAR-ROUTER:service:WLANConfiguration:1">
-		</M1:Get5GGuestAccessEnabled2>
-	</SOAP-ENV:Body>`;
-	return soapEnvelope(sessionId, soapBody);
-}
-
-function soapGetGuestAccessEnabled(sessionId) {
-	const soapBody = `<SOAP-ENV:Body>
-		<M1:GetGuestAccessEnabled xmlns:M1="urn:NETGEAR-ROUTER:service:WLANConfiguration:1">
-		</M1:GetGuestAccessEnabled>
-	</SOAP-ENV:Body>`;
-	return soapEnvelope(sessionId, soapBody);
-}
-
 function soapConfigurationStarted(sessionId) {
 	const soapBody = `<SOAP-ENV:Body>
 		<M1:ConfigurationStarted xmlns:M1="urn:NETGEAR-ROUTER:service:DeviceConfig:1">
@@ -191,6 +168,30 @@ function soapAttachedDevices2(sessionId) {
 function soapTrafficMeter(sessionId) {
 	const soapBody = `<SOAP-ENV:Body>
 		<M1:GetTrafficMeterStatistics xmlns:M1="urn:NETGEAR-ROUTER:service:DeviceConfig:1"></M1:GetTrafficMeterStatistics>
+	</SOAP-ENV:Body>`;
+	return soapEnvelope(sessionId, soapBody);
+}
+
+function soapGetGuestAccessEnabled(sessionId) {
+	const soapBody = `<SOAP-ENV:Body>
+		<M1:GetGuestAccessEnabled xmlns:M1="urn:NETGEAR-ROUTER:service:WLANConfiguration:1">
+		</M1:GetGuestAccessEnabled>
+	</SOAP-ENV:Body>`;
+	return soapEnvelope(sessionId, soapBody);
+}
+
+function soapGet5G1GuestAccessEnabled(sessionId) {
+	const soapBody = `<SOAP-ENV:Body>
+		<M1:Get5G1GuestAccessEnabled xmlns:M1="urn:NETGEAR-ROUTER:service:WLANConfiguration:1">
+		</M1:Get5G1GuestAccessEnabled>
+	</SOAP-ENV:Body>`;
+	return soapEnvelope(sessionId, soapBody);
+}
+
+function soapGet5GGuestAccessEnabled2(sessionId) {
+	const soapBody = `<SOAP-ENV:Body>
+		<M1:Get5GGuestAccessEnabled2 xmlns:M1="urn:NETGEAR-ROUTER:service:WLANConfiguration:1">
+		</M1:Get5GGuestAccessEnabled2>
 	</SOAP-ENV:Body>`;
 	return soapEnvelope(sessionId, soapBody);
 }
@@ -415,108 +416,11 @@ class NetgearRouter {
 		});
 	}
 
-
-	getGuestWifiInfo2G() {
-		// Resolves promise of router information. Rejects if error occurred.
-		// console.log('Get router info');
-		return new Promise((resolve, reject) => {
-			const message = soapGetGuestAccessEnabled(this.sessionId);
-			this._makeRequest(actionGetGuestAccessEnabled,	message)
-				.then((result) => {
-					const patchedBody = result.body
-						.replace(/soap-env:envelope/gi, 'soap-env:envelope')
-						.replace(/soap-env:body/gi, 'soap-env:body');
-					parseString(patchedBody, async (err, res) => {
-						if (err) {
-							return reject(err);
-						}
-						//console.log(res['soap-env:envelope']['soap-env:body'][0]);
-						const entries = res['soap-env:envelope']['soap-env:body'][0]['m:GetGuestAccessEnabledResponse'][0];
-						const info = {};
-						Object.keys(entries).forEach((property) => {
-							if (Object.prototype.hasOwnProperty.call(entries, property) && Array.isArray(entries[property])) {
-								info[property] = entries[property][0];
-							}
-						});
-						return resolve((info['NewGuestAccessEnabled']==='1' ? {status:true} : {status:false} ));
-					});
-				})
-				.catch((error) => {
-					reject(error);
-				});
-		});
-	}
-
-
-	getGuestWifiInfo5G1() {
-		// Resolves promise of router information. Rejects if error occurred.
-		// console.log('Get router info');
-		return new Promise((resolve, reject) => {
-			const message = soapGet5G1GuestAccessEnabled(this.sessionId);
-			this._makeRequest(actionGet5G1GuestAccessEnabled, message)
-				.then((result) => {
-					const patchedBody = result.body
-						.replace(/soap-env:envelope/gi, 'soap-env:envelope')
-						.replace(/soap-env:body/gi, 'soap-env:body');
-					parseString(patchedBody, async (err, res) => {
-						if (err) {
-							return reject(err);
-						}
-						const entries = res['soap-env:envelope']['soap-env:body'][0]['m:Get5G1GuestAccessEnabledResponse'][0];
-						// if (Object.keys(entries).length < 2) {
-						//	return reject(Error('Error parsing router info'));
-						//}
-						const info = {};
-						Object.keys(entries).forEach((property) => {
-							if (Object.prototype.hasOwnProperty.call(entries, property) && Array.isArray(entries[property])) {
-								info[property] = entries[property][0];
-							}
-						});
-						return resolve((info['NewGuestAccessEnabled']==='1' ? {status:true} : {status:false} ));
-					});
-				})
-				.catch((error) => {
-					reject(error);
-				});
-		});
-	}
-
-	getGuestWifiInfo5G2() {
-		// Resolves promise of router information. Rejects if error occurred.
-		// console.log('Get router info');
-		return new Promise((resolve, reject) => {
-			const message = soapGet5GGuestAccessEnabled2(this.sessionId);
-			this._makeRequest(actionGet5GGuestAccessEnabled2, message)
-				.then((result) => {
-					const patchedBody = result.body
-						.replace(/soap-env:envelope/gi, 'soap-env:envelope')
-						.replace(/soap-env:body/gi, 'soap-env:body');
-					parseString(patchedBody, async (err, res) => {
-						if (err) {
-							return reject(err);
-						}
-						const entries = res['soap-env:envelope']['soap-env:body'][0]['m:Get5GGuestAccessEnabledResponse'][0];
-						const info = {};
-						Object.keys(entries).forEach((property) => {
-							if (Object.prototype.hasOwnProperty.call(entries, property) && Array.isArray(entries[property])) {
-								info[property] = entries[property][0];
-							}
-						});
-						return resolve((info['NewGuestAccessEnabled']==='1' ? {status:true} : {status:false} ));
-					});
-				})
-				.catch((error) => {
-					reject(error);
-				});
-		});
-	}
-
-
 	async getAttachedDevices() {
 		// Resolves promise list of connected devices to the router. Rejects if error occurred.
 		// console.log('Get attached devices');
 		const devices = await this._getAttachedDevices2()
-			.catch(async () => {
+			.catch(async (error) => {
 				// console.log('trying old method');
 				return this._getAttachedDevices()
 					.catch((err) => {
@@ -580,6 +484,17 @@ class NetgearRouter {
 		});
 	}
 
+	async getGuestWifiEnabled() {
+		// console.log('Get 2.4GHz Guest wifi enabled status');
+		try {
+			const message = soapGetGuestAccessEnabled(this.sessionId);
+			const result = await this._makeRequest(actionGetGuestAccessEnabled,	message);
+			return Promise.resolve(result.body.includes('<NewGuestAccessEnabled>1</NewGuestAccessEnabled>'));
+		} catch (error) {
+			return Promise.reject(error);
+		}
+	}
+
 	async setGuestWifi(enable) { // true or false
 		// turn 2.4GHz-1 guest wifi on or off
 		// console.log('setGuestWifi started');
@@ -594,18 +509,46 @@ class NetgearRouter {
 		return Promise.resolve(method);
 	}
 
+	async get5GGuestWifiEnabled() {
+		// console.log('Get 5GHz-1 Guest wifi enabled status');
+		try {
+			// try method R8000
+			const message = soapGet5G1GuestAccessEnabled(this.sessionId);
+			const result = await this._makeRequest(actionGet5G1GuestAccessEnabled2, message)
+				.catch(() => {
+					// console.log('trying alternative method');	// try method R7800
+					return Promise.resolve(this._makeRequest(actionGet5G1GuestAccessEnabled, message));
+				});
+			return Promise.resolve(result.body.includes('<NewGuestAccessEnabled>1</NewGuestAccessEnabled>'));
+		} catch (error) {
+			return Promise.reject(error);
+		}
+	}
+
 	async set5GGuestWifi(enable) { // true or false
 		// turn 5GHz-1 guest wifi on or off
-		// console.log('set5GGuestWifi started');
+		console.log('set5GGuestWifi started');
 		const method = await this._set5G1GuestAccessEnabled2(enable)
 			.catch(async () => {
-				// console.log('trying method 2');
+				console.log('trying method 2');
 				return this._set5G1GuestAccessEnabled(enable)
 					.catch((err) => {
 						return Promise.reject(err);
 					});
 			});
 		return Promise.resolve(method);
+	}
+
+	async get5GGuestWifi2Enabled() {
+		// console.log('Get 5GHz-1 Guest wifi enabled status');
+		try {
+			// try method R8000
+			const message = soapGet5GGuestAccessEnabled2(this.sessionId);
+			const result = await this._makeRequest(actionGet5GGuestAccessEnabled2, message);
+			return Promise.resolve(result.body.includes('<NewGuestAccessEnabled>1</NewGuestAccessEnabled>'));
+		} catch (error) {
+			return Promise.reject(error);
+		}
 	}
 
 	async set5GGuestWifi2(enable) { // true or false
@@ -1069,10 +1012,6 @@ class NetgearRouter {
 				method: 'POST',
 			};
 			const result = await this._makeHttpRequest(options, message);
-			// console.log('REQUEST');
-			// console.log(message);
-			// console.log('RESPONSE');
-			// console.log(result.body);
 			// request successfull
 			if (result.statusCode === 200 &&
 				(result.body.includes('<ResponseCode>000</ResponseCode>') || result.body.includes('<ResponseCode>0</ResponseCode>'))) {
@@ -1090,7 +1029,7 @@ class NetgearRouter {
 				const responseCode = regexResponseCode.exec(result.body)[1];
 				throw Error(`Invalid response code from router: ${responseCode}`);
 			}
-			throw Error('Invalid response. Wrong IP or SOAP port?');
+			throw Error('no response code from router');
 		} catch (error) {
 			return Promise.reject(error);
 		}
