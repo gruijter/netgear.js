@@ -438,7 +438,7 @@ class NetgearRouter {
 								info[property] = entries[property][0];
 							}
 						});
-						return resolve((info['NewGuestAccessEnabled']==='1' ? true : false));
+						return resolve((info['NewGuestAccessEnabled']==='1' ? {status:true} : {status:false} ));
 					});
 				})
 				.catch((error) => {
@@ -472,7 +472,7 @@ class NetgearRouter {
 								info[property] = entries[property][0];
 							}
 						});
-						return resolve((info['NewGuestAccessEnabled']==='1' ? true : false));
+						return resolve((info['NewGuestAccessEnabled']==='1' ? {status:true} : {status:false} ));
 					});
 				})
 				.catch((error) => {
@@ -502,7 +502,7 @@ class NetgearRouter {
 								info[property] = entries[property][0];
 							}
 						});
-						return resolve((info['NewGuestAccessEnabled']==='1' ? true : false));
+						return resolve((info['NewGuestAccessEnabled']==='1' ? {status:true} : {status:false} ));
 					});
 				})
 				.catch((error) => {

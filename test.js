@@ -115,21 +115,24 @@ async function getGuestWifiStatus() {
 	try {
 		await router.login();
 		var info = await router.getGuestWifiInfo2G();
-		console.log('2.4: ' + info);
+		console.log('2.4: ');
+		console.log(info);
 		var info = await router.getGuestWifiInfo5G1();
-		console.log('5G-1: ' + info);
+		console.log('5G-1: ');
+		console.log(info);
 		var info = await router.getGuestWifiInfo5G2();
-		console.log('5G-2: ' + info);
+		console.log('5G-2: ');
+		console.log(info);
 	} catch (error) {
 		console.log(error);
 	}
 }
 
-getRouterInfo();
+// getRouterInfo();
 // blockOrAllow('AA:BB:CC:DD:EE:FF', 'Block');
 // blockOrAllow('AA:BB:CC:DD:EE:FF', 'Allow');
 // doWifiStuff();
 // reboot();
 // updateNewFirmware();
 // speedTest();
-// getGuestWifiStatus();
+getGuestWifiStatus();
