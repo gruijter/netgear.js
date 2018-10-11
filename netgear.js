@@ -21,6 +21,7 @@ const actionGetTrafficMeter = 'urn:NETGEAR-ROUTER:service:DeviceConfig:1#GetTraf
 const actionConfigurationStarted = 'urn:NETGEAR-ROUTER:service:DeviceConfig:1#ConfigurationStarted';
 const actionConfigurationFinished = 'urn:NETGEAR-ROUTER:service:DeviceConfig:1#ConfigurationFinished';
 const actionSetBlockDevice = 'urn:NETGEAR-ROUTER:service:DeviceConfig:1#SetBlockDeviceByMAC';
+const actionGetGuestAccessEnabled = 'urn:NETGEAR-ROUTER:service:WLANConfiguration:1#GetGuestAccessEnabled';
 const actionSetGuestAccessEnabled = 'urn:NETGEAR-ROUTER:service:WLANConfiguration:1#SetGuestAccessEnabled';
 const actionSetGuestAccessEnabled2 = 'urn:NETGEAR-ROUTER:service:WLANConfiguration:1#SetGuestAccessEnabled2';
 const actionSet5G1GuestAccessEnabled = 'urn:NETGEAR-ROUTER:service:WLANConfiguration:1#Set5GGuestAccessEnabled';
@@ -113,6 +114,14 @@ function soapGetInfo(sessionId) {
 	const soapBody = `<SOAP-ENV:Body>
 		<M1:GetInfo xmlns:M1="urn:NETGEAR-ROUTER:service:DeviceInfo:1">
 		</M1:GetInfo>
+	</SOAP-ENV:Body>`;
+	return soapEnvelope(sessionId, soapBody);
+}
+
+function soapGetGuestAccessEnabled(sessionId) {
+	const soapBody = `<SOAP-ENV:Body>
+		<M1:GetGuestAccessEnabled xmlns:M1="urn:NETGEAR-ROUTER:service:WLANConfiguration:1">
+		</M1:GetGuestAccessEnabled>
 	</SOAP-ENV:Body>`;
 	return soapEnvelope(sessionId, soapBody);
 }
@@ -387,6 +396,43 @@ class NetgearRouter {
 				});
 		});
 	}
+
+
+	getGuestWifiInfo() {
+		// Resolves promise of router information. Rejects if error occurred.
+		// console.log('Get router info');
+		return new Promise((resolve, reject) => {
+			const message = soapGetGuestAccessEnabled(this.sessionId);
+			this._makeRequest(actionGetGuestAccessEnabled,	message)
+				.then((result) => {
+					const patchedBody = result.body
+						.replace(/soap-env:envelope/gi, 'soap-env:envelope')
+						.replace(/soap-env:body/gi, 'soap-env:body');
+					parseString(patchedBody, async (err, res) => {
+						if (err) {
+							return reject(err);
+						}
+						//console.log(res['soap-env:envelope']['soap-env:body'][0]);
+						const entries = res['soap-env:envelope']['soap-env:body'][0]['m:GetGuestAccessEnabledResponse'][0];
+						// if (Object.keys(entries).length < 2) {
+						//	return reject(Error('Error parsing router info'));
+						//}
+						const info = {};
+						Object.keys(entries).forEach((property) => {
+							if (Object.prototype.hasOwnProperty.call(entries, property) && Array.isArray(entries[property])) {
+								info[property] = entries[property][0];
+							}
+						});
+						console.log(info);
+						return resolve((info['NewGuestAccessEnabled']==='1' ? true : false));
+					});
+				})
+				.catch((error) => {
+					reject(error);
+				});
+		});
+	}
+
 
 	async getAttachedDevices() {
 		// Resolves promise list of connected devices to the router. Rejects if error occurred.
@@ -945,6 +991,10 @@ class NetgearRouter {
 				method: 'POST',
 			};
 			const result = await this._makeHttpRequest(options, message);
+			// console.log('REQUEST');
+			// console.log(message);
+			// console.log('RESPONSE');
+			// console.log(result.body);
 			// request successfull
 			if (result.statusCode === 200 &&
 				(result.body.includes('<ResponseCode>000</ResponseCode>') || result.body.includes('<ResponseCode>0</ResponseCode>'))) {
