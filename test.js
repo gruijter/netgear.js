@@ -9,7 +9,12 @@
 const NetgearRouter = require('./netgear.js');
 
 // password, username, host and port are optional. Defaults are: 'password', 'admin', 'routerlogin.net', 80/5000
-const router = new NetgearRouter(process.argv[2].toString() || 'your_password'); // [password], [user], [host], [port]
+const router = new NetgearRouter(
+	process.argv[2].toString() || 'password',
+	process.argv[3].toString() || 'admin',
+	process.argv[4].toString() || 'routerlogin.net',
+	process.argv[5].toString() || '5000'
+); // [password], [user], [host], [port]
 
 // function to get various information
 async function getRouterInfo() {
@@ -106,10 +111,28 @@ async function speedTest() {
 	}
 }
 
-getRouterInfo();
+async function getGuestWifiStatus() {
+	try {
+		await router.login();
+		var info = await router.getGuestWifiInfo2G();
+		console.log('2.4: ');
+		console.log(info);
+		var info = await router.getGuestWifiInfo5G1();
+		console.log('5G-1: ');
+		console.log(info);
+		var info = await router.getGuestWifiInfo5G2();
+		console.log('5G-2: ');
+		console.log(info);
+	} catch (error) {
+		console.log(error);
+	}
+}
+
+// getRouterInfo();
 // blockOrAllow('AA:BB:CC:DD:EE:FF', 'Block');
 // blockOrAllow('AA:BB:CC:DD:EE:FF', 'Allow');
 // doWifiStuff();
 // reboot();
 // updateNewFirmware();
 // speedTest();
+getGuestWifiStatus();
