@@ -22,6 +22,8 @@ const actionConfigurationStarted = 'urn:NETGEAR-ROUTER:service:DeviceConfig:1#Co
 const actionConfigurationFinished = 'urn:NETGEAR-ROUTER:service:DeviceConfig:1#ConfigurationFinished';
 const actionSetBlockDevice = 'urn:NETGEAR-ROUTER:service:DeviceConfig:1#SetBlockDeviceByMAC';
 const actionGetGuestAccessEnabled = 'urn:NETGEAR-ROUTER:service:WLANConfiguration:1#GetGuestAccessEnabled';
+const actionGet5G1GuestAccessEnabled = 'urn:NETGEAR-ROUTER:service:WLANConfiguration:1#Get5G1GuestAccessEnabled';
+const actionGet5GGuestAccessEnabled2 = 'urn:NETGEAR-ROUTER:service:WLANConfiguration:1#Get5GGuestAccessEnabled2';
 const actionSetGuestAccessEnabled = 'urn:NETGEAR-ROUTER:service:WLANConfiguration:1#SetGuestAccessEnabled';
 const actionSetGuestAccessEnabled2 = 'urn:NETGEAR-ROUTER:service:WLANConfiguration:1#SetGuestAccessEnabled2';
 const actionSet5G1GuestAccessEnabled = 'urn:NETGEAR-ROUTER:service:WLANConfiguration:1#Set5GGuestAccessEnabled';
@@ -114,6 +116,22 @@ function soapGetInfo(sessionId) {
 	const soapBody = `<SOAP-ENV:Body>
 		<M1:GetInfo xmlns:M1="urn:NETGEAR-ROUTER:service:DeviceInfo:1">
 		</M1:GetInfo>
+	</SOAP-ENV:Body>`;
+	return soapEnvelope(sessionId, soapBody);
+}
+
+function soapGet5G1GuestAccessEnabled(sessionId) {
+	const soapBody = `<SOAP-ENV:Body>
+		<M1:Get5G1GuestAccessEnabled xmlns:M1="urn:NETGEAR-ROUTER:service:WLANConfiguration:1">
+		</M1:Get5G1GuestAccessEnabled>
+	</SOAP-ENV:Body>`;
+	return soapEnvelope(sessionId, soapBody);
+}
+
+function soapGet5GGuestAccessEnabled2(sessionId) {
+	const soapBody = `<SOAP-ENV:Body>
+		<M1:Get5GGuestAccessEnabled2 xmlns:M1="urn:NETGEAR-ROUTER:service:WLANConfiguration:1">
+		</M1:Get5GGuestAccessEnabled2>
 	</SOAP-ENV:Body>`;
 	return soapEnvelope(sessionId, soapBody);
 }
@@ -398,7 +416,7 @@ class NetgearRouter {
 	}
 
 
-	getGuestWifiInfo() {
+	getGuestWifiInfo2G() {
 		// Resolves promise of router information. Rejects if error occurred.
 		// console.log('Get router info');
 		return new Promise((resolve, reject) => {
@@ -414,6 +432,37 @@ class NetgearRouter {
 						}
 						//console.log(res['soap-env:envelope']['soap-env:body'][0]);
 						const entries = res['soap-env:envelope']['soap-env:body'][0]['m:GetGuestAccessEnabledResponse'][0];
+						const info = {};
+						Object.keys(entries).forEach((property) => {
+							if (Object.prototype.hasOwnProperty.call(entries, property) && Array.isArray(entries[property])) {
+								info[property] = entries[property][0];
+							}
+						});
+						return resolve((info['NewGuestAccessEnabled']==='1' ? true : false));
+					});
+				})
+				.catch((error) => {
+					reject(error);
+				});
+		});
+	}
+
+
+	getGuestWifiInfo5G1() {
+		// Resolves promise of router information. Rejects if error occurred.
+		// console.log('Get router info');
+		return new Promise((resolve, reject) => {
+			const message = soapGet5G1GuestAccessEnabled(this.sessionId);
+			this._makeRequest(actionGet5G1GuestAccessEnabled, message)
+				.then((result) => {
+					const patchedBody = result.body
+						.replace(/soap-env:envelope/gi, 'soap-env:envelope')
+						.replace(/soap-env:body/gi, 'soap-env:body');
+					parseString(patchedBody, async (err, res) => {
+						if (err) {
+							return reject(err);
+						}
+						const entries = res['soap-env:envelope']['soap-env:body'][0]['m:Get5G1GuestAccessEnabledResponse'][0];
 						// if (Object.keys(entries).length < 2) {
 						//	return reject(Error('Error parsing router info'));
 						//}
@@ -423,7 +472,36 @@ class NetgearRouter {
 								info[property] = entries[property][0];
 							}
 						});
-						console.log(info);
+						return resolve((info['NewGuestAccessEnabled']==='1' ? true : false));
+					});
+				})
+				.catch((error) => {
+					reject(error);
+				});
+		});
+	}
+
+	getGuestWifiInfo5G2() {
+		// Resolves promise of router information. Rejects if error occurred.
+		// console.log('Get router info');
+		return new Promise((resolve, reject) => {
+			const message = soapGet5GGuestAccessEnabled2(this.sessionId);
+			this._makeRequest(actionGet5GGuestAccessEnabled2, message)
+				.then((result) => {
+					const patchedBody = result.body
+						.replace(/soap-env:envelope/gi, 'soap-env:envelope')
+						.replace(/soap-env:body/gi, 'soap-env:body');
+					parseString(patchedBody, async (err, res) => {
+						if (err) {
+							return reject(err);
+						}
+						const entries = res['soap-env:envelope']['soap-env:body'][0]['m:Get5GGuestAccessEnabledResponse'][0];
+						const info = {};
+						Object.keys(entries).forEach((property) => {
+							if (Object.prototype.hasOwnProperty.call(entries, property) && Array.isArray(entries[property])) {
+								info[property] = entries[property][0];
+							}
+						});
 						return resolve((info['NewGuestAccessEnabled']==='1' ? true : false));
 					});
 				})
