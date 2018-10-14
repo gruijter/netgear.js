@@ -23,6 +23,10 @@ async function getRouterInfo() {
 		const info = await router.getInfo();
 		console.log(info);
 
+		// Get the support features.
+		const supportFeatures = await router.getSupportFeatureListXML();
+		console.log(supportFeatures);
+
 		// get a list of attached devices
 		const attachedDevices = await router.getAttachedDevices();
 		console.log(attachedDevices);
@@ -36,6 +40,7 @@ async function getRouterInfo() {
 		console.log(firmware);
 
 		// logout
+		console.log('going to logout now');
 		await router.logout();
 
 	}	catch (error) {
@@ -82,7 +87,6 @@ async function getGuestWifiStatus() {
 getGuestWifiStatus();
 
 
-
 // function to enable/disable wifi
 async function doWifiStuff() {
 	try {
@@ -108,6 +112,7 @@ doWifiStuff();
 async function updateNewFirmware() {
 	try {
 		await router.login();
+		console.log('trying to update router firmware');
 		await router.updateNewFirmware();
 	}	catch (error) {
 		console.log(error);
@@ -121,6 +126,7 @@ updateNewFirmware();
 async function speedTest() {
 	try {
 		await router.login();
+		console.log('speed test is starting... (wait a minute)')
 		const speed = await router.speedTest(); // takes 1 minute to respond!
 		console.log(speed);
 	}	catch (error) {
@@ -136,6 +142,7 @@ async function reboot() {
 	try {
 		await router.login();
 		// Reboot the router
+		console.log('going to reboot the router now')
 		await router.reboot();
 	}	catch (error) {
 		console.log(error);
