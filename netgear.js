@@ -102,7 +102,7 @@ class NetgearRouter {
 						const set = { LoginMethod: 1 };	// assume old login style on error
 						return set;
 					});
-				this.loginMethod = Number(settings.LoginMethod);
+				this.loginMethod = Number(settings.LoginMethod) || 1;
 			}
 			this.host = host || this.host;
 			this.port = port || await this.port;
