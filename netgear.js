@@ -749,14 +749,13 @@ class NetgearRouter {
 				method: 'POST',
 			};
 			const result = await this._makeHttpRequest(options, message);
-			if (result.headers['Set-Cookie']) {
-				console.log(`new cookie was set on ${options.headers.SOAPAction}`);
-				this.cookie = result.headers['Set-Cookie'];
+			if (result.headers['set-cookie']) {
+				// console.log(`new cookie was set on ${options.headers.SOAPAction}`);
+				this.cookie = result.headers['set-cookie'];
 			}
 			if (result.statusCode !== 200) {
 				throw Error(`HTTP request Failed. Status Code: ${result.statusCode}`);
 			}
-			// console.log(result.body);
 			const responseCodeRegex = regexResponseCode.exec(result.body);
 			if (responseCodeRegex === null) {
 				throw Error('no response code from router');
