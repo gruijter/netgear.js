@@ -9,10 +9,32 @@
 const http = require('http');
 const { parseString } = require('xml2js');
 const util = require('util');
-const soap = require('./soapcalls');
 
 const setTimeoutPromise = util.promisify(setTimeout);
-const parseStringPromise = util.promisify(parseString);
+
+const actionLogin = 'urn:NETGEAR-ROUTER:service:ParentalControl:1#Authenticate';
+const actionLogout = 'urn:NETGEAR-ROUTER:service:DeviceConfig:1#SOAPLogout';
+const actionGetInfo = 'urn:NETGEAR-ROUTER:service:DeviceInfo:1#GetInfo';
+const actionGetAttachedDevices = 'urn:NETGEAR-ROUTER:service:DeviceInfo:1#GetAttachDevice';
+const actionGetAttachedDevices2 = 'urn:NETGEAR-ROUTER:service:DeviceInfo:1#GetAttachDevice2';
+const actionGetTrafficMeter = 'urn:NETGEAR-ROUTER:service:DeviceConfig:1#GetTrafficMeterStatistics';
+const actionConfigurationStarted = 'urn:NETGEAR-ROUTER:service:DeviceConfig:1#ConfigurationStarted';
+const actionConfigurationFinished = 'urn:NETGEAR-ROUTER:service:DeviceConfig:1#ConfigurationFinished';
+const actionSetBlockDevice = 'urn:NETGEAR-ROUTER:service:DeviceConfig:1#SetBlockDeviceByMAC';
+const actionGetGuestAccessEnabled = 'urn:NETGEAR-ROUTER:service:WLANConfiguration:1#GetGuestAccessEnabled';	// 2.4G-1 R7800/R8000
+const actionGet5G1GuestAccessEnabled = 'urn:NETGEAR-ROUTER:service:WLANConfiguration:1#Get5GGuestAccessEnabled';	// 5G-1 R7800
+const actionGet5G1GuestAccessEnabled2 = 'urn:NETGEAR-ROUTER:service:WLANConfiguration:1#Get5G1GuestAccessEnabled';	// 5G-1 R8000
+const actionGet5GGuestAccessEnabled2 = 'urn:NETGEAR-ROUTER:service:WLANConfiguration:1#Get5GGuestAccessEnabled2';	// 5G-2 R8000
+const actionSetGuestAccessEnabled = 'urn:NETGEAR-ROUTER:service:WLANConfiguration:1#SetGuestAccessEnabled';	// 2.4G-1 R7800
+const actionSetGuestAccessEnabled2 = 'urn:NETGEAR-ROUTER:service:WLANConfiguration:1#SetGuestAccessEnabled2';	// 2.4G-1 R8000
+const actionSet5G1GuestAccessEnabled = 'urn:NETGEAR-ROUTER:service:WLANConfiguration:1#Set5GGuestAccessEnabled';	// 5G-1 R7800
+const actionSet5G1GuestAccessEnabled2 = 'urn:NETGEAR-ROUTER:service:WLANConfiguration:1#Set5G1GuestAccessEnabled2';	// 5G-1 R8000
+const actionSet5GGuestAccessEnabled2 = 'urn:NETGEAR-ROUTER:service:WLANConfiguration:1#Set5GGuestAccessEnabled2';	// 5G-2 R8000
+const actionReboot = 'urn:NETGEAR-ROUTER:service:DeviceConfig:1#Reboot';
+const actionCheckNewFirmware = 'urn:NETGEAR-ROUTER:service:DeviceConfig:1#CheckNewFirmware';
+const actionUpdateNewFirmware = 'urn:NETGEAR-ROUTER:service:DeviceConfig:1#UpdateNewFirmware';
+const actionSpeedTestStart = 'urn:NETGEAR-ROUTER:service:AdvancedQoS:1#SetOOKLASpeedTestStart';
+const actionSpeedTestResult = 'urn:NETGEAR-ROUTER:service:AdvancedQoS:1#GetOOKLASpeedTestResult';
 
 const regexResponseCode = new RegExp(/<ResponseCode>(.*)<\/ResponseCode>/);
 const regexAttachedDevices = new RegExp(/<NewAttachDevice>(.*)<\/NewAttachDevice>/);
@@ -59,6 +81,208 @@ class AttachedDevice {
 	}
 }
 
+function soapEnvelope(sessionId, soapBody) {
+	const soapRequest = `<?xml version="1.0" encoding="utf-8" standalone="no"?>
+	<SOAP-ENV:Envelope xmlns:SOAPSDK1="http://www.w3.org/2001/XMLSchema"
+		xmlns:SOAPSDK2="http://www.w3.org/2001/XMLSchema-instance"
+		xmlns:SOAPSDK3="http://schemas.xmlsoap.org/soap/encoding/"
+		xmlns:SOAP-ENV="http://schemas.xmlsoap.org/soap/envelope/">
+	<SOAP-ENV:Header>
+	<SessionID>${sessionId}</SessionID>
+	</SOAP-ENV:Header>
+	${soapBody}
+	</SOAP-ENV:Envelope>`;
+	return soapRequest;
+}
+
+function soapLogin(sessionId, username, password) {
+	const soapBody = `<SOAP-ENV:Body>
+	<Authenticate>
+		<NewUsername xsi:type="xsd:string" xmlns:xsi="http://www.w3.org/1999/XMLSchema-instance">${username}</NewUsername>
+		<NewPassword xsi:type="xsd:string" xmlns:xsi="http://www.w3.org/1999/XMLSchema-instance">${password}</NewPassword>
+	</Authenticate>
+	</SOAP-ENV:Body>`;
+	return soapEnvelope(sessionId, soapBody);
+}
+
+function soapLogout(sessionId) {
+	const soapBody = `<SOAP-ENV:Body>
+		<M1:SOAPLogout xmlns:M1="urn:NETGEAR-ROUTER:service:DeviceConfig:1">
+		</M1:SOAPLogout>
+	</SOAP-ENV:Body>`;
+	return soapEnvelope(sessionId, soapBody);
+}
+
+function soapGetInfo(sessionId) {
+	const soapBody = `<SOAP-ENV:Body>
+		<M1:GetInfo xmlns:M1="urn:NETGEAR-ROUTER:service:DeviceInfo:1">
+		</M1:GetInfo>
+	</SOAP-ENV:Body>`;
+	return soapEnvelope(sessionId, soapBody);
+}
+
+function soapConfigurationStarted(sessionId) {
+	const soapBody = `<SOAP-ENV:Body>
+		<M1:ConfigurationStarted xmlns:M1="urn:NETGEAR-ROUTER:service:DeviceConfig:1">
+			<NewSessionID>${sessionId}</NewSessionID>
+			</M1:ConfigurationStarted>
+	</SOAP-ENV:Body>`;
+	return soapEnvelope(sessionId, soapBody);
+}
+
+function soapConfigurationFinished(sessionId) {
+	const soapBody = `<SOAP-ENV:Body>
+		<M1:ConfigurationFinished xmlns:M1="urn:NETGEAR-ROUTER:service:DeviceConfig:1">
+			<NewStatus>ChangesApplied</NewStatus>
+		</M1:ConfigurationFinished>
+	</SOAP-ENV:Body>`;
+	return soapEnvelope(sessionId, soapBody);
+}
+
+function soapSetBlockDevice(sessionId, mac, AllowOrBlock) {
+	const soapBody = `<SOAP-ENV:Body>
+		<M1:SetBlockDeviceByMAC xmlns:M1="urn:NETGEAR-ROUTER:service:DeviceConfig:1">
+			<NewAllowOrBlock>${AllowOrBlock}</NewAllowOrBlock>
+			<NewMACAddress>${mac}</NewMACAddress>
+		</M1:SetBlockDeviceByMAC>
+	</SOAP-ENV:Body>`;
+	return soapEnvelope(sessionId, soapBody);
+}
+
+function soapAttachedDevices(sessionId) {
+	const soapBody = `<SOAP-ENV:Body>
+		<M1:GetAttachDevice xmlns:M1="urn:NETGEAR-ROUTER:service:DeviceInfo:1">
+		</M1:GetAttachDevice>
+	</SOAP-ENV:Body>`;
+	return soapEnvelope(sessionId, soapBody);
+}
+
+function soapAttachedDevices2(sessionId) {
+	const soapBody = `<SOAP-ENV:Body>
+		<M1:GetAttachDevice2 xmlns:M1="urn:NETGEAR-ROUTER:service:DeviceInfo:1">
+		</M1:GetAttachDevice2>
+	</SOAP-ENV:Body>`;
+	return soapEnvelope(sessionId, soapBody);
+}
+
+function soapTrafficMeter(sessionId) {
+	const soapBody = `<SOAP-ENV:Body>
+		<M1:GetTrafficMeterStatistics xmlns:M1="urn:NETGEAR-ROUTER:service:DeviceConfig:1"></M1:GetTrafficMeterStatistics>
+	</SOAP-ENV:Body>`;
+	return soapEnvelope(sessionId, soapBody);
+}
+
+function soapGetGuestAccessEnabled(sessionId) {
+	const soapBody = `<SOAP-ENV:Body>
+		<M1:GetGuestAccessEnabled xmlns:M1="urn:NETGEAR-ROUTER:service:WLANConfiguration:1">
+		</M1:GetGuestAccessEnabled>
+	</SOAP-ENV:Body>`;
+	return soapEnvelope(sessionId, soapBody);
+}
+
+function soapGet5G1GuestAccessEnabled(sessionId) {
+	const soapBody = `<SOAP-ENV:Body>
+		<M1:Get5G1GuestAccessEnabled xmlns:M1="urn:NETGEAR-ROUTER:service:WLANConfiguration:1">
+		</M1:Get5G1GuestAccessEnabled>
+	</SOAP-ENV:Body>`;
+	return soapEnvelope(sessionId, soapBody);
+}
+
+function soapGet5GGuestAccessEnabled2(sessionId) {
+	const soapBody = `<SOAP-ENV:Body>
+		<M1:Get5GGuestAccessEnabled2 xmlns:M1="urn:NETGEAR-ROUTER:service:WLANConfiguration:1">
+		</M1:Get5GGuestAccessEnabled2>
+	</SOAP-ENV:Body>`;
+	return soapEnvelope(sessionId, soapBody);
+}
+
+function soapSetGuestAccessEnabled(sessionId, enabled) {
+	const soapBody = `<SOAP-ENV:Body>
+		<M1:SetGuestAccessEnabled xmlns:M1="urn:NETGEAR-ROUTER:service:WLANConfiguration:1">
+			<NewGuestAccessEnabled>${enabled * 1}</NewGuestAccessEnabled>
+		</M1:SetGuestAccessEnabled>
+	</SOAP-ENV:Body>`;
+	return soapEnvelope(sessionId, soapBody);
+}
+
+function soapSetGuestAccessEnabled2(sessionId, enabled) {
+	const soapBody = `<SOAP-ENV:Body>
+		<M1:SetGuestAccessEnabled2 xmlns:M1="urn:NETGEAR-ROUTER:service:WLANConfiguration:1">
+			<NewGuestAccessEnabled>${enabled * 1}</NewGuestAccessEnabled>
+		</M1:SetGuestAccessEnabled2>
+	</SOAP-ENV:Body>`;
+	return soapEnvelope(sessionId, soapBody);
+}
+
+function soapSet5G1GuestAccessEnabled(sessionId, enabled) {
+	const soapBody = `<SOAP-ENV:Body>
+		<M1:Set5G1GuestAccessEnabled xmlns:M1="urn:NETGEAR-ROUTER:service:WLANConfiguration:1">
+			<NewGuestAccessEnabled>${enabled * 1}</NewGuestAccessEnabled>
+		</M1:Set5G1GuestAccessEnabled>
+	</SOAP-ENV:Body>`;
+	return soapEnvelope(sessionId, soapBody);
+}
+
+function soapSet5G1GuestAccessEnabled2(sessionId, enabled) {
+	const soapBody = `<SOAP-ENV:Body>
+		<M1:Set5G1GuestAccessEnabled2 xmlns:M1="urn:NETGEAR-ROUTER:service:WLANConfiguration:1">
+			<NewGuestAccessEnabled>${enabled * 1}</NewGuestAccessEnabled>
+		</M1:Set5G1GuestAccessEnabled2>
+	</SOAP-ENV:Body>`;
+	return soapEnvelope(sessionId, soapBody);
+}
+
+function soapSet5GGuestAccessEnabled2(sessionId, enabled) {
+	const soapBody = `<SOAP-ENV:Body>
+		<M1:Set5GGuestAccessEnabled2 xmlns:M1="urn:NETGEAR-ROUTER:service:WLANConfiguration:1">
+			<NewGuestAccessEnabled>${enabled * 1}</NewGuestAccessEnabled>
+		</M1:Set5GGuestAccessEnabled2>
+	</SOAP-ENV:Body>`;
+	return soapEnvelope(sessionId, soapBody);
+}
+
+function soapReboot(sessionId) {
+	const soapBody = `<SOAP-ENV:Body>
+		<M1:Reboot xmlns:M1="urn:NETGEAR-ROUTER:service:DeviceConfig:1">
+		</M1:Reboot>
+	</SOAP-ENV:Body>`;
+	return soapEnvelope(sessionId, soapBody);
+}
+
+function soapCheckNewFirmware(sessionId) {
+	const soapBody = `<SOAP-ENV:Body>
+		<M1:CheckNewFirmware xmlns:M1="urn:NETGEAR-ROUTER:service:DeviceConfig:1">
+		</M1:CheckNewFirmware>
+	</SOAP-ENV:Body>`;
+	return soapEnvelope(sessionId, soapBody);
+}
+
+function soapUpdateNewFirmware(sessionId) {
+	const soapBody = `<SOAP-ENV:Body>
+		<M1:UpdateNewFirmware xmlns:M1="urn:NETGEAR-ROUTER:service:DeviceConfig:1">
+		  <YesOrNo>1</YesOrNo>
+		</M1:UpdateNewFirmware>
+	</SOAP-ENV:Body>`;
+	return soapEnvelope(sessionId, soapBody);
+}
+
+function soapSpeedTestStart(sessionId) {
+	const soapBody = `<SOAP-ENV:Body>
+		<M1:SetOOKLASpeedTestStart xmlns:M1="urn:NETGEAR-ROUTER:service:AdvancedQoS:1">
+		</M1:SetOOKLASpeedTestStart>
+	</SOAP-ENV:Body>`;
+	return soapEnvelope(sessionId, soapBody);
+}
+
+function soapSpeedTestResult(sessionId) {
+	const soapBody = `<SOAP-ENV:Body>
+		<M1:GetOOKLASpeedTestResult xmlns:M1="urn:NETGEAR-ROUTER:service:AdvancedQoS:1">
+		</M1:GetOOKLASpeedTestResult>
+	</SOAP-ENV:Body>`;
+	return soapEnvelope(sessionId, soapBody);
+}
+
+
 class NetgearRouter {
 	// Represents a session to a Netgear Router.
 	constructor(password, user, host, port) {
@@ -68,8 +292,7 @@ class NetgearRouter {
 		this.username = user || defaultUser;
 		this.password = password || defaultPassword;
 		this.sessionId = defaultSessionId;
-		this.cookie = undefined;
-		this.timeout = 30000;
+		this.timeout = 15000;
 		this.soapVersion = undefined;	// 2 or 3
 		this.loggedIn = false;
 		this.configStarted = false;
@@ -85,8 +308,8 @@ class NetgearRouter {
 			this.port = port || await this.port;
 			this.username = user || this.username;
 			this.password = password || this.password;
-			const message = soap.login(this.sessionId, this.username, this.password);
-			await this._makeRequest(soap.action.login, message);
+			const message = soapLogin(this.sessionId, this.username, this.password);
+			await this._makeRequest(actionLogin, message);
 			this.loggedIn = true;
 			return Promise.resolve(this.loggedIn);
 		} catch (error) {
@@ -97,8 +320,8 @@ class NetgearRouter {
 	async logout() {
 		// console.log('logout');
 		try {
-			const message = soap.logout(this.sessionId);
-			await this._makeRequest(soap.action.logout, message);
+			const message = soapLogout(this.sessionId);
+			await this._makeRequest(actionLogout, message);
 			this.loggedIn = false;
 			return Promise.resolve(this.loggedIn);
 		} catch (error) {
@@ -147,87 +370,57 @@ class NetgearRouter {
 		}
 	}
 
-	async getInfo() {
+	getInfo() {
 		// Resolves promise of router information. Rejects if error occurred.
 		// console.log('Get router info');
-		try {
-			const message = soap.getInfo(this.sessionId);
-			const result = await this._makeRequest(soap.action.getInfo,	message);
-			const patchedBody = result.body
-				.replace(/soap-env:envelope/gi, 'soap-env:envelope')
-				.replace(/soap-env:body/gi, 'soap-env:body');
-			const res = await parseStringPromise(patchedBody);
-			const entries = res['soap-env:envelope']['soap-env:body'][0]['m:GetInfoResponse'][0];
-			if (Object.keys(entries).length < 2) {
-				throw Error('Error parsing router info');
-			}
-			const info = {};
-			Object.keys(entries).forEach((property) => {
-				if (Object.prototype.hasOwnProperty.call(entries, property) && Array.isArray(entries[property])) {
-					info[property] = entries[property][0];
-				}
-			});
-			// info is an object with the following properties:
-			// 	ModelName: e.g. 'R7000'
-			// 	Description: e.g. 'Netgear Smart Wizard 3.0, specification 0.7 version'
-			// 	SerialNumber: e.g. '1LG23B71067B2'
-			// 	Firmwareversion: e.g. 'V1.0.9.6'
-			// 	SmartAgentversion: // e.g. '3.0'
-			// 	FirewallVersion: // e.g. 'ACOS NAT-Netfilter v3.0.0.5 (Linux Cone NAT Hot Patch 06/11/2010)'
-			// 	VPNVersion: // e.g. 'N/A'
-			// 	OthersoftwareVersion: // e.g. '1.2.19'
-			// 	Hardwareversion: // e.g. 'R7000'
-			// 	Otherhardwareversion: // e.g. 'N/A'
-			// 	FirstUseDate: // e.g. 'Saturday, 20 Feb 2016 23:40:20'
-			// info.SerialNumber = 'TEST';
-			return Promise.resolve(info);
-		} catch (error) {
-			return Promise.reject(error);
-		}
-	}
-
-	async getSupportFeatureListXML() {
-		// console.log('Get suported feature list XML');
-		try {
-			const message = soap.getSupportFeatureListXML(this.sessionId);
-			const result = await this._makeRequest(soap.action.getSupportFeatureListXML, message);
-			const patchedBody = result.body
-				.replace(/soap-env:envelope/gi, 'soap-env:envelope')
-				.replace(/soap-env:body/gi, 'soap-env:body');
-			const res = await parseStringPromise(patchedBody);
-			const entries = res['soap-env:envelope']['soap-env:body'][0]['m:GetSupportFeatureListXMLResponse'][0].newFeatureList[0].features[0];
-			if (Object.keys(entries).length < 2) {
-				throw Error('Error parsing router feauture list');
-			}
-			const info = {};
-			Object.keys(entries).forEach((property) => {
-				if (Object.prototype.hasOwnProperty.call(entries, property) && Array.isArray(entries[property])) {
-					info[property] = entries[property][0];
-				}
-			});
-			// info is an object with the following properties (R7800):
-			//	DynamicQoS: '1.0',
-			//	OpenDNSParental: '1.0',
-			//	AccessControl: '1.0',
-			//	SpeedTest: '2.0',
-			//	GuestNetworkSchedule: '1.0',
-			//	TCAcceptance: '1.0',
-			//	DeviceTypeIdentification: '1.0',
-			//	AttachedDevice: '2.0',
-			//	NameNTGRDevice: '1.0',
-			//	SmartConnect: '2.0',
-			//	MaxMonthlyTrafficLimitation: '4095000000'
-			return Promise.resolve(info);
-		} catch (error) {
-			return Promise.reject(error);
-		}
+		return new Promise((resolve, reject) => {
+			const message = soapGetInfo(this.sessionId);
+			this._makeRequest(actionGetInfo,	message)
+				.then((result) => {
+					const patchedBody = result.body
+						.replace(/soap-env:envelope/gi, 'soap-env:envelope')
+						.replace(/soap-env:body/gi, 'soap-env:body');
+					parseString(patchedBody, async (err, res) => {
+						if (err) {
+							return reject(err);
+						}
+						const entries = res['soap-env:envelope']['soap-env:body'][0]['m:GetInfoResponse'][0];
+						if (Object.keys(entries).length < 2) {
+							return reject(Error('Error parsing router info'));
+						}
+						const info = {};
+						Object.keys(entries).forEach((property) => {
+							if (Object.prototype.hasOwnProperty.call(entries, property) && Array.isArray(entries[property])) {
+								info[property] = entries[property][0];
+							}
+						});
+						// info is an object with the following properties:
+						// 	ModelName: e.g. 'R7000'
+						// 	Description: e.g. 'Netgear Smart Wizard 3.0, specification 0.7 version'
+						// 	SerialNumber: e.g. '1LG23B71067B2'
+						// 	Firmwareversion: e.g. 'V1.0.9.6'
+						// 	SmartAgentversion: // e.g. '3.0'
+						// 	FirewallVersion: // e.g. 'ACOS NAT-Netfilter v3.0.0.5 (Linux Cone NAT Hot Patch 06/11/2010)'
+						// 	VPNVersion: // e.g. 'N/A'
+						// 	OthersoftwareVersion: // e.g. '1.2.19'
+						// 	Hardwareversion: // e.g. 'R7000'
+						// 	Otherhardwareversion: // e.g. 'N/A'
+						// 	FirstUseDate: // e.g. 'Saturday, 20 Feb 2016 23:40:20'
+						// info.SerialNumber = 'TEST';
+						return resolve(info);
+					});
+				})
+				.catch((error) => {
+					reject(error);
+				});
+		});
 	}
 
 	async getAttachedDevices() {
 		// Resolves promise list of connected devices to the router. Rejects if error occurred.
 		// console.log('Get attached devices');
 		const devices = await this._getAttachedDevices2()
-			.catch(() => {
+			.catch(async (error) => {
 				// console.log('trying old method');
 				return this._getAttachedDevices()
 					.catch((err) => {
@@ -241,8 +434,8 @@ class NetgearRouter {
 		// Resolves promise of traffic meter stats. Rejects if error occurred.
 		// console.log('Get traffic meter');
 		try {
-			const message = soap.trafficMeter(this.sessionId);
-			const result = await this._makeRequest(soap.action.getTrafficMeter,	message);
+			const message = soapTrafficMeter(this.sessionId);
+			const result = await this._makeRequest(actionGetTrafficMeter,	message);
 			const newTodayUpload = Number(regexNewTodayUpload.exec(result.body)[1].replace(',', ''));
 			const newTodayDownload = Number(regexNewTodayDownload.exec(result.body)[1].replace(',', ''));
 			const newMonthUpload = Number(regexNewMonthUpload.exec(result.body)[1].split('/')[0].replace(',', ''));
@@ -256,28 +449,46 @@ class NetgearRouter {
 		}
 	}
 
-	async setBlockDevice(MAC, AllowOrBlock) {
+	setBlockDevice(MAC, AllowOrBlock) {
 		// Resolves promise of AllowOrBlock status. Rejects if error occurred.
 		// console.log('setBlockDevice started');
-		try {
-			await this._configurationStarted();
-			const message = soap.setBlockDevice(this.sessionId, MAC, AllowOrBlock);
-			await this._makeRequest(soap.action.setBlockDevice, message); // response code 1 = unknown MAC?, 2= device not connected?
-			await this._configurationFinished()
-				.catch(() => {
-					// console.log(`Block/Allow finished with warning for ${MAC}`);
-				});
-			return Promise.resolve(MAC);
-		} catch (error) {
-			return Promise.reject(error);
-		}
+		return new Promise(async (resolve, reject) => {
+			try {
+				await this._configurationStarted()
+					.catch((err) => {
+						reject(Error(`Block/Allow failed for ${MAC}. (config started failure: ${err})`));
+					});
+				const message = soapSetBlockDevice(this.sessionId, MAC, AllowOrBlock);
+				await this._makeRequest(actionSetBlockDevice, message)
+					.catch((error) => {
+						if (error.message.includes('Invalid response code from router: 001')) {
+							this.loggedIn = true;
+							return reject(Error(`Block/Allow failed for ${MAC}. Unknown MAC address?`));
+						} else if (error.message.includes('Invalid response code from router: 002')) {
+							return reject(Error(`Block/Allow failed for ${MAC}. Device not connected?`));
+						}
+						return reject(error);
+					});
+				await this._configurationFinished()
+					.catch((err) => {
+						let responseCode = err;
+						if (err.message.includes('<ResponseCode>')) {
+							responseCode = regexResponseCode.exec(err)[1];
+						}
+						reject(Error(`Block/Allow finished with warning for ${MAC}. (config finished failure: ${responseCode})`));
+					});
+				return resolve(true);
+			} catch (error) {
+				return reject(error);
+			}
+		});
 	}
 
 	async getGuestWifiEnabled() {
 		// console.log('Get 2.4GHz Guest wifi enabled status');
 		try {
-			const message = soap.getGuestAccessEnabled(this.sessionId);
-			const result = await this._makeRequest(soap.action.getGuestAccessEnabled,	message);
+			const message = soapGetGuestAccessEnabled(this.sessionId);
+			const result = await this._makeRequest(actionGetGuestAccessEnabled,	message);
 			return Promise.resolve(result.body.includes('<NewGuestAccessEnabled>1</NewGuestAccessEnabled>'));
 		} catch (error) {
 			return Promise.reject(error);
@@ -302,11 +513,11 @@ class NetgearRouter {
 		// console.log('Get 5GHz-1 Guest wifi enabled status');
 		try {
 			// try method R8000
-			const message = soap.get5G1GuestAccessEnabled(this.sessionId);
-			const result = await this._makeRequest(soap.action.get5G1GuestAccessEnabled2, message)
+			const message = soapGet5G1GuestAccessEnabled(this.sessionId);
+			const result = await this._makeRequest(actionGet5G1GuestAccessEnabled2, message)
 				.catch(() => {
 					// console.log('trying alternative method');	// try method R7800
-					return Promise.resolve(this._makeRequest(soap.action.get5G1GuestAccessEnabled, message));
+					return Promise.resolve(this._makeRequest(actionGet5G1GuestAccessEnabled, message));
 				});
 			return Promise.resolve(result.body.includes('<NewGuestAccessEnabled>1</NewGuestAccessEnabled>'));
 		} catch (error) {
@@ -316,9 +527,10 @@ class NetgearRouter {
 
 	async set5GGuestWifi(enable) { // true or false
 		// turn 5GHz-1 guest wifi on or off
+		console.log('set5GGuestWifi started');
 		const method = await this._set5G1GuestAccessEnabled2(enable)
 			.catch(async () => {
-				// console.log('trying method 2');
+				console.log('trying method 2');
 				return this._set5G1GuestAccessEnabled(enable)
 					.catch((err) => {
 						return Promise.reject(err);
@@ -331,8 +543,8 @@ class NetgearRouter {
 		// console.log('Get 5GHz-1 Guest wifi enabled status');
 		try {
 			// try method R8000
-			const message = soap.get5GGuestAccessEnabled2(this.sessionId);
-			const result = await this._makeRequest(soap.action.get5GGuestAccessEnabled2, message);
+			const message = soapGet5GGuestAccessEnabled2(this.sessionId);
+			const result = await this._makeRequest(actionGet5GGuestAccessEnabled2, message);
 			return Promise.resolve(result.body.includes('<NewGuestAccessEnabled>1</NewGuestAccessEnabled>'));
 		} catch (error) {
 			return Promise.reject(error);
@@ -354,11 +566,12 @@ class NetgearRouter {
 				.catch((err) => {
 					throw Error(`Reboot request failed. (config started failure: ${err})`);
 				});
-			const message = soap.reboot(this.sessionId);
-			await this._makeRequest(soap.action.reboot,	message);
+			const message = soapReboot(this.sessionId);
+			await this._makeRequest(actionReboot,	message);
 			await this._configurationFinished()
-				.catch(() => {
-				// console.log(`Reboot finished with warning`);
+				.catch((err) => {
+					const responseCode = regexResponseCode.exec(err)[1];
+					throw Error(`Reboot request finished with warning. (config finished failure: ${responseCode})`);
 				});
 			return Promise.resolve(true); // reboot initiated
 		} catch (error) {
@@ -370,8 +583,8 @@ class NetgearRouter {
 		// check present firmware lever, and new firmware level if available
 		// console.log('check new firmware requested');
 		try {
-			const message = soap.checkNewFirmware(this.sessionId);
-			const result = await this._makeRequest(soap.action.checkNewFirmware,	message);
+			const message = soapCheckNewFirmware(this.sessionId);
+			const result = await this._makeRequest(actionCheckNewFirmware,	message);
 			const currentVersion = regexCurrentVersion.exec(result.body)[1];
 			const newVersion = regexNewVersion.exec(result.body)[1];
 			const releaseNote = regexReleaseNote.exec(result.body)[1];
@@ -385,8 +598,8 @@ class NetgearRouter {
 		// Update the firmware of the router
 		// console.log('router firmware update requested');
 		try {
-			const message = soap.updateNewFirmware(this.sessionId);
-			await this._makeRequest(soap.action.updateNewFirmware,	message);
+			const message = soapUpdateNewFirmware(this.sessionId);
+			await this._makeRequest(actionUpdateNewFirmware,	message);
 			return Promise.resolve(true); // firmware update request successfull
 		} catch (error) {
 			return Promise.reject(error);
@@ -398,7 +611,7 @@ class NetgearRouter {
 		// console.log('internet speed test requested');
 		try {
 			await this._speedTestStart();
-			await setTimeoutPromise(55 * 1000, 'waiting is done');
+			await setTimeoutPromise(45 * 1000, 'waiting is done');
 			const speed = await this._getSpeedTestResult();
 			return Promise.resolve(speed);
 		} catch (error) {
@@ -410,12 +623,16 @@ class NetgearRouter {
 		// start internet bandwith speedtest
 		// console.log('speed test requested');
 		try {
-			await this._configurationStarted();
-			const message = soap.speedTestStart(this.sessionId);
-			await this._makeRequest(soap.action.speedTestStart,	message);
+			await this._configurationStarted()
+				.catch((err) => {
+					throw Error(`Speedtest request failed. (config started failure: ${err})`);
+				});
+			const message = soapSpeedTestStart(this.sessionId);
+			await this._makeRequest(actionSpeedTestStart,	message);
 			await this._configurationFinished()
-				.catch(() => {
-				// console.log(`Speedtest finished with warning`);
+				.catch((err) => {
+					const responseCode = regexResponseCode.exec(err)[1];
+					throw Error(`Speedtest request finished with warning. (config finished failure: ${responseCode})`);
 				});
 			return Promise.resolve(true); // speedtest initiated
 		} catch (error) {
@@ -427,8 +644,8 @@ class NetgearRouter {
 		// get results of internet bandwith speedtest
 		// console.log('speed test results requested');
 		try {
-			const message = soap.speedTestResult(this.sessionId);
-			const result = await this._makeRequest(soap.action.speedTestResult,	message);
+			const message = soapSpeedTestResult(this.sessionId);
+			const result = await this._makeRequest(actionSpeedTestResult,	message);
 			const uplinkBandwidth = Number(regexUplinkBandwidth.exec(result.body)[1]);
 			const downlinkBandwidth = Number(regexDownlinkBandwidth.exec(result.body)[1]);
 			const averagePing = Number(regexAveragePing.exec(result.body)[1]);
@@ -443,8 +660,8 @@ class NetgearRouter {
 		// Resolves promise list of connected devices to the router. Rejects if error occurred.
 		// console.log('Get attached devices');
 		try {
-			const message = soap.attachedDevices(this.sessionId);
-			const result = await this._makeRequest(soap.action.getAttachedDevices, message);
+			const message = soapAttachedDevices(this.sessionId);
+			const result = await this._makeRequest(actionGetAttachedDevices, message);
 			const devices = [];
 			const patchedBody = result.body
 				.replace(/\r?\n|\r/g, ' ')
@@ -494,157 +711,224 @@ class NetgearRouter {
 		}
 	}
 
-	async _getAttachedDevices2() {
+	_getAttachedDevices2() {
 		// Resolves promise list of connected devices to the router. Rejects if error occurred.
 		// console.log('Get attached devices2');
-		try {
-			const message = soap.attachedDevices2(this.sessionId);
-			const result = await this._makeRequest(soap.action.getAttachedDevices2, message);
-			const patchedBody = result.body
-				.replace(/&lt/g, '')
-				.replace(/&gt/g, '')
-				.replace(/<Name>/g, '<Name><![CDATA[')
-				.replace(/<\/Name>/g, ']]></Name>')
-				.replace(/<DeviceModel>/g, '<DeviceModel><![CDATA[')
-				.replace(/<\/DeviceModel>/g, ']]></DeviceModel>')
-				.replace(/<DeviceTypeName>/g, '<DeviceTypeName><![CDATA[')
-				.replace(/<\/DeviceTypeName>/g, ']]></DeviceTypeName>')
-				.replace(/soap-env:envelope/gi, 'soap-env:envelope')
-				.replace(/soap-env:body/gi, 'soap-env:body');
-			const res = await parseStringPromise(patchedBody);
-			const entries = res['soap-env:envelope']['soap-env:body'][0]['m:GetAttachDevice2Response'][0].NewAttachDevice[0].Device;
-			if (entries === undefined) {
-				throw Error(`Error parsing device-list (entries undefined) ${res}`);
-			}
-			if (entries.length < 1) {
-				throw Error('Error parsing device-list');
-			}
-			const entryCount = entries.length;
-			const devices = [];
-			for (let i = 0; i < entryCount; i += 1) {
-				const device = new AttachedDevice();
-				device.IP = entries[i].IP[0];						// e.g. '10.0.0.10'
-				device.Name = entries[i].Name[0];				// '--' for unknown
-				device.NameUserSet = (entries[i].NameUserSet[0] === 'true');	// e.g. 'false'
-				device.MAC = entries[i].MAC[0];					// e.g. '61:56:FA:1B:E1:21'
-				device.ConnectionType = entries[i].ConnectionType[0];	// e.g. 'wired', '2.4GHz', 'Guest Wireless 2.4G'
-				device.SSID = entries[i].SSID[0];				// e.g. 'MyWiFi'
-				device.Linkspeed = entries[i].Linkspeed[0];
-				device.SignalStrength = Number(entries[i].SignalStrength[0]);	// number <= 100
-				device.AllowOrBlock = entries[i].AllowOrBlock[0];			// 'Allow' or 'Block'
-				device.Schedule = entries[i].Schedule[0];							// e.g. 'false'
-				device.DeviceType = Number(entries[i].DeviceType[0]);	// a number
-				device.DeviceTypeUserSet = (entries[i].DeviceTypeUserSet[0] === 'true');	// e.g. 'false',
-				device.DeviceTypeName = '';	// unknown, found in orbi response
-				device.DeviceModel = ''; // unknown, found in R7800 and orbi response
-				device.DeviceModelUserSet = false; // // unknown, found in orbi response
-				device.Upload = Number(entries[i].Upload[0]);
-				device.Download = Number(entries[i].Download[0]);
-				device.QosPriority = Number(entries[i].QosPriority[0]);	// 1, 2, 3, 4
-				device.Grouping = '0';
-				device.SchedulePeriod = '0';
-				device.ConnAPMAC = ''; // unknown, found in orbi response
-				if (Object.keys(entries[i]).length >= 18) { // only available for certain routers?:
-					device.DeviceModel = entries[i].DeviceModel[0]; // '',
-					device.Grouping = Number(entries[i].Grouping[0]); // 0
-					device.SchedulePeriod = Number(entries[i].SchedulePeriod[0]); // 0
-				}
-				if (Object.keys(entries[i]).length >= 21) { // only available for certain routers?:
-					device.DeviceTypeName = entries[i].DeviceTypeName[0]; // '',
-					device.DeviceModelUserSet = (entries[i].DeviceModelUserSet[0] === 'true'); // e.g. 'false',
-					device.ConnAPMAC = entries[i].ConnAPMAC[0]; // MAC of connected orbi?
-				}
-				devices.push(device);
-			}
-			return Promise.resolve(devices);
-		} catch (error) {
-			return Promise.reject(error);
-		}
+		return new Promise((resolve, reject) => {
+			const message = soapAttachedDevices2(this.sessionId);
+			this._makeRequest(actionGetAttachedDevices2, message)
+				.then((result) => {
+					// Fix use of special characters in the devicename
+					// Netgear output is not conforming to XML standards!
+					try {
+						const patchedBody = result.body
+							.replace(/&lt/g, '')
+							.replace(/&gt/g, '')
+							.replace(/<Name>/g, '<Name><![CDATA[')
+							.replace(/<\/Name>/g, ']]></Name>')
+							.replace(/<DeviceModel>/g, '<DeviceModel><![CDATA[')
+							.replace(/<\/DeviceModel>/g, ']]></DeviceModel>')
+							.replace(/<DeviceTypeName>/g, '<DeviceTypeName><![CDATA[')
+							.replace(/<\/DeviceTypeName>/g, ']]></DeviceTypeName>')
+							.replace(/soap-env:envelope/gi, 'soap-env:envelope')
+							.replace(/soap-env:body/gi, 'soap-env:body');
+						parseString(patchedBody, async (err, res) => {
+							if (err) {
+								reject(Error(`Error parsing xml device-list: ${err}`));
+								return;
+							}
+							const entries = res['soap-env:envelope']['soap-env:body'][0]['m:GetAttachDevice2Response'][0].NewAttachDevice[0].Device;
+							if (entries === undefined) {
+								reject(Error(`Error parsing device-list (entries undefined) ${res}`));
+								return;
+							}
+							if (entries.length < 1) {
+								reject(Error('Error parsing device-list'));
+							}
+							const entryCount = entries.length;
+							const devices = [];
+							for (let i = 0; i < entryCount; i += 1) {
+								const device = new AttachedDevice();
+								device.IP = entries[i].IP[0];						// e.g. '10.0.0.10'
+								device.Name = entries[i].Name[0];				// '--' for unknown
+								device.NameUserSet = (entries[i].NameUserSet[0] === 'true');	// e.g. 'false'
+								device.MAC = entries[i].MAC[0];					// e.g. '61:56:FA:1B:E1:21'
+								device.ConnectionType = entries[i].ConnectionType[0];	// e.g. 'wired', '2.4GHz', 'Guest Wireless 2.4G'
+								device.SSID = entries[i].SSID[0];				// e.g. 'MyWiFi'
+								device.Linkspeed = entries[i].Linkspeed[0];
+								device.SignalStrength = Number(entries[i].SignalStrength[0]);	// number <= 100
+								device.AllowOrBlock = entries[i].AllowOrBlock[0];			// 'Allow' or 'Block'
+								device.Schedule = entries[i].Schedule[0];							// e.g. 'false'
+								device.DeviceType = Number(entries[i].DeviceType[0]);	// a number
+								device.DeviceTypeUserSet = (entries[i].DeviceTypeUserSet[0] === 'true');	// e.g. 'false',
+								device.DeviceTypeName = '';	// unknown, found in orbi response
+								device.DeviceModel = ''; // unknown, found in R7800 and orbi response
+								device.DeviceModelUserSet = false; // // unknown, found in orbi response
+								device.Upload = Number(entries[i].Upload[0]);
+								device.Download = Number(entries[i].Download[0]);
+								device.QosPriority = Number(entries[i].QosPriority[0]);	// 1, 2, 3, 4
+								device.Grouping = '0';
+								device.SchedulePeriod = '0';
+								device.ConnAPMAC = ''; // unknown, found in orbi response
+								if (Object.keys(entries[i]).length >= 18) { // only available for certain routers?:
+									device.DeviceModel = entries[i].DeviceModel[0]; // '',
+									device.Grouping = Number(entries[i].Grouping[0]); // 0
+									device.SchedulePeriod = Number(entries[i].SchedulePeriod[0]); // 0
+								}
+								if (Object.keys(entries[i]).length >= 21) { // only available for certain routers?:
+									device.DeviceTypeName = entries[i].DeviceTypeName[0]; // '',
+									device.DeviceModelUserSet = (entries[i].DeviceModelUserSet[0] === 'true'); // e.g. 'false',
+									device.ConnAPMAC = entries[i].ConnAPMAC[0]; // MAC of connected orbi?
+								}
+								devices.push(device);
+							}
+							resolve(devices);
+						});
+					} catch (error) {
+						throw error;
+					}
+				})
+				.catch((error) => {
+					reject(error);	// request failed because login failed
+				});
+		});
 	}
 
-	async _setGuestAccessEnabled(enabled) { // true or false
+	_setGuestAccessEnabled(enabled) { // true or false
 		// enable or disable 2.4Ghz-1 Guest Wifi
 		// console.log('setGuestAccess requested');
-		try {
-			await this._configurationStarted();
-			const message = soap.setGuestAccessEnabled(this.sessionId, enabled);
-			await this._makeRequest(soap.action.setGuestAccessEnabled, message);
-			await this._configurationFinished()
-				.catch(() => {
-					// console.log(`setGuestAccessEnabled finished with warning.`);
+		return new Promise(async (resolve, reject) => {
+			await this._configurationStarted()
+				.catch((err) => {
+					reject(Error(`setGuestAccessEnabled request failed. (config started failure: ${err})`));
 				});
-			return Promise.resolve(true);
-		} catch (error) {
-			return Promise.reject(error);
-		}
+			const message = soapSetGuestAccessEnabled(this.sessionId, enabled);
+			await this._makeRequest(actionSetGuestAccessEnabled, message)
+				.catch((error) => {
+					reject(error);
+				});
+			await this._configurationFinished()
+				.catch((err) => {
+					let responseCode = err;
+					if (err.message.includes('<ResponseCode>')) {
+						responseCode = regexResponseCode.exec(err)[1];
+					}
+					reject(Error(`setGuestAccessEnabled finished with warning. (config finished failure: ${responseCode})`));
+				});
+			return resolve(true);
+		});
 	}
 
-	async _setGuestAccessEnabled2(enabled) { // true or false
-		// enable or disable 2.4Ghz-1 Guest Wifi on certain routers like R8000
+	_setGuestAccessEnabled2(enabled) { // true or false
+		// 		// enable or disable 2.4Ghz-1 Guest Wifi on certain routers like R8000
 		// console.log('setGuestAccess requested');
-		try {
-			await this._configurationStarted();
-			const message = soap.setGuestAccessEnabled2(this.sessionId, enabled);
-			await this._makeRequest(soap.action.setGuestAccessEnabled2, message);
-			await this._configurationFinished()
-				.catch(() => {
-					// console.log(`setGuestAccessEnabled2 finished with warning.`);
+		return new Promise(async (resolve, reject) => {
+			await this._configurationStarted()
+				.catch((err) => {
+					reject(Error(`setGuestAccessEnabled2 request failed. (config started failure: ${err})`));
 				});
-			return Promise.resolve(true);
-		} catch (error) {
-			return Promise.reject(error);
-		}
+			const message = soapSetGuestAccessEnabled2(this.sessionId, enabled);
+			await this._makeRequest(actionSetGuestAccessEnabled2, message)
+				.catch((error) => {
+					reject(error);
+				});
+			await this._configurationFinished()
+				.catch((err) => {
+					let responseCode = err;
+					if (err.message.includes('<ResponseCode>')) {
+						responseCode = regexResponseCode.exec(err)[1];
+					}
+					reject(Error(`setGuestAccessEnabled2 finished with warning. (config finished failure: ${responseCode})`));
+				});
+			return resolve(true);
+		});
 	}
 
-	async _set5G1GuestAccessEnabled(enabled) { // true or false
+	_set5G1GuestAccessEnabled(enabled) { // true or false
 		// enable or disable 5Ghz-1 Guest Wifi
 		// console.log('setGuestAccess requested');
-		await this._configurationStarted();
-		const message = soap.set5G1GuestAccessEnabled(this.sessionId, enabled);
-		await this._makeRequest(soap.action.set5G1GuestAccessEnabled, message);
-		await this._configurationFinished()
-			.catch(() => {
-				// console.log(`set5G1GuestAccessEnabled finished with warning.`);
-			});
-		return Promise.resolve(true);
+		return new Promise(async (resolve, reject) => {
+			await this._configurationStarted()
+				.catch((err) => {
+					reject(Error(`set5G1GuestAccessEnabled request failed. (config started failure: ${err})`));
+				});
+			const message = soapSet5G1GuestAccessEnabled(this.sessionId, enabled);
+			await this._makeRequest(actionSet5G1GuestAccessEnabled, message)
+				.catch((error) => {
+					reject(error);
+				});
+			await this._configurationFinished()
+				.catch((err) => {
+					let responseCode = err;
+					if (err.message.includes('<ResponseCode>')) {
+						responseCode = regexResponseCode.exec(err)[1];
+					}
+					reject(Error(`set5G1GuestAccessEnabled finished with warning. (config finished failure: ${responseCode})`));
+				});
+			return resolve(true);
+		});
 	}
 
-	async _set5G1GuestAccessEnabled2(enabled) { // true or false
+	_set5G1GuestAccessEnabled2(enabled) { // true or false
 		// enable or disable 5Ghz-1 Guest Wifi on certain routers like R8000
 		// console.log('setGuestAccess requested');
-		await this._configurationStarted();
-		const message = soap.set5G1GuestAccessEnabled2(this.sessionId, enabled);
-		await this._makeRequest(soap.action.set5G1GuestAccessEnabled2, message);
-		await this._configurationFinished()
-			.catch(() => {
-				// console.log(`set5G1GuestAccessEnabled2 finished with warning.`);
-			});
-		return Promise.resolve(true);
+		return new Promise(async (resolve, reject) => {
+			await this._configurationStarted()
+				.catch((err) => {
+					reject(Error(`set5G1GuestAccessEnabled2 request failed. (config started failure: ${err})`));
+				});
+			const message = soapSet5G1GuestAccessEnabled2(this.sessionId, enabled);
+			await this._makeRequest(actionSet5G1GuestAccessEnabled2, message)
+				.catch((error) => {
+					reject(error);
+				});
+			await this._configurationFinished()
+				.catch((err) => {
+					let responseCode = err;
+					if (err.message.includes('<ResponseCode>')) {
+						responseCode = regexResponseCode.exec(err)[1];
+					}
+					reject(Error(`set5G1GuestAccessEnabled2 finished with warning. (config finished failure: ${responseCode})`));
+				});
+			return resolve(true);
+		});
 	}
 
-	async _set5GGuestAccessEnabled2(enabled) { // true or false
+	_set5GGuestAccessEnabled2(enabled) { // true or false
 		// enable or disable 5Ghz-2 Guest Wifi on certain routers like R8000
 		// console.log('setGuestAccess requested');
-		await this._configurationStarted();
-		const message = soap.set5GGuestAccessEnabled2(this.sessionId, enabled);
-		await this._makeRequest(soap.action.set5GGuestAccessEnabled2, message);
-		await this._configurationFinished()
-			.catch(() => {
-				// console.log(`set5GGuestAccessEnabled2 finished with warning.`);
-			});
-		return Promise.resolve(true);
+		return new Promise(async (resolve, reject) => {
+			await this._configurationStarted()
+				.catch((err) => {
+					reject(Error(`set5GGuestAccessEnabled2 request failed. (config started failure: ${err})`));
+				});
+			const message = soapSet5GGuestAccessEnabled2(this.sessionId, enabled);
+			await this._makeRequest(actionSet5GGuestAccessEnabled2, message)
+				.catch((error) => {
+					reject(error);
+				});
+			await this._configurationFinished()
+				.catch((err) => {
+					let responseCode = err;
+					if (err.message.includes('<ResponseCode>')) {
+						responseCode = regexResponseCode.exec(err)[1];
+					}
+					reject(Error(`set5GGuestAccessEnabled2 finished with warning. (config finished failure: ${responseCode})`));
+				});
+			return resolve(true);
+		});
 	}
 
 	async _configurationStarted() {
 		// Resolves promise of config start status. Rejects if error occurred.
 		// console.log('start configuration');
 		try {
-			const message = soap.configurationStarted(this.sessionId);
-			await this._makeRequest(soap.action.configurationStarted, message);
+			const message = soapConfigurationStarted(this.sessionId);
+			await this._makeRequest(actionConfigurationStarted, message);
 			this.configStarted = true;
 			return Promise.resolve(true);
 		} catch (error) {
-			return Promise.reject(Error(`Config started error: ${error}`));
+			return Promise.reject(error);
 		}
 	}
 
@@ -656,15 +940,18 @@ class NetgearRouter {
 				return Promise.resolve(true);
 			}
 			this.configStarted = false;
-			const message = soap.configurationFinished(this.sessionId);
-			await this._makeRequest(soap.action.configurationFinished, message)
+			const message = soapConfigurationFinished(this.sessionId);
+			await this._makeRequest(actionConfigurationFinished, message)
 				.catch((err) => {	// config finished failed...
+					if (err.message.includes('<ResponseCode>501</ResponseCode>')) {
+						return Promise.resolve('finished with warning');	// config already finished before
+					}
 					this.configStarted = true;
 					throw err;
 				});
 			return Promise.resolve(true);
 		} catch (error) {
-			return Promise.reject(Error(`Config finished error: ${error}`));
+			return Promise.reject(error);
 		}
 	}
 
@@ -692,21 +979,31 @@ class NetgearRouter {
 		});
 	}
 
+	// async _getSoapVersion(host1) {
+	// 	// Resolves promise of soap version without need for credentials. Rejects if error occurred.
+	// 	// console.log('Get soap version');
+	// 	const host = host1 || this.host;
+	// 	try {
+	// 		const currentSetting = await this.getCurrentSetting(host);
+	// 		const soapVersion = parseInt(currentSetting.SOAPVersion, 10) || 2;
+	// 		this.soapVersion = soapVersion;
+	// 		return Promise.resolve(soapVersion);
+	// 	} catch (error) {
+	// 		return Promise.reject(error);
+	// 	}
+	// }
+
 	async _makeRequest(action, message) {
 		try {
-			if (!this.loggedIn && action !== soap.action.login) {
+			if (!this.loggedIn && action !== actionLogin) {
 				return Promise.reject(Error('Not logged in'));
 			}
 			const headers = {
 				SOAPAction: action,
-				'Cache-Control': 'no-cache',
-				'User-Agent': 'node-netgearjs',
+				Connection: 'keep-alive',
 				'Content-Length': Buffer.byteLength(message),
-				Connection: 'Keep-Alive',
+				'User-Agent': 'node-netgearjs',
 			};
-			if (this.cookie) {
-				headers.Cookie = this.cookie;
-			}
 			const options = {
 				hostname: this.host,
 				port: this.port,
@@ -715,28 +1012,24 @@ class NetgearRouter {
 				method: 'POST',
 			};
 			const result = await this._makeHttpRequest(options, message);
-			if (result.headers['Set-Cookie']) {
-				// console.log(`new cookie was set on ${options.headers.SOAPAction}`);
-				this.cookie = result.headers['Set-Cookie'];
-			}
-			if (result.statusCode !== 200) {
-				throw Error(`HTTP request Failed. Status Code: ${result.statusCode}`);
-			}
-			const responseCodeRegex = regexResponseCode.exec(result.body);
-			if (responseCodeRegex === null) {
-				throw Error('no response code from router');
-			}
-			const responseCode = Number(responseCodeRegex[1]);
-			if (responseCode === 0) {
-				// soap request returned ok
+			// request successfull
+			if (result.statusCode === 200 &&
+				(result.body.includes('<ResponseCode>000</ResponseCode>') || result.body.includes('<ResponseCode>0</ResponseCode>'))) {
 				return Promise.resolve(result);
 			}
 			// request failed
-			if (responseCode === 401) {
+			if (result.statusCode !== 200) {
+				throw Error(`HTTP request Failed. Status Code: ${result.statusCode}`);
+			}
+			if (result.body.includes('<ResponseCode>401</ResponseCode>')) {
 				this.loggedIn = false;
 				throw Error('Unauthorized. Incorrect username/password?');
 			}
-			throw Error(`Invalid response code from router: ${responseCode}`);
+			if (result.body.includes('<ResponseCode>')) {
+				const responseCode = regexResponseCode.exec(result.body)[1];
+				throw Error(`Invalid response code from router: ${responseCode}`);
+			}
+			throw Error('no response code from router');
 		} catch (error) {
 			return Promise.reject(error);
 		}

@@ -31,10 +31,6 @@ async function getRouterInfo() {
 		const info = await router.getInfo();
 		console.log(info);
 
-		// Get the support features.
-		const supportFeatures = await router.getSupportFeatureListXML();
-		console.log(supportFeatures);
-
 		// get a list of attached devices
 		const attachedDevices = await router.getAttachedDevices();
 		console.log(attachedDevices);
@@ -48,7 +44,6 @@ async function getRouterInfo() {
 		console.log(firmware);
 
 		// logout
-		console.log('going to logout now');
 		await router.logout();
 
 	}	catch (error) {
@@ -61,7 +56,7 @@ async function blockOrAllow(mac, action) {
 	try {
 		await router.login();
 		const success = await router.setBlockDevice(mac, action);
-		console.log(`${action} for ${mac} succesfull!`);
+		console.log(success);
 	}	catch (error) {
 		console.log(error);
 	}
@@ -100,11 +95,21 @@ async function doWifiStuff() {
 	}
 }
 
+// function to reboot router
+async function reboot() {
+	try {
+		await router.login();
+		// Reboot the router
+		await router.reboot();
+	}	catch (error) {
+		console.log(error);
+	}
+}
+
 // function to update router firmware
 async function updateNewFirmware() {
 	try {
 		await router.login();
-		console.log('trying to update router firmware');
 		await router.updateNewFirmware();
 	}	catch (error) {
 		console.log(error);
@@ -115,21 +120,8 @@ async function updateNewFirmware() {
 async function speedTest() {
 	try {
 		await router.login();
-		console.log('speed test is starting... (wait a minute)')
 		const speed = await router.speedTest(); // takes 1 minute to respond!
 		console.log(speed);
-	}	catch (error) {
-		console.log(error);
-	}
-}
-
-// function to reboot router
-async function reboot() {
-	try {
-		await router.login();
-		// Reboot the router
-		console.log('going to reboot the router now')
-		await router.reboot();
 	}	catch (error) {
 		console.log(error);
 	}
@@ -139,8 +131,8 @@ async function reboot() {
 getRouterInfo();
 // blockOrAllow('AA:BB:CC:DD:EE:FF', 'Block');
 // blockOrAllow('AA:BB:CC:DD:EE:FF', 'Allow');
-// getGuestWifiStatus();
 // doWifiStuff();
 // reboot();
 // updateNewFirmware();
 // speedTest();
+// getGuestWifiStatus();
