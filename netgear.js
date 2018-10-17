@@ -7,12 +7,11 @@
 'use strict';
 
 const http = require('http');
-const { parseString } = require('xml2js');
+const parseXml = require('xml-js');
 const util = require('util');
 const soap = require('./soapcalls');
 
 const setTimeoutPromise = util.promisify(setTimeout);
-const parseStringPromise = util.promisify(parseString);
 
 const regexResponseCode = new RegExp(/<ResponseCode>(.*)<\/ResponseCode>/);
 const regexAttachedDevices = new RegExp(/<NewAttachDevice>(.*)<\/NewAttachDevice>/);
@@ -59,6 +58,24 @@ class AttachedDevice {
 	}
 }
 
+// filters for illegal xml characters
+// XML 1.0
+// #x9 | #xA | #xD | [#x20-#xD7FF] | [#xE000-#xFFFD] | [#x10000-#x10FFFF]
+const xml10pattern = '[^'
+										+ '\u0009\r\n'
+										+ '\u0020-\uD7FF'
+										+ '\uE000-\uFFFD'
+										+ '\ud800\udc00-\udbff\udfff'
+										+ ']';
+
+// // XML 1.1
+// // [#x1-#xD7FF] | [#xE000-#xFFFD] | [#x10000-#x10FFFF]
+// const xml11pattern = '[^'
+// 										+ '\u0001-\uD7FF'
+// 										+ '\uE000-\uFFFD'
+// 										+ '\ud800\udc00-\udbff\udfff'
+// 										+ ']+';
+
 class NetgearRouter {
 	// Represents a session to a Netgear Router.
 	constructor(password, user, host, port) {
@@ -69,7 +86,7 @@ class NetgearRouter {
 		this.password = password || defaultPassword;
 		this.sessionId = defaultSessionId;
 		this.cookie = undefined;
-		this.timeout = 30000;
+		this.timeout = 15000;
 		this.soapVersion = undefined;	// 2 or 3
 		this.loggedIn = false;
 		this.configStarted = false;
@@ -154,17 +171,19 @@ class NetgearRouter {
 			const message = soap.getInfo(this.sessionId);
 			const result = await this._makeRequest(soap.action.getInfo,	message);
 			const patchedBody = result.body
+				.replace(xml10pattern, '')
 				.replace(/soap-env:envelope/gi, 'soap-env:envelope')
 				.replace(/soap-env:body/gi, 'soap-env:body');
-			const res = await parseStringPromise(patchedBody);
-			const entries = res['soap-env:envelope']['soap-env:body'][0]['m:GetInfoResponse'][0];
-			if (Object.keys(entries).length < 2) {
-				throw Error('Error parsing router info');
-			}
+			// parse xml to json object
+			const parseOptions = {
+				compact: true, ignoreDeclaration: true, ignoreAttributes: true, spaces: 2,
+			};
+			const rawJson = parseXml.xml2js(patchedBody, parseOptions);
+			const entries = rawJson['soap-env:envelope']['soap-env:body']['m:GetInfoResponse'];
 			const info = {};
 			Object.keys(entries).forEach((property) => {
-				if (Object.prototype.hasOwnProperty.call(entries, property) && Array.isArray(entries[property])) {
-					info[property] = entries[property][0];
+				if (Object.prototype.hasOwnProperty.call(entries, property)) {
+					info[property] = entries[property]._text;
 				}
 			});
 			// info is an object with the following properties:
@@ -192,17 +211,19 @@ class NetgearRouter {
 			const message = soap.getSupportFeatureListXML(this.sessionId);
 			const result = await this._makeRequest(soap.action.getSupportFeatureListXML, message);
 			const patchedBody = result.body
+				.replace(xml10pattern, '')
 				.replace(/soap-env:envelope/gi, 'soap-env:envelope')
 				.replace(/soap-env:body/gi, 'soap-env:body');
-			const res = await parseStringPromise(patchedBody);
-			const entries = res['soap-env:envelope']['soap-env:body'][0]['m:GetSupportFeatureListXMLResponse'][0].newFeatureList[0].features[0];
-			if (Object.keys(entries).length < 2) {
-				throw Error('Error parsing router feauture list');
-			}
+			// parse xml to json object
+			const parseOptions = {
+				compact: true, ignoreDeclaration: true, ignoreAttributes: true, spaces: 2,
+			};
+			const rawJson = parseXml.xml2js(patchedBody, parseOptions);
+			const entries = rawJson['soap-env:envelope']['soap-env:body']['m:GetSupportFeatureListXMLResponse'].newFeatureList.features;
 			const info = {};
 			Object.keys(entries).forEach((property) => {
-				if (Object.prototype.hasOwnProperty.call(entries, property) && Array.isArray(entries[property])) {
-					info[property] = entries[property][0];
+				if (Object.prototype.hasOwnProperty.call(entries, property)) {
+					info[property] = entries[property]._text;
 				}
 			});
 			// info is an object with the following properties (R7800):
@@ -449,13 +470,7 @@ class NetgearRouter {
 			const patchedBody = result.body
 				.replace(/\r?\n|\r/g, ' ')
 				.replace(/&lt/g, '')
-				.replace(/&gt/g, '')
-				.replace(/<Name>/g, '<Name><![CDATA[')
-				.replace(/<\/Name>/g, ']]></Name>')
-				.replace(/<DeviceModel>/g, '<DeviceModel><![CDATA[')
-				.replace(/<\/DeviceModel>/g, ']]></DeviceModel>')
-				.replace(/<DeviceTypeName>/g, '<DeviceTypeName><![CDATA[')
-				.replace(/<\/DeviceTypeName>/g, ']]></DeviceTypeName>');
+				.replace(/&gt/g, '');
 			const raw = regexAttachedDevices.exec(patchedBody)[1];
 			const entries = raw.split('@');
 			if (entries.length < 1) {
@@ -509,12 +524,31 @@ class NetgearRouter {
 				.replace(/<\/DeviceModel>/g, ']]></DeviceModel>')
 				.replace(/<DeviceTypeName>/g, '<DeviceTypeName><![CDATA[')
 				.replace(/<\/DeviceTypeName>/g, ']]></DeviceTypeName>')
+				.replace(xml10pattern, '')
 				.replace(/soap-env:envelope/gi, 'soap-env:envelope')
 				.replace(/soap-env:body/gi, 'soap-env:body');
-			const res = await parseStringPromise(patchedBody);
-			const entries = res['soap-env:envelope']['soap-env:body'][0]['m:GetAttachDevice2Response'][0].NewAttachDevice[0].Device;
+
+			// parse xml to json object
+			const parseOptions = {
+				compact: true, ignoreDeclaration: true, ignoreAttributes: true, spaces: 2,
+			};
+			const rawJson = parseXml.xml2js(patchedBody, parseOptions);
+			let entries;
+			try {
+				entries = rawJson['soap-env:envelope']['soap-env:body']['m:GetAttachDevice2Response'].NewAttachDevice.Device;
+			} catch (err) {
+				console.log(rawJson);
+				console.log(err);
+				throw err;
+			}
+			const info = {};
+			Object.keys(entries).forEach((property) => {
+				if (Object.prototype.hasOwnProperty.call(entries, property)) {
+					info[property] = entries[property]._text;
+				}
+			});
 			if (entries === undefined) {
-				throw Error(`Error parsing device-list (entries undefined) ${res}`);
+				throw Error(`Error parsing device-list (entries undefined) ${rawJson}`);
 			}
 			if (entries.length < 1) {
 				throw Error('Error parsing device-list');
@@ -523,36 +557,36 @@ class NetgearRouter {
 			const devices = [];
 			for (let i = 0; i < entryCount; i += 1) {
 				const device = new AttachedDevice();
-				device.IP = entries[i].IP[0];						// e.g. '10.0.0.10'
-				device.Name = entries[i].Name[0];				// '--' for unknown
-				device.NameUserSet = (entries[i].NameUserSet[0] === 'true');	// e.g. 'false'
-				device.MAC = entries[i].MAC[0];					// e.g. '61:56:FA:1B:E1:21'
-				device.ConnectionType = entries[i].ConnectionType[0];	// e.g. 'wired', '2.4GHz', 'Guest Wireless 2.4G'
-				device.SSID = entries[i].SSID[0];				// e.g. 'MyWiFi'
-				device.Linkspeed = entries[i].Linkspeed[0];
-				device.SignalStrength = Number(entries[i].SignalStrength[0]);	// number <= 100
-				device.AllowOrBlock = entries[i].AllowOrBlock[0];			// 'Allow' or 'Block'
-				device.Schedule = entries[i].Schedule[0];							// e.g. 'false'
-				device.DeviceType = Number(entries[i].DeviceType[0]);	// a number
-				device.DeviceTypeUserSet = (entries[i].DeviceTypeUserSet[0] === 'true');	// e.g. 'false',
+				device.IP = entries[i].IP._text;						// e.g. '10.0.0.10'
+				device.Name = entries[i].Name._cdata;				// '--' for unknown
+				device.NameUserSet = (entries[i].NameUserSet._text === 'true');	// e.g. 'false'
+				device.MAC = entries[i].MAC._text;					// e.g. '61:56:FA:1B:E1:21'
+				device.ConnectionType = entries[i].ConnectionType._text;	// e.g. 'wired', '2.4GHz', 'Guest Wireless 2.4G'
+				device.SSID = entries[i].SSID._text;				// e.g. 'MyWiFi'
+				device.Linkspeed = entries[i].Linkspeed._text;
+				device.SignalStrength = Number(entries[i].SignalStrength._text);	// number <= 100
+				device.AllowOrBlock = entries[i].AllowOrBlock._text;			// 'Allow' or 'Block'
+				device.Schedule = entries[i].Schedule._text;							// e.g. 'false'
+				device.DeviceType = Number(entries[i].DeviceType._text);	// a number
+				device.DeviceTypeUserSet = (entries[i].DeviceTypeUserSet._text === 'true');	// e.g. 'false',
 				device.DeviceTypeName = '';	// unknown, found in orbi response
 				device.DeviceModel = ''; // unknown, found in R7800 and orbi response
 				device.DeviceModelUserSet = false; // // unknown, found in orbi response
-				device.Upload = Number(entries[i].Upload[0]);
-				device.Download = Number(entries[i].Download[0]);
-				device.QosPriority = Number(entries[i].QosPriority[0]);	// 1, 2, 3, 4
+				device.Upload = Number(entries[i].Upload._text);
+				device.Download = Number(entries[i].Download._text);
+				device.QosPriority = Number(entries[i].QosPriority._text);	// 1, 2, 3, 4
 				device.Grouping = '0';
 				device.SchedulePeriod = '0';
 				device.ConnAPMAC = ''; // unknown, found in orbi response
 				if (Object.keys(entries[i]).length >= 18) { // only available for certain routers?:
-					device.DeviceModel = entries[i].DeviceModel[0]; // '',
-					device.Grouping = Number(entries[i].Grouping[0]); // 0
-					device.SchedulePeriod = Number(entries[i].SchedulePeriod[0]); // 0
+					device.DeviceModel = entries[i].DeviceModel._cdata; // '',
+					device.Grouping = Number(entries[i].Grouping._text); // 0
+					device.SchedulePeriod = Number(entries[i].SchedulePeriod._text); // 0
 				}
 				if (Object.keys(entries[i]).length >= 21) { // only available for certain routers?:
-					device.DeviceTypeName = entries[i].DeviceTypeName[0]; // '',
-					device.DeviceModelUserSet = (entries[i].DeviceModelUserSet[0] === 'true'); // e.g. 'false',
-					device.ConnAPMAC = entries[i].ConnAPMAC[0]; // MAC of connected orbi?
+					device.DeviceTypeName = entries[i].DeviceTypeName._cdata; // '',
+					device.DeviceModelUserSet = (entries[i].DeviceModelUserSet._text === 'true'); // e.g. 'false',
+					device.ConnAPMAC = entries[i].ConnAPMAC._text; // MAC of connected orbi?
 				}
 				devices.push(device);
 			}
@@ -716,12 +750,13 @@ class NetgearRouter {
 			};
 			const result = await this._makeHttpRequest(options, message);
 			if (result.headers['Set-Cookie']) {
-				// console.log(`new cookie was set on ${options.headers.SOAPAction}`);
+				console.log(`new cookie was set on ${options.headers.SOAPAction}`);
 				this.cookie = result.headers['Set-Cookie'];
 			}
 			if (result.statusCode !== 200) {
 				throw Error(`HTTP request Failed. Status Code: ${result.statusCode}`);
 			}
+			// console.log(result.body);
 			const responseCodeRegex = regexResponseCode.exec(result.body);
 			if (responseCodeRegex === null) {
 				throw Error('no response code from router');

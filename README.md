@@ -1,4 +1,4 @@
-Javascript / Nodejs Module to communicate with Netgear routers via soap interface. The initial code
+Javascript / Nodejs package to communicate with Netgear routers via soap interface. The initial code
 was inspired on this Python version: https://github.com/balloob/pynetgear
 
 # Example code:
