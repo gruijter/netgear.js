@@ -84,10 +84,11 @@ class NetgearRouter {
 			.catch(() => { this.port = 80; });
 		this.username = user || defaultUser;
 		this.password = password || defaultPassword;
-		this.sessionId = defaultSessionId;
-		this.cookie = undefined;
 		this.timeout = 15000;
 		this.soapVersion = undefined;	// 2 or 3
+		this.loginMethod = undefined;	// 2.0 for newer models
+		this.sessionId = defaultSessionId;
+		this.cookie = undefined;
 		this.loggedIn = false;
 		this.configStarted = false;
 	}
@@ -95,15 +96,27 @@ class NetgearRouter {
 	async login(password, user, host, port) {
 		// console.log('Login');
 		try {
-			if (this.soapVerion === undefined) {
-				await this.getCurrentSetting(host);
+			if (this.loginMethod === undefined) {
+				const settings = await this.getCurrentSetting(host)
+					.catch(() => {
+						const set = { LoginMethod: 1 };	// assume old login style on error
+						return set;
+					});
+				this.loginMethod = Number(settings.LoginMethod);
 			}
 			this.host = host || this.host;
 			this.port = port || await this.port;
 			this.username = user || this.username;
 			this.password = password || this.password;
-			const message = soap.login(this.sessionId, this.username, this.password);
-			await this._makeRequest(soap.action.login, message);
+			if (this.loginMethod >= 2) {	// use new login method
+				const message = soap.login(this.sessionId, this.username, this.password);
+				await this._makeRequest(soap.action.login, message);
+				this.loggedIn = true;
+				return Promise.resolve(this.loggedIn);
+			}
+			// use old login method
+			const message = soap.loginOld(this.sessionId, this.username, this.password);
+			await this._makeRequest(soap.action.loginOld, message);
 			this.loggedIn = true;
 			return Promise.resolve(this.loggedIn);
 		} catch (error) {

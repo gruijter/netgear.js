@@ -7,7 +7,7 @@
 'use strict';
 
 exports.action = {
-	// loginOld: 'urn:NETGEAR-ROUTER:service:ParentalControl:1#Authenticate',
+	loginOld: 'urn:NETGEAR-ROUTER:service:ParentalControl:1#Authenticate',
 	login: 'urn:NETGEAR-ROUTER:service:DeviceConfig:1#SOAPLogin',
 	logout: 'urn:NETGEAR-ROUTER:service:DeviceConfig:1#SOAPLogout',
 	getInfo: 'urn:NETGEAR-ROUTER:service:DeviceInfo:1#GetInfo',
@@ -49,15 +49,15 @@ const soapEnvelope = (sessionId, soapBody) => {
 	return soapRequest;
 };
 
-// exports.loginOld = (sessionId, username, password) => {
-// 	const soapBody = `<SOAP-ENV:Body>
-// 	<Authenticate>
-// 		<NewUsername xsi:type="xsd:string" xmlns:xsi="http://www.w3.org/1999/XMLSchema-instance">${username}</NewUsername>
-// 		<NewPassword xsi:type="xsd:string" xmlns:xsi="http://www.w3.org/1999/XMLSchema-instance">${password}</NewPassword>
-// 	</Authenticate>
-// 	</SOAP-ENV:Body>`;
-// 	return soapEnvelope(sessionId, soapBody);
-// };
+exports.loginOld = (sessionId, username, password) => {
+	const soapBody = `<SOAP-ENV:Body>
+	<Authenticate>
+		<NewUsername xsi:type="xsd:string" xmlns:xsi="http://www.w3.org/1999/XMLSchema-instance">${username}</NewUsername>
+		<NewPassword xsi:type="xsd:string" xmlns:xsi="http://www.w3.org/1999/XMLSchema-instance">${password}</NewPassword>
+	</Authenticate>
+	</SOAP-ENV:Body>`;
+	return soapEnvelope(sessionId, soapBody);
+};
 
 exports.login = (sessionId, username, password) => {
 	const soapBody = `<SOAP-ENV:Body>
