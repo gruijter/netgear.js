@@ -748,7 +748,7 @@ class NetgearRouter {
 				SOAPAction: action,
 				'Cache-Control': 'no-cache',
 				'User-Agent': 'node-netgearjs',
-				'Content-type': 'application/xml', // multipart/form-data
+				'Content-type': 'multipart/form-data',
 				'Content-Length': Buffer.byteLength(message),
 				Connection: 'Keep-Alive',
 			};
@@ -764,7 +764,6 @@ class NetgearRouter {
 			};
 			const result = await this._makeHttpRequest(options, message);
 			if (result.headers['set-cookie']) {
-				// console.log(`new cookie was set on ${options.headers.SOAPAction}`);
 				this.cookie = result.headers['set-cookie'];
 			}
 			if (result.statusCode !== 200) {
@@ -776,7 +775,6 @@ class NetgearRouter {
 			}
 			const responseCode = Number(responseCodeRegex[1]);
 			if (responseCode === 0) {
-				// soap request returned ok
 				return Promise.resolve(result);
 			}
 			// request failed

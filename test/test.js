@@ -6,8 +6,8 @@
 
 // INSTRUCTIONS FOR TESTING FROM DESKTOP:
 // install node (https://nodejs.org)
-// install this package (npm i netgear)
-// run the test: > node test <password>
+// install this package: > npm i netgear
+// run the test (from the test folder): > node test password
 
 'use strict';
 
