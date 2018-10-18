@@ -550,8 +550,8 @@ class NetgearRouter {
 			try {
 				entries = rawJson['soap-env:envelope']['soap-env:body']['m:GetAttachDevice2Response'].NewAttachDevice.Device;
 			} catch (err) {
-				console.log(rawJson);
-				console.log(err);
+				// console.log(rawJson);
+				// console.log(err);
 				throw err;
 			}
 			const info = {};
@@ -748,6 +748,7 @@ class NetgearRouter {
 				SOAPAction: action,
 				'Cache-Control': 'no-cache',
 				'User-Agent': 'node-netgearjs',
+				'Content-type': 'application/xml', // multipart/form-data
 				'Content-Length': Buffer.byteLength(message),
 				Connection: 'Keep-Alive',
 			};

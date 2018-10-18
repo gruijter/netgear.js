@@ -4,9 +4,14 @@
 
 	Copyright 2017, 2018, Robin de Gruijter <gruijter@hotmail.com> */
 
+// INSTRUCTIONS FOR TESTING FROM DESKTOP:
+// install node (https://nodejs.org)
+// install this package (npm i netgear)
+// run the test: > node test <password>
+
 'use strict';
 
-const NetgearRouter = require('./netgear.js');
+const NetgearRouter = require('../netgear.js');
 
 // node test password
 // username, host and port are optional. Defaults are: 'admin', 'routerlogin.net', autodetect port: 80 or 5000
