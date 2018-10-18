@@ -1,6 +1,6 @@
 {
   "name": "netgear",
-  "version": "2.4.0",
+  "version": "3.0.0",
   "description": "Node module to interact with Netgear routers via SOAP",
   "main": "netgear.js",
   "scripts": {
@@ -23,6 +23,8 @@
   },
   "homepage": "https://github.com/gruijter/netgear.js#readme",
   "dependencies": {
+    "xml-js": "^1.6.8",
     "xml2js": "^0.4.19"
-  }
+  },
+	"runkitExampleFilename": "test/runkitTest.js"
 }

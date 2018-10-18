@@ -7,7 +7,8 @@
 'use strict';
 
 exports.action = {
-	login: 'urn:NETGEAR-ROUTER:service:ParentalControl:1#Authenticate',
+	loginOld: 'urn:NETGEAR-ROUTER:service:ParentalControl:1#Authenticate',
+	login: 'urn:NETGEAR-ROUTER:service:DeviceConfig:1#SOAPLogin',
 	logout: 'urn:NETGEAR-ROUTER:service:DeviceConfig:1#SOAPLogout',
 	getInfo: 'urn:NETGEAR-ROUTER:service:DeviceInfo:1#GetInfo',
 	getSupportFeatureListXML: 'urn:NETGEAR-ROUTER:service:DeviceInfo:1#GetSupportFeatureListXML',
@@ -35,24 +36,35 @@ exports.action = {
 
 const soapEnvelope = (sessionId, soapBody) => {
 	const soapRequest = `<?xml version="1.0" encoding="utf-8" standalone="no"?>
-	<SOAP-ENV:Envelope xmlns:SOAPSDK1="http://www.w3.org/2001/XMLSchema"
-		xmlns:SOAPSDK2="http://www.w3.org/2001/XMLSchema-instance"
-		xmlns:SOAPSDK3="http://schemas.xmlsoap.org/soap/encoding/"
-		xmlns:SOAP-ENV="http://schemas.xmlsoap.org/soap/envelope/">
+	<SOAP-ENV:Envelope
+	xmlns:SOAPSDK1="http://www.w3.org/2001/XMLSchema"
+	xmlns:SOAPSDK2="http://www.w3.org/2001/XMLSchema-instance"
+	xmlns:SOAPSDK3="http://schemas.xmlsoap.org/soap/encoding/"
+	xmlns:SOAP-ENV="http://schemas.xmlsoap.org/soap/envelope/">
 	<SOAP-ENV:Header>
-	<SessionID>${sessionId}</SessionID>
+		<SessionID>${sessionId}</SessionID>
 	</SOAP-ENV:Header>
 	${soapBody}
 	</SOAP-ENV:Envelope>`;
 	return soapRequest;
 };
 
-exports.login = (sessionId, username, password) => {
+exports.loginOld = (sessionId, username, password) => {
 	const soapBody = `<SOAP-ENV:Body>
 	<Authenticate>
 		<NewUsername xsi:type="xsd:string" xmlns:xsi="http://www.w3.org/1999/XMLSchema-instance">${username}</NewUsername>
 		<NewPassword xsi:type="xsd:string" xmlns:xsi="http://www.w3.org/1999/XMLSchema-instance">${password}</NewPassword>
 	</Authenticate>
+	</SOAP-ENV:Body>`;
+	return soapEnvelope(sessionId, soapBody);
+};
+
+exports.login = (sessionId, username, password) => {
+	const soapBody = `<SOAP-ENV:Body>
+	<M1:SOAPLogin xmlns:M1="urn:NETGEAR-ROUTER:service:DeviceConfig:1">
+	  <Username>${username}</Username>
+	  <Password>${password}</Password>
+	</M1:SOAPLogin>
 	</SOAP-ENV:Body>`;
 	return soapEnvelope(sessionId, soapBody);
 };
