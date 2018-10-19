@@ -91,32 +91,30 @@ class NetgearRouter {
 		this.cookie = undefined;
 		this.loggedIn = false;
 		this.configStarted = false;
+		this.getAttachedDevicesMethod = undefined;
+		this.lastResponse = undefined;
 	}
 
 	async login(password, user, host, port) {
 		// console.log('Login');
 		try {
-			if (this.loginMethod === undefined) {
-				const settings = await this.getCurrentSetting(host)
-					.catch(() => {
-						const set = { LoginMethod: 1 };	// assume old login style on error
-						return set;
-					});
-				this.loginMethod = Number(settings.LoginMethod) || 1;
-			}
 			this.host = host || this.host;
 			this.port = port || await this.port;
 			this.username = user || this.username;
 			this.password = password || this.password;
-			if (this.loginMethod >= 2) {	// use new login method
-				const message = soap.login(this.sessionId, this.username, this.password);
-				await this._makeRequest(soap.action.login, message);
-				this.loggedIn = true;
-				return Promise.resolve(this.loggedIn);
-			}
-			// use old login method
-			const message = soap.loginOld(this.sessionId, this.username, this.password);
-			await this._makeRequest(soap.action.loginOld, message);
+			// try new login method
+			this.loginMethod = 2;
+			const message = soap.login(this.sessionId, this.username, this.password);
+			await this._makeRequest(soap.action.login, message)
+				.catch(() => {	// new login failed, trying old login
+					this.loginMethod = 1;
+					this.cookie = undefined; // reset the cookie
+					const messageOld = soap.loginOld(this.sessionId, this.username, this.password);
+					return this._makeRequest(soap.action.loginOld, messageOld);
+						// .catch((err) => {
+						// 	return Promise.reject(err);
+						// });
+				});
 			this.loggedIn = true;
 			return Promise.resolve(this.loggedIn);
 		} catch (error) {
@@ -161,6 +159,7 @@ class NetgearRouter {
 						currentSetting[info[0]] = info[1];
 					}
 				});
+				// this.loginMethod = Number(currentSetting.LoginMethod) || 1;
 				this.soapVersion = parseInt(currentSetting.SOAPVersion, 10) || 2;
 				return Promise.resolve(currentSetting);
 			}
@@ -260,9 +259,11 @@ class NetgearRouter {
 	async getAttachedDevices() {
 		// Resolves promise list of connected devices to the router. Rejects if error occurred.
 		// console.log('Get attached devices');
+		this.getAttachedDevicesMethod = 2;
 		const devices = await this._getAttachedDevices2()
 			.catch(() => {
 				// console.log('trying old method');
+				this.getAttachedDevicesMethod = 1;
 				return this._getAttachedDevices()
 					.catch((err) => {
 						return Promise.reject(err);
@@ -767,8 +768,10 @@ class NetgearRouter {
 				this.cookie = result.headers['set-cookie'];
 			}
 			if (result.statusCode !== 200) {
+				this.lastResponse = result.statusCode;
 				throw Error(`HTTP request Failed. Status Code: ${result.statusCode}`);
 			}
+			this.lastResponse = result.body;
 			const responseCodeRegex = regexResponseCode.exec(result.body);
 			if (responseCodeRegex === null) {
 				throw Error('no response code from router');

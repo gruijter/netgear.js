@@ -26,38 +26,50 @@ const router = new NetgearRouter(
 async function getRouterInfo() {
 	try {
 		// Get router type, soap version, firmware version and internet connection status without login
+		console.log('\n\rgetting currentSetting');
 		const currentSetting = await router.getCurrentSetting();
 		console.log(currentSetting);
 
 		// for other methods you first need to be logged in.
+		console.log('\n\rtrying to login');
 		await router.login(); // [password], [username], [host], [port] will override previous settings
+		console.log(`login method: ${router.loginMethod}`);
 
 		// Get router type, serial number, hardware version, firmware version, soap version, firewall version, etc.
+		console.log('\n\rgetInfo');
 		const info = await router.getInfo();
 		console.log(info);
 
 		// Get the support features.
+		console.log('\n\rgetting supportFeatures');
 		const supportFeatures = await router.getSupportFeatureListXML();
 		console.log(supportFeatures);
 
 		// get a list of attached devices
+		console.log('\n\rgetting attachedDevices');
 		const attachedDevices = await router.getAttachedDevices();
 		console.log(attachedDevices);
+		console.log(`getAttachedDevices method: ${router.getAttachedDevicesMethod}`);
 
 		// get traffic statistics for this day and this month. Note: traffic monitoring must be enabled in router
+		console.log('\n\rgetting trafficMeter');
 		const traffic = await router.getTrafficMeter();
 		console.log(traffic);
 
 		// check for new router firmware and release note
+		console.log('\n\rchecking newFirmware');
 		const firmware = await router.checkNewFirmware();
 		console.log(firmware);
 
 		// logout
-		console.log('going to logout now');
+		console.log('\n\rgoing to logout now');
 		await router.logout();
+		console.log('\n\rtest finished o.k. :)\n\r');
 
 	}	catch (error) {
 		console.log(error);
+		console.log('\n\rlast router response:\n\r');
+		console.log(router.lastResponse);
 	}
 }
 
@@ -69,6 +81,8 @@ async function blockOrAllow(mac, action) {
 		console.log(`${action} for ${mac} succesfull!`);
 	}	catch (error) {
 		console.log(error);
+		console.log('\n\rlast router response:\n\r');
+		console.log(router.lastResponse);
 	}
 }
 
@@ -84,6 +98,8 @@ async function getGuestWifiStatus() {
 		console.log(`5G-2 Guest wifi enabled: ${guestWifi5G2Enabled}`);
 	} catch (error) {
 		console.log(error);
+		console.log('\n\rlast router response:\n\r');
+		console.log(router.lastResponse);
 	}
 }
 
@@ -102,6 +118,8 @@ async function doWifiStuff() {
 		console.log('5-2 disabled');
 	}	catch (error) {
 		console.log(error);
+		console.log('\n\rlast router response:\n\r');
+		console.log(router.lastResponse);
 	}
 }
 
@@ -113,6 +131,8 @@ async function updateNewFirmware() {
 		await router.updateNewFirmware();
 	}	catch (error) {
 		console.log(error);
+		console.log('\n\rlast router response:\n\r');
+		console.log(router.lastResponse);
 	}
 }
 
@@ -125,6 +145,8 @@ async function speedTest() {
 		console.log(speed);
 	}	catch (error) {
 		console.log(error);
+		console.log('\n\rlast router response:\n\r');
+		console.log(router.lastResponse);
 	}
 }
 
@@ -137,6 +159,8 @@ async function reboot() {
 		await router.reboot();
 	}	catch (error) {
 		console.log(error);
+		console.log('\n\rlast router response:\n\r');
+		console.log(router.lastResponse);
 	}
 }
 
