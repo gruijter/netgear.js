@@ -85,13 +85,18 @@ class NetgearRouter {
 		this.username = user || defaultUser;
 		this.password = password || defaultPassword;
 		this.timeout = 15000;
-		this.soapVersion = undefined;	// 2 or 3
-		this.loginMethod = undefined;	// 2.0 for newer models
 		this.sessionId = defaultSessionId;
 		this.cookie = undefined;
 		this.loggedIn = false;
 		this.configStarted = false;
+		this.soapVersion = undefined;	// 2 or 3
+		this.loginMethod = undefined;	// 2.0 for newer models
 		this.getAttachedDevicesMethod = undefined;
+		this.guestWifiMethod = {
+			set24_1: undefined,
+			get50_1: undefined,
+			set50_1: undefined,
+		};
 		this.lastResponse = undefined;
 	}
 
@@ -110,10 +115,10 @@ class NetgearRouter {
 					this.loginMethod = 1;
 					this.cookie = undefined; // reset the cookie
 					const messageOld = soap.loginOld(this.sessionId, this.username, this.password);
-					return this._makeRequest(soap.action.loginOld, messageOld);
-						// .catch((err) => {
-						// 	return Promise.reject(err);
-						// });
+					return this._makeRequest(soap.action.loginOld, messageOld)
+						.catch(() => {
+							throw Error('Failed to login. Wrong password?');
+						});
 				});
 			this.loggedIn = true;
 			return Promise.resolve(this.loggedIn);
@@ -149,6 +154,7 @@ class NetgearRouter {
 				method: 'GET',
 			};
 			const result = await this._makeHttpRequest(options, '');
+			this.lastResponse = result.body;
 			// request successfull
 			if (result.statusCode === 200 && result.body.includes('Model=')) {
 				const currentSetting = {};
@@ -322,9 +328,11 @@ class NetgearRouter {
 	async setGuestWifi(enable) { // true or false
 		// turn 2.4GHz-1 guest wifi on or off
 		// console.log('setGuestWifi started');
+		this.guestWifiMethod.set24_1 = 1;
 		const method = await this._setGuestAccessEnabled(enable)
 			.catch(async () => {
 				// console.log('trying method 2');
+				this.guestWifiMethod.set24_1 = 2;
 				return this._setGuestAccessEnabled2(enable)
 					.catch((err) => {
 						return Promise.reject(err);
@@ -337,10 +345,12 @@ class NetgearRouter {
 		// console.log('Get 5GHz-1 Guest wifi enabled status');
 		try {
 			// try method R8000
+			this.guestWifiMethod.get50_1 = 2;
 			const message = soap.get5G1GuestAccessEnabled(this.sessionId);
 			const result = await this._makeRequest(soap.action.get5G1GuestAccessEnabled2, message)
 				.catch(() => {
 					// console.log('trying alternative method');	// try method R7800
+					this.guestWifiMethod.get50_1 = 1;
 					return Promise.resolve(this._makeRequest(soap.action.get5G1GuestAccessEnabled, message));
 				});
 			return Promise.resolve(result.body.includes('<NewGuestAccessEnabled>1</NewGuestAccessEnabled>'));
@@ -351,9 +361,11 @@ class NetgearRouter {
 
 	async set5GGuestWifi(enable) { // true or false
 		// turn 5GHz-1 guest wifi on or off
+		this.guestWifiMethod.set50_1 = 2;
 		const method = await this._set5G1GuestAccessEnabled2(enable)
 			.catch(async () => {
 				// console.log('trying method 2');
+				this.guestWifiMethod.set50_1 = 1;
 				return this._set5G1GuestAccessEnabled(enable)
 					.catch((err) => {
 						return Promise.reject(err);
