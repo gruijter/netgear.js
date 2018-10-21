@@ -80,8 +80,7 @@ class NetgearRouter {
 	// Represents a session to a Netgear Router.
 	constructor(password, user, host, port) {
 		this.host = host || defaultHost;
-		this.port = port || this._getSoapPort(this.host)
-			.catch(() => { this.port = 80; });
+		this.port = port;
 		this.username = user || defaultUser;
 		this.password = password || defaultPassword;
 		this.timeout = 15000;
@@ -104,7 +103,14 @@ class NetgearRouter {
 		// console.log('Login');
 		try {
 			this.host = host || this.host;
-			this.port = port || await this.port;
+			await this.port;
+			if (port) {
+				this.port = port;
+			}
+			if (this.port !== 80 || this.port !== 5000) {
+				this.port = await this._getSoapPort(this.host)
+					.catch(() => 80);
+			}
 			this.username = user || this.username;
 			this.password = password || this.password;
 			// try new login method
@@ -334,9 +340,7 @@ class NetgearRouter {
 				// console.log('trying method 2');
 				this.guestWifiMethod.set24_1 = 2;
 				return this._setGuestAccessEnabled2(enable)
-					.catch((err) => {
-						return Promise.reject(err);
-					});
+					.catch(err => Promise.reject(err));
 			});
 		return Promise.resolve(method);
 	}
@@ -367,9 +371,7 @@ class NetgearRouter {
 				// console.log('trying method 2');
 				this.guestWifiMethod.set50_1 = 1;
 				return this._set5G1GuestAccessEnabled(enable)
-					.catch((err) => {
-						return Promise.reject(err);
-					});
+					.catch(err => Promise.reject(err));
 			});
 		return Promise.resolve(method);
 	}
