@@ -6,8 +6,13 @@ was inspired on this Python version: https://github.com/balloob/pynetgear
 ```
 const NetgearRouter = require('netgear');
 
-// password, username, host and port are optional. Defaults are: 'password', 'admin', 'routerlogin.net', 80/5000
-const router = new NetgearRouter('your password'); // [password], [user], [host], [port]
+// password, username, host and port are optional. Defaults are: 'password', 'admin', 'routerlogin.net', undefined
+const router = new NetgearRouter(); // [password], [user], [host], [port]
+
+// auto discovery of IP address and SOAP port of the router. The discovered address and port will override previous settings
+router.discover()
+	.then(discovered => console.log(discovered))
+	.catch(error => console.log(error));
 
 // function to get various information
 async function getRouterInfo() {
@@ -17,7 +22,7 @@ async function getRouterInfo() {
 		console.log(currentSetting);
 
 		// for other methods you first need to be logged in.
-		await router.login(); // [password], [username], [host], [port] will override previous settings
+		await router.login('your_password'); // [password], [username], [host], [port] will override previous settings
 
 		// Get router type, serial number, hardware version, firmware version, soap version, firewall version, etc.
 		const info = await router.getInfo();
@@ -154,7 +159,7 @@ reboot();
 
 
 # Supported routers
-In general: If you can use the genie app to manage the router then this module will most likely work. The module is confirmed to work with WNDR4500v2, R6250, R7000, R7800, R8000 and Orbi.
+In general: If you can use the genie app to manage the router then this module will most likely work. The module is confirmed to work with WNR2000v5, WNDR4500v2, R6250, R7000, R7800, R8000 and Orbi.
 You can check the router version by browsing to http://routerlogin.net/currentsetting.htm . According to the NETGEAR Genie app description, the following routers should work:
 
 Wi-Fi Routers:

@@ -19,20 +19,26 @@ let log = [];
 const router = new NetgearRouter();
 
 // function to setup the router session
-function setupSession(password, user, host, port) {
-	router.host = host || router.host;
-	router.port = port || router._getSoapPort(router.host)
-		.catch(() => { this.port = 80; });
-	router.username = user || router.username;
-	router.password = password || router.password;
+async function setupSession(password, user, host, port) {
+	try {
+		log.push('===========================================');
+		log.push(`starting test on Netgear package version ${version}`);
+		router.password = password || router.password;
+		router.username = user || router.username;
+		log.push('trying to auto discover the router...');
+		log.push(await router.discover());
+		router.host = host || router.host;
+		router.port = port || router.port;
+	}	catch (error) {
+		log.push(error);
+		router.password = '*****';
+		log.push(router);
+	}
 }
 
 // function to get various information
 async function getRouterInfo() {
 	try {
-		log.push('===========================================');
-		log.push(`starting test on Netgear package version ${version}`);
-
 		// Get router type, soap version, firmware version and internet connection status without login
 		log.push('getting currentSetting...');
 		const currentSetting = await router.getCurrentSetting();
@@ -170,7 +176,7 @@ async function reboot() {
 exports.test = async (password, user, host, port) => {
 	log = [];	// empty the log
 	try {
-		setupSession(password, user, host, port);
+		await setupSession(password, user, host, port);
 		await getRouterInfo();
 		// await blockOrAllow('AA:BB:CC:DD:EE:FF', 'Block');
 		// await blockOrAllow('AA:BB:CC:DD:EE:FF', 'Allow');

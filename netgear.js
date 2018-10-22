@@ -9,9 +9,11 @@
 const http = require('http');
 const parseXml = require('xml-js');
 const util = require('util');
+const dns = require('dns');
 const soap = require('./soapcalls');
 
 const setTimeoutPromise = util.promisify(setTimeout);
+const dnsLookupPromise = util.promisify(dns.lookup);
 
 const regexResponseCode = new RegExp(/<ResponseCode>(.*)<\/ResponseCode>/);
 const regexAttachedDevices = new RegExp(/<NewAttachDevice>(.*)<\/NewAttachDevice>/);
@@ -83,7 +85,7 @@ class NetgearRouter {
 		this.port = port;
 		this.username = user || defaultUser;
 		this.password = password || defaultPassword;
-		this.timeout = 15000;
+		this.timeout = 10000;
 		this.sessionId = defaultSessionId;
 		this.cookie = undefined;
 		this.loggedIn = false;
@@ -99,20 +101,24 @@ class NetgearRouter {
 		this.lastResponse = undefined;
 	}
 
+	async discover() {
+		// returns a promise of the discovered hostIp and soapPort of the router. Also sets the values to this
+		try {
+			const hostIp = await this._getHostIp();
+			const soapPort = await this._getSoapPort();
+			return Promise.resolve({ hostIp, soapPort });
+		} catch (error) {
+			return Promise.reject(error);
+		}
+	}
+
 	async login(password, user, host, port) {
 		// console.log('Login');
 		try {
-			this.host = host || this.host;
-			await this.port;
-			if (port) {
-				this.port = port;
-			}
-			if (this.port !== 80 || this.port !== 5000) {
-				this.port = await this._getSoapPort(this.host)
-					.catch(() => 80);
-			}
-			this.username = user || this.username;
-			this.password = password || this.password;
+			this.password = password || await this.password;
+			this.username = user || await this.username;
+			this.host = host || await this.host;
+			this.port = port || await this.port;
 			// try new login method
 			this.loginMethod = 2;
 			const message = soap.login(this.sessionId, this.username, this.password);
@@ -123,7 +129,7 @@ class NetgearRouter {
 					const messageOld = soap.loginOld(this.sessionId, this.username, this.password);
 					return this._makeRequest(soap.action.loginOld, messageOld)
 						.catch(() => {
-							throw Error('Failed to login. Wrong password?');
+							throw Error('Failed to login');
 						});
 				});
 			this.loggedIn = true;
@@ -730,33 +736,62 @@ class NetgearRouter {
 		}
 	}
 
-	_getSoapPort(host1) {
-		// Resolves promise of soap port without need for credentials. Rejects if error occurred.
-		// console.log('Get soap port');
-		const host = host1 || this.host;
-		return new Promise((resolve, reject) => {
-			const req1 = http.get(`http://${host}:5000/soap/server_sa/`, (result1) => {
-				if (result1.statusCode === 400 || result1.statusCode === 401) {
-					return resolve(5000);
-				}
-				const req2 = http.get(`http://${host}:80/soap/server_sa/`, (result2) => {
-					if (result2.statusCode === 400 || result2.statusCode === 401) {
-						return resolve(80);
-					}
-					return reject(Error('cannot determine the soap port'));
-				});
-				// 5000 and 80 failed...
-				req2.on('error', () => reject(Error('cannot determine the soap port')));
-				return reject(Error('cannot determine the soap port'));
-			});
-			// 5000 failed, assume 80...
-			req1.on('error', () => resolve(80));
-		});
+	async _getHostIp() {
+		// sets and returns a promise of the IP address of the router or undefined, or rejects with an error
+		try {
+			const ipAddress = await dnsLookupPromise('routerlogin.net')
+				.then(result => result.address)
+				.catch(() => undefined);
+			if (ipAddress) {
+				this.host = ipAddress;
+				return Promise.resolve(ipAddress);
+			}
+			// routerlogin.net could not be resolved
+			const servers = dns.getServers() || [];
+			const routerIp = servers[0];
+			if (routerIp) {
+				this.host = routerIp;
+				return Promise.resolve(routerIp);
+			}
+			// no IP could be found
+			return undefined;
+		} catch (error) {
+			this.lastResponse = error;
+			return Promise.reject(error);
+		}
+	}
+
+	async _getSoapPort() {
+		// sets and returns a promise of the soap port (80 or 5000 or undefined), or rejects with an error
+		// this.host must be correctly set first
+		try {
+			const portBefore = this.port;
+			// try port 5000 first
+			this.port = 5000;
+			await this.login()
+				.catch(() => false);
+			if (JSON.stringify(this.lastResponse).includes('<ResponseCode>')) {
+				return 5000;
+			}
+			// 5000 failed, try port 80 now
+			this.port = 80;
+			await this.login()
+				.catch(() => false);
+			if (JSON.stringify(this.lastResponse).includes('<ResponseCode>')) {
+				return 80;
+			}
+			// no SOAP port found
+			this.port = portBefore;
+			return undefined;
+		} catch (error) {
+			this.lastResponse = error;
+			return Promise.reject(error);
+		}
 	}
 
 	async _makeRequest(action, message) {
 		try {
-			if (!this.loggedIn && action !== soap.action.login) {
+			if (!this.loggedIn && action !== soap.action.login && action !== soap.action.loginOld) {
 				return Promise.reject(Error('Not logged in'));
 			}
 			const headers = {
@@ -823,6 +858,7 @@ class NetgearRouter {
 				req.abort();
 			});
 			req.once('error', (e) => {
+				this.lastResponse = e;	// e.g. ECONNREFUSED on wrong soap port or wrong IP // ECONNRESET on wrong IP
 				reject(e);
 			});
 		});
