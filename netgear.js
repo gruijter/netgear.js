@@ -119,6 +119,9 @@ class NetgearRouter {
 			this.username = user || await this.username;
 			this.host = host || await this.host;
 			this.port = port || await this.port;
+			if (!this.host || this.host === '' || !this.port) {
+				throw Error('Cannot login: host IP and/or SOAP port not set');
+			}
 			// try new login method
 			this.loginMethod = 2;
 			const message = soap.login(this.sessionId, this.username, this.password);
@@ -283,9 +286,7 @@ class NetgearRouter {
 				// console.log('trying old method');
 				this.getAttachedDevicesMethod = 1;
 				return this._getAttachedDevices()
-					.catch((err) => {
-						return Promise.reject(err);
-					});
+					.catch(err => Promise.reject(err));
 			});
 		return Promise.resolve(devices);
 	}
@@ -737,7 +738,7 @@ class NetgearRouter {
 	}
 
 	async _getHostIp() {
-		// sets and returns a promise of the IP address of the router or undefined, or rejects with an error
+		// sets and returns a promise of the IP address of the router, or rejects with an error
 		try {
 			const ipAddress = await dnsLookupPromise('routerlogin.net')
 				.then(result => result.address)
@@ -754,7 +755,7 @@ class NetgearRouter {
 				return Promise.resolve(routerIp);
 			}
 			// no IP could be found
-			return undefined;
+			throw Error('Host IP address could not be discovered');
 		} catch (error) {
 			this.lastResponse = error;
 			return Promise.reject(error);
@@ -762,9 +763,12 @@ class NetgearRouter {
 	}
 
 	async _getSoapPort() {
-		// sets and returns a promise of the soap port (80 or 5000 or undefined), or rejects with an error
+		// sets and returns a promise of the soap port (80 or 5000), or rejects with an error
 		// this.host must be correctly set first
 		try {
+			if (!this.host || this.host === '') {
+				throw Error('getSoapPort failed: Host ip is not set');
+			}
 			const portBefore = this.port;
 			// try port 5000 first
 			this.port = 5000;
@@ -782,9 +786,8 @@ class NetgearRouter {
 			}
 			// no SOAP port found
 			this.port = portBefore;
-			return undefined;
+			throw Error('No valid SOAP port found on the host address');
 		} catch (error) {
-			this.lastResponse = error;
 			return Promise.reject(error);
 		}
 	}

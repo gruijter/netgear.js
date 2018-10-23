@@ -173,6 +173,14 @@ async function reboot() {
 	}
 }
 
+exports.discover = () => {
+	try {
+		return Promise.resolve(router.discover());
+	}	catch (error) {
+		return Promise.reject(error);
+	}
+};
+
 exports.test = async (password, user, host, port) => {
 	log = [];	// empty the log
 	try {
