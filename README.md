@@ -9,7 +9,7 @@ const NetgearRouter = require('netgear');
 // password, username, host and port are optional. Defaults are: 'password', 'admin', 'routerlogin.net', undefined
 const router = new NetgearRouter(); // [password], [user], [host], [port]
 
-// auto discovery of IP address and SOAP port of the router. The discovered address and port will override previous settings
+// auto discovery a netgear router, including IP address and SOAP port. The discovered address and SOAP port will override previous settings
 router.discover()
 	.then(discovered => console.log(discovered))
 	.catch(error => console.log(error));
