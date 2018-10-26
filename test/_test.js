@@ -39,10 +39,10 @@ async function setupSession(password, user, host, port) {
 // function to get various information
 async function getRouterInfo() {
 	try {
-		// Get router type, soap version, firmware version and internet connection status without login
-		log.push('getting currentSetting...');
-		const currentSetting = await router.getCurrentSetting();
-		log.push(currentSetting);
+		// // Get router type, soap version, firmware version and internet connection status without login
+		// log.push('getting currentSetting...');
+		// const currentSetting = await router.getCurrentSetting();
+		// log.push(currentSetting);
 
 		// for other methods you first need to be logged in.
 		log.push('trying to login...');

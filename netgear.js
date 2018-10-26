@@ -102,11 +102,14 @@ class NetgearRouter {
 	}
 
 	async discover() {
-		// returns a promise of the discovered hostIp and soapPort of the router. Also sets the values to this
+		// returns a promise of the discovered router including host ip address and soapPort. Also sets the values to this
 		try {
-			const hostIp = await this._getHostIp();
-			const soapPort = await this._getSoapPort();
-			return Promise.resolve({ hostIp, soapPort });
+			const discoveredInfo = await this._discoverHostInfo();
+			const soapPort = await this._getSoapPort(discoveredInfo.host);
+			discoveredInfo.soapPort = soapPort;	// add soapPort to discovered router info
+			this.host = discoveredInfo.host;
+			this.port = discoveredInfo.soapPort;
+			return Promise.resolve(discoveredInfo);
 		} catch (error) {
 			return Promise.reject(error);
 		}
@@ -180,6 +183,7 @@ class NetgearRouter {
 						currentSetting[info[0]] = info[1];
 					}
 				});
+				currentSetting.host = host; // add the host address to the information
 				// this.loginMethod = Number(currentSetting.LoginMethod) || 1;
 				this.soapVersion = parseInt(currentSetting.SOAPVersion, 10) || 2;
 				return Promise.resolve(currentSetting);
@@ -191,7 +195,7 @@ class NetgearRouter {
 			if (!result.body.includes('Model=')) {
 				throw Error('This is not a valid Netgear router');
 			}
-			return Promise.reject(Error('Unknow error'));
+			throw Error('Unknow error');
 		} catch (error) {
 			return Promise.reject(error);
 		}
@@ -737,56 +741,79 @@ class NetgearRouter {
 		}
 	}
 
-	async _getHostIp() {
-		// sets and returns a promise of the IP address of the router, or rejects with an error
+	async _discoverHostInfo() {
+		// returns a promise of the netgear router info including host IP address, or rejects with an error
 		try {
-			const ipAddress = await dnsLookupPromise('routerlogin.net')
-				.then(result => result.address)
+			let info = await dnsLookupPromise('routerlogin.net')
+				.then(router => this.getCurrentSetting(router.address))
 				.catch(() => undefined);
-			if (ipAddress) {
-				this.host = ipAddress;
-				return Promise.resolve(ipAddress);
+			if (!info) {	// routerlogin.net is not working...
+				[info] = await this._discoverAllHostsInfo();
 			}
-			// routerlogin.net could not be resolved
-			const servers = dns.getServers() || [];
-			const routerIp = servers[0];
-			if (routerIp) {
-				this.host = routerIp;
-				return Promise.resolve(routerIp);
+			if (!info) {
+				throw Error('Netgear host could not be discovered');
 			}
-			// no IP could be found
-			throw Error('Host IP address could not be discovered');
+			return Promise.resolve(info);	// info.host has the ipAddress
 		} catch (error) {
 			this.lastResponse = error;
 			return Promise.reject(error);
 		}
 	}
 
-	async _getSoapPort() {
-		// sets and returns a promise of the soap port (80 or 5000), or rejects with an error
-		// this.host must be correctly set first
+	async _discoverAllHostsInfo() {
+		// returns a promise with an array of info on all discovered netgears, assuming class C network, or rejects with an error
+		const timeOutBefore = this.timeOut;
 		try {
-			if (!this.host || this.host === '') {
-				throw Error('getSoapPort failed: Host ip is not set');
+			const servers = dns.getServers() || [];	// get the IP address of all routers in the LAN
+			const hostsToTest = [];	// make an array of all host IP's in the LAN
+			servers.map((server) => {
+				for (let host = 1; host <= 254; host += 1) {
+					const ipToTest = server.replace(/\.\d+$/, `.${host}`);
+					hostsToTest.push(ipToTest);
+				}
+				return hostsToTest;
+			});
+			this.timeOut = 3000;	// temporarily set http timeout to 3 seconds
+			const allHostsPromise = hostsToTest.map(async (hostToTest) => {
+				const result = await this.getCurrentSetting(hostToTest)
+					.catch(() => undefined);
+				return result;
+			});
+			const allHosts = await Promise.all(allHostsPromise);
+			const discoveredHosts = allHosts.filter(host => host);
+			this.timeOut = timeOutBefore;	// reset the timeout
+			return Promise.resolve(discoveredHosts);
+		} catch (error) {
+			this.timeOut = timeOutBefore;
+			this.lastResponse = error;
+			return Promise.reject(error);
+		}
+	}
+
+	async _getSoapPort(host1) {
+		// returns a promise of the soap port (80 or 5000 or undefined), or rejects with an error
+		try {
+			if (!host1 || host1 === '') {
+				throw Error('getSoapPort failed: Host ip is not provided');
 			}
 			const portBefore = this.port;
+			let soapPort;
 			// try port 5000 first
 			this.port = 5000;
 			await this.login()
 				.catch(() => false);
 			if (JSON.stringify(this.lastResponse).includes('<ResponseCode>')) {
-				return 5000;
+				soapPort = 5000;
+			} else { 	// 5000 failed, try port 80 now
+				this.port = 80;
+				await this.login()
+					.catch(() => false);
+				if (JSON.stringify(this.lastResponse).includes('<ResponseCode>')) {
+					soapPort = 80;
+				}
 			}
-			// 5000 failed, try port 80 now
-			this.port = 80;
-			await this.login()
-				.catch(() => false);
-			if (JSON.stringify(this.lastResponse).includes('<ResponseCode>')) {
-				return 80;
-			}
-			// no SOAP port found
 			this.port = portBefore;
-			throw Error('No valid SOAP port found on the host address');
+			return soapPort;
 		} catch (error) {
 			return Promise.reject(error);
 		}
@@ -816,6 +843,7 @@ class NetgearRouter {
 				method: 'POST',
 			};
 			const result = await this._makeHttpRequest(options, message);
+			this.lastResponse = result.body;
 			if (result.headers['set-cookie']) {
 				this.cookie = result.headers['set-cookie'];
 			}
@@ -823,7 +851,6 @@ class NetgearRouter {
 				this.lastResponse = result.statusCode;
 				throw Error(`HTTP request Failed. Status Code: ${result.statusCode}`);
 			}
-			this.lastResponse = result.body;
 			const responseCodeRegex = regexResponseCode.exec(result.body);
 			if (responseCodeRegex === null) {
 				throw Error('no response code from router');
