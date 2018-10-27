@@ -7,17 +7,34 @@
 'use strict';
 
 exports.action = {
+	// device config
 	loginOld: 'urn:NETGEAR-ROUTER:service:ParentalControl:1#Authenticate',
 	login: 'urn:NETGEAR-ROUTER:service:DeviceConfig:1#SOAPLogin',
 	logout: 'urn:NETGEAR-ROUTER:service:DeviceConfig:1#SOAPLogout',
+	reboot: 'urn:NETGEAR-ROUTER:service:DeviceConfig:1#Reboot',
+	checkNewFirmware: 'urn:NETGEAR-ROUTER:service:DeviceConfig:1#CheckNewFirmware',
+	updateNewFirmware: 'urn:NETGEAR-ROUTER:service:DeviceConfig:1#UpdateNewFirmware',
+	configurationStarted: 'urn:NETGEAR-ROUTER:service:DeviceConfig:1#ConfigurationStarted',
+	configurationFinished: 'urn:NETGEAR-ROUTER:service:DeviceConfig:1#ConfigurationFinished',
+
+	// device config, but not really...
+	getTrafficMeter: 'urn:NETGEAR-ROUTER:service:DeviceConfig:1#GetTrafficMeterStatistics',
+	setBlockDevice: 'urn:NETGEAR-ROUTER:service:DeviceConfig:1#SetBlockDeviceByMAC',
+
+	// parental control
+	getParentalControlEnableStatus: 'urn:NETGEAR-ROUTER:service:ParentalControl:1#GetEnableStatus', // ***NEW***
+
+	// device info
 	getInfo: 'urn:NETGEAR-ROUTER:service:DeviceInfo:1#GetInfo',
 	getSupportFeatureListXML: 'urn:NETGEAR-ROUTER:service:DeviceInfo:1#GetSupportFeatureListXML',
 	getAttachedDevices: 'urn:NETGEAR-ROUTER:service:DeviceInfo:1#GetAttachDevice',
 	getAttachedDevices2: 'urn:NETGEAR-ROUTER:service:DeviceInfo:1#GetAttachDevice2',
-	getTrafficMeter: 'urn:NETGEAR-ROUTER:service:DeviceConfig:1#GetTrafficMeterStatistics',
-	configurationStarted: 'urn:NETGEAR-ROUTER:service:DeviceConfig:1#ConfigurationStarted',
-	configurationFinished: 'urn:NETGEAR-ROUTER:service:DeviceConfig:1#ConfigurationFinished',
-	setBlockDevice: 'urn:NETGEAR-ROUTER:service:DeviceConfig:1#SetBlockDeviceByMAC',
+
+	// AdvancedQoS
+	speedTestStart: 'urn:NETGEAR-ROUTER:service:AdvancedQoS:1#SetOOKLASpeedTestStart',
+	speedTestResult: 'urn:NETGEAR-ROUTER:service:AdvancedQoS:1#GetOOKLASpeedTestResult',
+
+	// WLANConfiguration
 	getGuestAccessEnabled: 'urn:NETGEAR-ROUTER:service:WLANConfiguration:1#GetGuestAccessEnabled',	// 2.4G-1 R7800/R8000
 	get5G1GuestAccessEnabled: 'urn:NETGEAR-ROUTER:service:WLANConfiguration:1#Get5GGuestAccessEnabled',	// 5G-1 R7800
 	get5G1GuestAccessEnabled2: 'urn:NETGEAR-ROUTER:service:WLANConfiguration:1#Get5G1GuestAccessEnabled',	// 5G-1 R8000
@@ -27,11 +44,18 @@ exports.action = {
 	set5G1GuestAccessEnabled: 'urn:NETGEAR-ROUTER:service:WLANConfiguration:1#Set5GGuestAccessEnabled',	// 5G-1 R7800
 	set5G1GuestAccessEnabled2: 'urn:NETGEAR-ROUTER:service:WLANConfiguration:1#Set5G1GuestAccessEnabled2',	// 5G-1 R8000
 	set5GGuestAccessEnabled2: 'urn:NETGEAR-ROUTER:service:WLANConfiguration:1#Set5GGuestAccessEnabled2',	// 5G-2 R8000
-	reboot: 'urn:NETGEAR-ROUTER:service:DeviceConfig:1#Reboot',
-	checkNewFirmware: 'urn:NETGEAR-ROUTER:service:DeviceConfig:1#CheckNewFirmware',
-	updateNewFirmware: 'urn:NETGEAR-ROUTER:service:DeviceConfig:1#UpdateNewFirmware',
-	speedTestStart: 'urn:NETGEAR-ROUTER:service:AdvancedQoS:1#SetOOKLASpeedTestStart',
-	speedTestResult: 'urn:NETGEAR-ROUTER:service:AdvancedQoS:1#GetOOKLASpeedTestResult',
+
+	// new stuff to implement
+	getQoSEnableStatus: 'urn:NETGEAR-ROUTER:service:AdvancedQoS:1#GetQoSEnableStatus', // ***NEW***
+	getBlockDeviceEnableStatus: 'urn:NETGEAR-ROUTER:service:DeviceConfig:1#GetBlockDeviceEnableStatus',	// ***NEW***
+	getTrafficMeterEnabled: 'urn:NETGEAR-ROUTER:service:DeviceConfig:1#GetTrafficMeterEnabled', // ***NEW***
+	getTrafficMeterOptions: 'urn:NETGEAR-ROUTER:service:DeviceConfig:1#GetTrafficMeterOptions', // ***NEW***
+	getBandwidthControlOptions: 'urn:NETGEAR-ROUTER:service:AdvancedQoS:1#GetBandwidthControlOptions', // ***NEW***
+	enableBlockDeviceForAll: 'urn:NETGEAR-ROUTER:service:DeviceConfig:1#EnableBlockDeviceForAll', // ***NEW***
+	setBlockDeviceEnable: 'urn:NETGEAR-ROUTER:service:DeviceConfig:1#SetBlockDeviceEnable', // ***NEW***
+	setQoSEnableStatus: 'urn:NETGEAR-ROUTER:service:AdvancedQoS:1#SetQoSEnableStatus', // ***NEW***
+	setBandwidthControlOptions: 'urn:NETGEAR-ROUTER:service:AdvancedQoS:1#SetBandwidthControlOptions', // ***NEW***
+
 };
 
 const soapEnvelope = (sessionId, soapBody) => {
@@ -93,6 +117,101 @@ exports.getSupportFeatureListXML = (sessionId) => {
 	return soapEnvelope(sessionId, soapBody);
 };
 
+exports.getParentalControlEnableStatus = (sessionId) => {
+	const soapBody = `<SOAP-ENV:Body>
+		<GetEnableStatus>
+		</GetEnableStatus>
+	</SOAP-ENV:Body>`;
+	return soapEnvelope(sessionId, soapBody);
+};
+
+exports.getQoSEnableStatus = (sessionId) => {
+	const soapBody = `<SOAP-ENV:Body>
+		<M1:GetQoSEnableStatus xmlns:M1="urn:NETGEAR-ROUTER:service:AdvancedQoS:1">
+		</M1:GetQoSEnableStatus>
+	</SOAP-ENV:Body>`;
+	return soapEnvelope(sessionId, soapBody);
+};
+
+exports.getBlockDeviceEnableStatus = (sessionId) => {
+	const soapBody = `<SOAP-ENV:Body>
+		<M1:GetBlockDeviceEnableStatus xmlns:M1="urn:NETGEAR-ROUTER:service:DeviceConfig:1">
+		</M1:GetBlockDeviceEnableStatus>
+	</SOAP-ENV:Body>`;
+	return soapEnvelope(sessionId, soapBody);
+};
+
+exports.getTrafficMeterEnabled = (sessionId) => {
+	const soapBody = `<SOAP-ENV:Body>
+		<M1:GetTrafficMeterEnabled xmlns:M1="urn:NETGEAR-ROUTER:service:DeviceConfig:1">
+		</M1:GetTrafficMeterEnabled>
+	</SOAP-ENV:Body>`;
+	return soapEnvelope(sessionId, soapBody);
+};
+
+exports.getTrafficMeterOptions = (sessionId) => {
+	const soapBody = `<SOAP-ENV:Body>
+		<M1:GetTrafficMeterOptions xmlns:M1="urn:NETGEAR-ROUTER:service:DeviceConfig:1">
+		</M1:GetTrafficMeterOptions>
+	</SOAP-ENV:Body>`;
+	return soapEnvelope(sessionId, soapBody);
+};
+
+exports.getBandwidthControlOptions = (sessionId) => {
+	const soapBody = `<SOAP-ENV:Body>
+		<M1:GetBandwidthControlOptions xmlns:M1="urn:NETGEAR-ROUTER:service:AdvancedQoS:1">
+		</M1:GetBandwidthControlOptions>
+	</SOAP-ENV:Body>`;
+	return soapEnvelope(sessionId, soapBody);
+};
+
+exports.enableBlockDeviceForAll = (sessionId) => {
+	const soapBody = `<SOAP-ENV:Body>
+		<M1:EnableBlockDeviceForAll xmlns:M1="urn:NETGEAR-ROUTER:service:DeviceConfig:1">
+		</M1:EnableBlockDeviceForAll>
+	</SOAP-ENV:Body>`;
+	return soapEnvelope(sessionId, soapBody);
+};
+
+exports.setQoSEnableStatus = (sessionId, enabled) => {
+	const soapBody = `<SOAP-ENV:Body>
+		<M1:SetQoSEnableStatus xmlns:M1="urn:NETGEAR-ROUTER:service:AdvancedQoS:1">
+		  <NewQoSEnable>${enabled * 1}</NewQoSEnable>
+		</M1:SetQoSEnableStatus>
+	</SOAP-ENV:Body>`;
+	return soapEnvelope(sessionId, soapBody);
+};
+
+exports.setBandwidthControlOptions = (sessionId, enabled, newUplinkBandwidth, newDownlinkBandwidth) => {
+	const soapBody = `<SOAP-ENV:Body>
+		<M1:SetBandwidthControlOptions xmlns:M1="urn:NETGEAR-ROUTER:service:AdvancedQoS:1">
+		  <NewUplinkBandwidth>${newUplinkBandwidth}</NewUplinkBandwidth>
+		  <NewDownlinkBandwidth>${newDownlinkBandwidth}</NewDownlinkBandwidth>
+		  <NewSettingMethod>${enabled * 1}</NewSettingMethod>
+		</M1:SetBandwidthControlOptions>
+	</SOAP-ENV:Body>`;
+	return soapEnvelope(sessionId, soapBody);
+};
+
+exports.setBlockDeviceEnable = (sessionId, enabled) => {
+	const soapBody = `<SOAP-ENV:Body>
+		<M1:SetBlockDeviceEnable xmlns:M1="urn:NETGEAR-ROUTER:service:DeviceConfig:1">
+		  <NewBlockDeviceEnable>${enabled * 1}</NewBlockDeviceEnable>
+		</M1:SetBlockDeviceEnable>
+	</SOAP-ENV:Body>`;
+	return soapEnvelope(sessionId, soapBody);
+};
+
+exports.setBlockDevice = (sessionId, mac, AllowOrBlock) => {
+	const soapBody = `<SOAP-ENV:Body>
+		<M1:SetBlockDeviceByMAC xmlns:M1="urn:NETGEAR-ROUTER:service:DeviceConfig:1">
+			<NewAllowOrBlock>${AllowOrBlock}</NewAllowOrBlock>
+			<NewMACAddress>${mac}</NewMACAddress>
+		</M1:SetBlockDeviceByMAC>
+	</SOAP-ENV:Body>`;
+	return soapEnvelope(sessionId, soapBody);
+};
+
 exports.configurationStarted = (sessionId) => {
 	const soapBody = `<SOAP-ENV:Body>
 		<M1:ConfigurationStarted xmlns:M1="urn:NETGEAR-ROUTER:service:DeviceConfig:1">
@@ -107,16 +226,6 @@ exports.configurationFinished = (sessionId) => {
 		<M1:ConfigurationFinished xmlns:M1="urn:NETGEAR-ROUTER:service:DeviceConfig:1">
 			<NewStatus>ChangesApplied</NewStatus>
 		</M1:ConfigurationFinished>
-	</SOAP-ENV:Body>`;
-	return soapEnvelope(sessionId, soapBody);
-};
-
-exports.setBlockDevice = (sessionId, mac, AllowOrBlock) => {
-	const soapBody = `<SOAP-ENV:Body>
-		<M1:SetBlockDeviceByMAC xmlns:M1="urn:NETGEAR-ROUTER:service:DeviceConfig:1">
-			<NewAllowOrBlock>${AllowOrBlock}</NewAllowOrBlock>
-			<NewMACAddress>${mac}</NewMACAddress>
-		</M1:SetBlockDeviceByMAC>
 	</SOAP-ENV:Body>`;
 	return soapEnvelope(sessionId, soapBody);
 };

@@ -27,6 +27,7 @@ const regexReleaseNote = new RegExp(/<ReleaseNote>(.*)<\/ReleaseNote>/);
 const regexUplinkBandwidth = new RegExp(/<NewOOKLAUplinkBandwidth>(.*)<\/NewOOKLAUplinkBandwidth>/);
 const regexDownlinkBandwidth = new RegExp(/<NewOOKLADownlinkBandwidth>(.*)<\/NewOOKLADownlinkBandwidth>/);
 const regexAveragePing = new RegExp(/<AveragePing>(.*)<\/AveragePing>/);
+const regexParentalControl = new RegExp(/<ParentalControl>(.*)<\/ParentalControl>/);
 
 const defaultHost = 'routerlogin.net';
 const defaultUser = 'admin';
@@ -309,6 +310,24 @@ class NetgearRouter {
 				newTodayUpload, newTodayDownload, newMonthUpload, newMonthDownload,
 			};	// in Mbytes
 			return Promise.resolve(traffic);
+		} catch (error) {
+			return Promise.reject(error);
+		}
+	}
+
+	async getParentalControlEnableStatus() {
+		// Resolves promise of parental control status. Rejects if error occurred.
+		// console.log('Get parental control enabled status');
+		try {
+			await this._configurationStarted();
+			const message = soap.getParentalControlEnableStatus(this.sessionId);
+			const result = await this._makeRequest(soap.action.getParentalControlEnableStatus,	message);
+			await this._configurationFinished()
+				.catch(() => {
+					// console.log(`finished with warning`);
+				});
+			const parentalControlEnabled = regexParentalControl.exec(result.body)[1] === '1';
+			return Promise.resolve(parentalControlEnabled);
 		} catch (error) {
 			return Promise.reject(error);
 		}

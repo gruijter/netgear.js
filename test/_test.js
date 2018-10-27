@@ -60,6 +60,11 @@ async function getRouterInfo() {
 		const supportFeatures = await router.getSupportFeatureListXML();
 		log.push(supportFeatures);
 
+		// Get the getParentalControlEnableStatus.
+		log.push('trying to get Parental Control Status...');
+		const parentalControlEnabled = await router.getParentalControlEnableStatus();
+		log.push(`Parental Control Enabled: ${parentalControlEnabled}`);
+
 		// get a list of attached devices
 		log.push('trying to get attachedDevices...');
 		const attachedDevices = await router.getAttachedDevices();
