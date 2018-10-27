@@ -102,13 +102,13 @@ class NetgearRouter {
 	}
 
 	async discover() {
-		// returns a promise of the discovered router including host ip address and soapPort. Also sets the values to this
+		// returns a promise of the discovered router including host ip address and soap port. Also sets the values to this
 		try {
-			const discoveredInfo = await this._discoverHostInfo();
+			const discoveredInfo = await this._discoverHostInfo();	// also adds host ip to discovered router info
 			const soapPort = await this._getSoapPort(discoveredInfo.host);
-			discoveredInfo.soapPort = soapPort;	// add soapPort to discovered router info
+			discoveredInfo.port = soapPort;	// add soap port to discovered router info
 			this.host = discoveredInfo.host;
-			this.port = discoveredInfo.soapPort;
+			this.port = discoveredInfo.port;
 			return Promise.resolve(discoveredInfo);
 		} catch (error) {
 			return Promise.reject(error);
@@ -745,7 +745,10 @@ class NetgearRouter {
 		// returns a promise of the netgear router info including host IP address, or rejects with an error
 		try {
 			let info = await dnsLookupPromise('routerlogin.net')
-				.then(router => this.getCurrentSetting(router.address))
+				.then((netgear) => {
+					const hostToTest = netgear.address || netgear;	// weird, sometimes it doesn't have .address
+					return this.getCurrentSetting(hostToTest);
+				})
 				.catch(() => undefined);
 			if (!info) {	// routerlogin.net is not working...
 				[info] = await this._discoverAllHostsInfo();
