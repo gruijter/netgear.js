@@ -28,6 +28,13 @@ const regexUplinkBandwidth = new RegExp(/<NewOOKLAUplinkBandwidth>(.*)<\/NewOOKL
 const regexDownlinkBandwidth = new RegExp(/<NewOOKLADownlinkBandwidth>(.*)<\/NewOOKLADownlinkBandwidth>/);
 const regexAveragePing = new RegExp(/<AveragePing>(.*)<\/AveragePing>/);
 const regexParentalControl = new RegExp(/<ParentalControl>(.*)<\/ParentalControl>/);
+const regexNewBlockDeviceEnable = new RegExp(/<NewBlockDeviceEnable>(.*)<\/NewBlockDeviceEnable>/);
+const regexNewTrafficMeterEnable = new RegExp(/<NewTrafficMeterEnable>(.*)<\/NewTrafficMeterEnable>/);
+const regexNewControlOption = new RegExp(/<NewControlOption>(.*)<\/NewControlOption>/);
+const regexNewMonthlyLimit = new RegExp(/<NewMonthlyLimit>(.*)<\/NewMonthlyLimit>/);
+const regexRestartHour = new RegExp(/<RestartHour>(.*)<\/RestartHour>/);
+const regexRestartMinute = new RegExp(/<RestartMinute>(.*)<\/RestartMinute>/);
+const regexRestartDay = new RegExp(/<RestartDay>(.*)<\/RestartDay>/);
 
 const defaultHost = 'routerlogin.net';
 const defaultUser = 'admin';
@@ -321,13 +328,93 @@ class NetgearRouter {
 		try {
 			await this._configurationStarted();
 			const message = soap.getParentalControlEnableStatus(this.sessionId);
-			const result = await this._makeRequest(soap.action.getParentalControlEnableStatus,	message);
+			const result = await this._makeRequest(soap.action.getParentalControlEnableStatus, message);
 			await this._configurationFinished()
 				.catch(() => {
 					// console.log(`finished with warning`);
 				});
 			const parentalControlEnabled = regexParentalControl.exec(result.body)[1] === '1';
 			return Promise.resolve(parentalControlEnabled);
+		} catch (error) {
+			return Promise.reject(error);
+		}
+	}
+
+	async getTrafficMeterEnabled() {
+		// Resolves promise of Traffic Meter Enabled status. Rejects if error occurred.
+		// console.log('Get traffic meter enabled status');
+		try {
+			const message = soap.getTrafficMeterEnabled(this.sessionId);
+			const result = await this._makeRequest(soap.action.getTrafficMeterEnabled, message);
+			const trafficMeterEnabled = regexNewTrafficMeterEnable.exec(result.body)[1] === '1';
+			return Promise.resolve(trafficMeterEnabled);
+		} catch (error) {
+			return Promise.reject(error);
+		}
+	}
+
+	async getTrafficMeterOptions() {
+		// Resolves promise of Traffic Meter Options. Rejects if error occurred.
+		// console.log('Get traffic meter options');
+		try {
+			const message = soap.getTrafficMeterOptions(this.sessionId);
+			const result = await this._makeRequest(soap.action.getTrafficMeterOptions, message);
+			const newControlOption = regexNewControlOption.exec(result.body)[1];
+			const newNewMonthlyLimit = Number(regexNewMonthlyLimit.exec(result.body)[1].replace(',', ''));
+			const restartHour = Number(regexRestartHour.exec(result.body)[1]);
+			const restartMinute = Number(regexRestartMinute.exec(result.body)[1]);
+			const restartDay = Number(regexRestartDay.exec(result.body)[1]);
+			const trafficMeterOptions = {
+				newControlOption, newNewMonthlyLimit, restartHour, restartMinute, restartDay,
+			};
+			return Promise.resolve(trafficMeterOptions);
+		} catch (error) {
+			return Promise.reject(error);
+		}
+	}
+
+	async getBlockDeviceEnableStatus() {
+		// Resolves promise of Block Device Enabled (= access control) status. Rejects if error occurred.
+		// console.log('Get block device enabled status');
+		try {
+			const message = soap.getBlockDeviceEnableStatus(this.sessionId);
+			const result = await this._makeRequest(soap.action.getBlockDeviceEnableStatus, message);
+			const blockDeviceEnabled = regexNewBlockDeviceEnable.exec(result.body)[1] === '1';
+			return Promise.resolve(blockDeviceEnabled);
+		} catch (error) {
+			return Promise.reject(error);
+		}
+	}
+
+	async setBlockDeviceEnable(enable) {
+		// sets Block Device (= access control). Rejects if error occurred.
+		// console.log('setBlockDeviceEnable started');
+		try {
+			await this._configurationStarted();
+			const message = soap.setBlockDeviceEnable(this.sessionId, enable);
+			await this._makeRequest(soap.action.setBlockDeviceEnable, message);
+			await this._configurationFinished()
+				.catch(() => {
+					// console.log(`finished with warning`);
+				});
+			return Promise.resolve(true);
+		} catch (error) {
+			return Promise.reject(error);
+		}
+	}
+
+	async enableBlockDeviceForAll() {	// deprecated? see setBlockDeviceEnable
+		// enables Block Device (= access control). Rejects if error occurred.
+		// console.log('enableBlockDeviceForAll started');
+		try {
+			await this._configurationStarted();
+			const message = soap.enableBlockDeviceForAll(this.sessionId);
+			await this._makeRequest(soap.action.enableBlockDeviceForAll, message);
+			await this._configurationFinished()
+				.catch(() => {
+					// console.log(`finished with warning`);
+				});
+			return Promise.resolve(true);
 		} catch (error) {
 			return Promise.reject(error);
 		}

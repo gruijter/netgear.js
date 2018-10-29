@@ -60,10 +60,15 @@ async function getRouterInfo() {
 		const supportFeatures = await router.getSupportFeatureListXML();
 		log.push(supportFeatures);
 
-		// Get the getParentalControlEnableStatus.
+		// Get the parentalControlEnableStatus.
 		log.push('trying to get Parental Control Status...');
 		const parentalControlEnabled = await router.getParentalControlEnableStatus();
 		log.push(`Parental Control Enabled: ${parentalControlEnabled}`);
+
+		// Get the blockDeviceEnabledStatus.
+		log.push('trying to get Device Access Control Status...');
+		const blockDeviceEnabled = await router.getBlockDeviceEnableStatus();
+		log.push(`Block Device Enabled: ${blockDeviceEnabled}`);
 
 		// get a list of attached devices
 		log.push('trying to get attachedDevices...');
@@ -81,6 +86,16 @@ async function getRouterInfo() {
 		await router.get5GGuestWifi2Enabled()
 			.then((enabled) => { log.push(`5.0G-2 Guest wifi enabled: ${enabled}`); })
 			.catch(() => { log.push('5.0G-2 Guest wifi is not available');	});
+
+		// Get the trafficMeterEnabled status.
+		log.push('trying to get the Traffic Meter Enabled Status...');
+		const trafficMeterEnabled = await router.getTrafficMeterEnabled();
+		log.push(`Traffic Meter Enabled: ${trafficMeterEnabled}`);
+
+		// Get the trafficMeter Options
+		log.push('trying to get the Traffic Meter Options...');
+		const getTrafficMeterOptions = await router.getTrafficMeterOptions();
+		log.push(getTrafficMeterOptions);
 
 		// get traffic statistics for this day and this month. Note: traffic monitoring must be enabled in router
 		log.push('trying to get trafficMeter...');
@@ -108,6 +123,7 @@ async function getRouterInfo() {
 async function blockOrAllow(mac, action) {
 	try {
 		await router.login();
+		await router.setBlockDeviceEnable(true);
 		await router.setBlockDevice(mac, action);
 		log.push(`${action} for ${mac} succesfull!`);
 	}	catch (error) {

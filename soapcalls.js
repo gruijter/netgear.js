@@ -17,9 +17,16 @@ exports.action = {
 	configurationStarted: 'urn:NETGEAR-ROUTER:service:DeviceConfig:1#ConfigurationStarted',
 	configurationFinished: 'urn:NETGEAR-ROUTER:service:DeviceConfig:1#ConfigurationFinished',
 
-	// device config, but not really...
-	getTrafficMeter: 'urn:NETGEAR-ROUTER:service:DeviceConfig:1#GetTrafficMeterStatistics',
+	// device config, block/allow device related
+	getBlockDeviceEnableStatus: 'urn:NETGEAR-ROUTER:service:DeviceConfig:1#GetBlockDeviceEnableStatus',	// ***NEW***
+	setBlockDeviceEnable: 'urn:NETGEAR-ROUTER:service:DeviceConfig:1#SetBlockDeviceEnable', // ***NEW***
+	enableBlockDeviceForAll: 'urn:NETGEAR-ROUTER:service:DeviceConfig:1#EnableBlockDeviceForAll', // ***NEW***	// deprecated?
 	setBlockDevice: 'urn:NETGEAR-ROUTER:service:DeviceConfig:1#SetBlockDeviceByMAC',
+
+	// device config, traffic meter related
+	getTrafficMeterEnabled: 'urn:NETGEAR-ROUTER:service:DeviceConfig:1#GetTrafficMeterEnabled', // ***NEW***
+	getTrafficMeterOptions: 'urn:NETGEAR-ROUTER:service:DeviceConfig:1#GetTrafficMeterOptions', // ***NEW***
+	getTrafficMeter: 'urn:NETGEAR-ROUTER:service:DeviceConfig:1#GetTrafficMeterStatistics',
 
 	// parental control
 	getParentalControlEnableStatus: 'urn:NETGEAR-ROUTER:service:ParentalControl:1#GetEnableStatus', // ***NEW***
@@ -45,16 +52,12 @@ exports.action = {
 	set5G1GuestAccessEnabled2: 'urn:NETGEAR-ROUTER:service:WLANConfiguration:1#Set5G1GuestAccessEnabled2',	// 5G-1 R8000
 	set5GGuestAccessEnabled2: 'urn:NETGEAR-ROUTER:service:WLANConfiguration:1#Set5GGuestAccessEnabled2',	// 5G-2 R8000
 
-	// new stuff to implement
-	getQoSEnableStatus: 'urn:NETGEAR-ROUTER:service:AdvancedQoS:1#GetQoSEnableStatus', // ***NEW***
-	getBlockDeviceEnableStatus: 'urn:NETGEAR-ROUTER:service:DeviceConfig:1#GetBlockDeviceEnableStatus',	// ***NEW***
-	getTrafficMeterEnabled: 'urn:NETGEAR-ROUTER:service:DeviceConfig:1#GetTrafficMeterEnabled', // ***NEW***
-	getTrafficMeterOptions: 'urn:NETGEAR-ROUTER:service:DeviceConfig:1#GetTrafficMeterOptions', // ***NEW***
+	// new stuff yet to implement
 	getBandwidthControlOptions: 'urn:NETGEAR-ROUTER:service:AdvancedQoS:1#GetBandwidthControlOptions', // ***NEW***
-	enableBlockDeviceForAll: 'urn:NETGEAR-ROUTER:service:DeviceConfig:1#EnableBlockDeviceForAll', // ***NEW***
-	setBlockDeviceEnable: 'urn:NETGEAR-ROUTER:service:DeviceConfig:1#SetBlockDeviceEnable', // ***NEW***
+	getQoSEnableStatus: 'urn:NETGEAR-ROUTER:service:AdvancedQoS:1#GetQoSEnableStatus', // ***NEW***
 	setQoSEnableStatus: 'urn:NETGEAR-ROUTER:service:AdvancedQoS:1#SetQoSEnableStatus', // ***NEW***
 	setBandwidthControlOptions: 'urn:NETGEAR-ROUTER:service:AdvancedQoS:1#SetBandwidthControlOptions', // ***NEW***
+	// setTrafficMeterEnable: 'urn:NETGEAR-ROUTER:service:DeviceConfig:1#SetTrafficMeterEnable', // THIS SHOULD EXIST, BUT IS NOT CAPTURED
 
 };
 

@@ -36,9 +36,21 @@ async function getRouterInfo() {
 		const parentalControlEnabled = await router.getParentalControlEnableStatus();
 		console.log(`Parental Controls enabled: ${parentalControlEnabled}`);
 
+		// Get the BlockDeviceEnabled Status (= device access control)
+		const accessControlEnabled = await router.getBlockDeviceEnableStatus();
+		console.log(`Device Access Control enabled: ${accessControlEnabled}`);
+
 		// get a list of attached devices
 		const attachedDevices = await router.getAttachedDevices();
 		console.log(attachedDevices);
+
+		// get the trafficMeterEnabled status
+		const trafficMeterEnabled = await router.getTrafficMeterEnabled();
+		console.log(`Traffic Meter Enabled: ${trafficMeterEnabled}`);
+
+		// get the trafficMeterOptions
+		const trafficMeterOptions = await router.getTrafficMeterOptions();
+		console.log(trafficMeterOptions);
 
 		// get traffic statistics for this day and this month. Note: traffic monitoring must be enabled in router
 		const traffic = await router.getTrafficMeter();
@@ -64,6 +76,7 @@ getRouterInfo();
 async function blockOrAllow(mac, action) {
 	try {
 		await router.login();
+		await router.setBlockDeviceEnable(true);
 		const success = await router.setBlockDevice(mac, action);
 		console.log(success);
 	}	catch (error) {
