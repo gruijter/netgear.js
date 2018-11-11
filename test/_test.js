@@ -65,6 +65,16 @@ async function getRouterInfo() {
 		const parentalControlEnabled = await router.getParentalControlEnableStatus();
 		log.push(`Parental Control Enabled: ${parentalControlEnabled}`);
 
+		// Get the qosEnableStatus.
+		log.push('trying to get Qos Status...');
+		const qosEnabled = await router.getQoSEnableStatus();
+		log.push(`Qos Enabled: ${qosEnabled}`);
+
+		// Get the getBandwidthControlOptions.
+		log.push('trying to get Qos Bandwidth options...');
+		const bandwidthControlOptions = await router.getBandwidthControlOptions();
+		log.push(bandwidthControlOptions);
+
 		// Get the blockDeviceEnabledStatus.
 		log.push('trying to get Device Access Control Status...');
 		const blockDeviceEnabled = await router.getBlockDeviceEnableStatus();
@@ -153,6 +163,28 @@ async function doWifiStuff() {
 	}
 }
 
+// function to enable/disable QOS
+async function doQosStuff() {
+	try {
+		await router.login();
+		// Set the qosEnableStatus.
+		await router.setQoSEnableStatus(true);
+		log.push('Qos enabled');
+		// Set the getBandwidthControlOptions.
+		log.push('trying to set Qos Bandwidth options...');
+		await router.setBandwidthControlOptions(60.5, 50.5);	// in MB/s
+		// Get the getBandwidthControlOptions.
+		log.push('trying to get Qos Bandwidth options...');
+		const bandwidthControlOptions = await router.getBandwidthControlOptions();
+		log.push(bandwidthControlOptions);
+	}	catch (error) {
+		log.push(error);
+		router.password = '*****';
+		log.push(router);
+	}
+}
+
+
 // function to update router firmware
 async function updateNewFirmware() {
 	try {
@@ -211,6 +243,7 @@ exports.test = async (password, user, host, port) => {
 		// await blockOrAllow('AA:BB:CC:DD:EE:FF', 'Allow');
 		// await speedTest();
 		// await doWifiStuff();
+		// await doQosStuff();
 		// await updateNewFirmware();
 		// await reboot();
 		return Promise.resolve(log);

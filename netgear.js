@@ -24,10 +24,14 @@ const regexNewMonthDownload = new RegExp(/<NewMonthDownload>(.*)<\/NewMonthDownl
 const regexCurrentVersion = new RegExp(/<CurrentVersion>(.*)<\/CurrentVersion>/);
 const regexNewVersion = new RegExp(/<NewVersion>(.*)<\/NewVersion>/);
 const regexReleaseNote = new RegExp(/<ReleaseNote>(.*)<\/ReleaseNote>/);
+const regexNewUplinkBandwidth = new RegExp(/<NewUplinkBandwidth>(.*)<\/NewUplinkBandwidth>/);
+const regexNewDownlinkBandwidth = new RegExp(/<NewDownlinkBandwidth>(.*)<\/NewDownlinkBandwidth>/);
+const regexNewSettingMethod = new RegExp(/<NewSettingMethod>(.*)<\/NewSettingMethod>/);
 const regexUplinkBandwidth = new RegExp(/<NewOOKLAUplinkBandwidth>(.*)<\/NewOOKLAUplinkBandwidth>/);
 const regexDownlinkBandwidth = new RegExp(/<NewOOKLADownlinkBandwidth>(.*)<\/NewOOKLADownlinkBandwidth>/);
 const regexAveragePing = new RegExp(/<AveragePing>(.*)<\/AveragePing>/);
 const regexParentalControl = new RegExp(/<ParentalControl>(.*)<\/ParentalControl>/);
+const regexNewQoSEnableStatus = new RegExp(/<NewQoSEnableStatus>(.*)<\/NewQoSEnableStatus>/);
 const regexNewBlockDeviceEnable = new RegExp(/<NewBlockDeviceEnable>(.*)<\/NewBlockDeviceEnable>/);
 const regexNewTrafficMeterEnable = new RegExp(/<NewTrafficMeterEnable>(.*)<\/NewTrafficMeterEnable>/);
 const regexNewControlOption = new RegExp(/<NewControlOption>(.*)<\/NewControlOption>/);
@@ -340,6 +344,42 @@ class NetgearRouter {
 		}
 	}
 
+	async getQoSEnableStatus() {
+		// Resolves promise of Qos status. Rejects if error occurred.
+		// console.log('Get Qos enabled status');
+		try {
+			await this._configurationStarted();
+			const message = soap.getQoSEnableStatus(this.sessionId);
+			const result = await this._makeRequest(soap.action.getQoSEnableStatus, message);
+			await this._configurationFinished()
+				.catch(() => {
+					// console.log(`finished with warning`);
+				});
+			const qosEnabled = regexNewQoSEnableStatus.exec(result.body)[1] === '1';
+			return Promise.resolve(qosEnabled);
+		} catch (error) {
+			return Promise.reject(error);
+		}
+	}
+
+	async setQoSEnableStatus(enable) {
+		// sets Qos status. Rejects if error occurred.
+		// console.log('set Qos enabled or disabled');
+		try {
+			await this._configurationStarted();
+			const message = soap.setQoSEnableStatus(this.sessionId, enable);
+			await this._makeRequest(soap.action.setQoSEnableStatus, message);
+			await this._configurationFinished()
+				.catch(() => {
+					// console.log(`finished with warning`);
+				});
+			return Promise.resolve(true);
+		} catch (error) {
+			return Promise.reject(error);
+		}
+	}
+
+
 	async getTrafficMeterEnabled() {
 		// Resolves promise of Traffic Meter Enabled status. Rejects if error occurred.
 		// console.log('Get traffic meter enabled status');
@@ -368,6 +408,41 @@ class NetgearRouter {
 				newControlOption, newNewMonthlyLimit, restartHour, restartMinute, restartDay,
 			};
 			return Promise.resolve(trafficMeterOptions);
+		} catch (error) {
+			return Promise.reject(error);
+		}
+	}
+
+	async getBandwidthControlOptions() {
+		// Resolves promise of Bandwidt Control Options. Rejects if error occurred.
+		// console.log('Get Bandwidth Control options');
+		try {
+			const message = soap.getBandwidthControlOptions(this.sessionId);
+			const result = await this._makeRequest(soap.action.getBandwidthControlOptions, message);
+			const newUplinkBandwidth = Number(regexNewUplinkBandwidth.exec(result.body)[1].replace(',', ''));
+			const newDownlinkBandwidth = Number(regexNewDownlinkBandwidth.exec(result.body)[1].replace(',', ''));
+			const enabled = Number(regexNewSettingMethod.exec(result.body)[1]);
+			const bandwidthControlOptions = {
+				newUplinkBandwidth, newDownlinkBandwidth, enabled,
+			};
+			return Promise.resolve(bandwidthControlOptions);
+		} catch (error) {
+			return Promise.reject(error);
+		}
+	}
+
+	async setBandwidthControlOptions(newUplinkBandwidth, newDownlinkBandwidth) {
+		// sets Qos bandwidth. Rejects if error occurred.
+		// console.log('set Qos bandwidth control options');
+		try {
+			await this._configurationStarted();
+			const message = soap.setBandwidthControlOptions(this.sessionId, newUplinkBandwidth, newDownlinkBandwidth);
+			await this._makeRequest(soap.action.setBandwidthControlOptions, message);
+			await this._configurationFinished()
+				.catch(() => {
+					// console.log(`finished with warning`);
+				});
+			return Promise.resolve(true);
 		} catch (error) {
 			return Promise.reject(error);
 		}

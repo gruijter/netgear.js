@@ -40,6 +40,10 @@ exports.action = {
 	// AdvancedQoS
 	speedTestStart: 'urn:NETGEAR-ROUTER:service:AdvancedQoS:1#SetOOKLASpeedTestStart',
 	speedTestResult: 'urn:NETGEAR-ROUTER:service:AdvancedQoS:1#GetOOKLASpeedTestResult',
+	getQoSEnableStatus: 'urn:NETGEAR-ROUTER:service:AdvancedQoS:1#GetQoSEnableStatus', // ***NEW***
+	setQoSEnableStatus: 'urn:NETGEAR-ROUTER:service:AdvancedQoS:1#SetQoSEnableStatus', // ***NEW***
+	getBandwidthControlOptions: 'urn:NETGEAR-ROUTER:service:AdvancedQoS:1#GetBandwidthControlOptions', // ***NEW***
+	setBandwidthControlOptions: 'urn:NETGEAR-ROUTER:service:AdvancedQoS:1#SetBandwidthControlOptions', // ***NEW***
 
 	// WLANConfiguration
 	getGuestAccessEnabled: 'urn:NETGEAR-ROUTER:service:WLANConfiguration:1#GetGuestAccessEnabled',	// 2.4G-1 R7800/R8000
@@ -53,11 +57,8 @@ exports.action = {
 	set5GGuestAccessEnabled2: 'urn:NETGEAR-ROUTER:service:WLANConfiguration:1#Set5GGuestAccessEnabled2',	// 5G-2 R8000
 
 	// new stuff yet to implement
-	getBandwidthControlOptions: 'urn:NETGEAR-ROUTER:service:AdvancedQoS:1#GetBandwidthControlOptions', // ***NEW***
-	getQoSEnableStatus: 'urn:NETGEAR-ROUTER:service:AdvancedQoS:1#GetQoSEnableStatus', // ***NEW***
-	setQoSEnableStatus: 'urn:NETGEAR-ROUTER:service:AdvancedQoS:1#SetQoSEnableStatus', // ***NEW***
-	setBandwidthControlOptions: 'urn:NETGEAR-ROUTER:service:AdvancedQoS:1#SetBandwidthControlOptions', // ***NEW***
 	// setTrafficMeterEnable: 'urn:NETGEAR-ROUTER:service:DeviceConfig:1#SetTrafficMeterEnable', // THIS SHOULD EXIST, BUT IS NOT CAPTURED
+	// setParentalControlEnable	// THIS SHOULD EXIST, BUT IS NOT CAPTURED
 
 };
 
@@ -185,12 +186,12 @@ exports.setQoSEnableStatus = (sessionId, enabled) => {
 	return soapEnvelope(sessionId, soapBody);
 };
 
-exports.setBandwidthControlOptions = (sessionId, enabled, newUplinkBandwidth, newDownlinkBandwidth) => {
+exports.setBandwidthControlOptions = (sessionId, newUplinkBandwidth, newDownlinkBandwidth) => {
 	const soapBody = `<SOAP-ENV:Body>
 		<M1:SetBandwidthControlOptions xmlns:M1="urn:NETGEAR-ROUTER:service:AdvancedQoS:1">
 		  <NewUplinkBandwidth>${newUplinkBandwidth}</NewUplinkBandwidth>
 		  <NewDownlinkBandwidth>${newDownlinkBandwidth}</NewDownlinkBandwidth>
-		  <NewSettingMethod>${enabled * 1}</NewSettingMethod>
+		  <NewSettingMethod>1</NewSettingMethod>
 		</M1:SetBandwidthControlOptions>
 	</SOAP-ENV:Body>`;
 	return soapEnvelope(sessionId, soapBody);
