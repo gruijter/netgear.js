@@ -156,6 +156,36 @@ async function doQosStuff() {
 doQosStuff();
 
 
+// function to enable/disable TrafficMeter
+async function doTrafficMeterStuff() {
+	try {
+		await router.login();
+		// enable trafficMeter.
+		await router.enableTrafficMeter(true);
+		console.log('Traffic meter enabled');
+	}	catch (error) {
+		console.log(error);
+	}
+}
+
+doTrafficMeterStuff();
+
+
+// function to enable/disable parental control
+async function doParentalControlStuff() {
+	try {
+		await router.login();
+		// disable parental control
+		await router.enableParentalControl(false);
+		console.log('Parental control disabled');
+	}	catch (error) {
+		console.log(error);
+	}
+}
+
+doParentalControlStuff();
+
+
 // function to update router firmware
 async function updateNewFirmware() {
 	try {

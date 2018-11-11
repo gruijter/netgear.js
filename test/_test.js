@@ -184,6 +184,33 @@ async function doQosStuff() {
 	}
 }
 
+// function to enable/disable TrafficMeter
+async function doTrafficMeterStuff() {
+	try {
+		await router.login();
+		// enable trafficMeter.
+		await router.enableTrafficMeter(true);
+		log.push('Traffic meter enabled');
+	}	catch (error) {
+		log.push(error);
+		router.password = '*****';
+		log.push(router);
+	}
+}
+
+// function to enable/disable parental control
+async function doParentalControlStuff() {
+	try {
+		await router.login();
+		// disable parental control
+		await router.enableParentalControl(false);
+		log.push('Parental control disabled');
+	}	catch (error) {
+		log.push(error);
+		router.password = '*****';
+		log.push(router);
+	}
+}
 
 // function to update router firmware
 async function updateNewFirmware() {
@@ -244,6 +271,8 @@ exports.test = async (password, user, host, port) => {
 		// await speedTest();
 		// await doWifiStuff();
 		// await doQosStuff();
+		// await doTrafficMeterStuff();
+		// await doParentalControlStuff();
 		// await updateNewFirmware();
 		// await reboot();
 		return Promise.resolve(log);

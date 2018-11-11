@@ -27,9 +27,11 @@ exports.action = {
 	getTrafficMeterEnabled: 'urn:NETGEAR-ROUTER:service:DeviceConfig:1#GetTrafficMeterEnabled', // ***NEW***
 	getTrafficMeterOptions: 'urn:NETGEAR-ROUTER:service:DeviceConfig:1#GetTrafficMeterOptions', // ***NEW***
 	getTrafficMeter: 'urn:NETGEAR-ROUTER:service:DeviceConfig:1#GetTrafficMeterStatistics',
+	enableTrafficMeter: 'urn:NETGEAR-ROUTER:service:DeviceConfig:1#EnableTrafficMeter',	// ***NEW***
 
 	// parental control
 	getParentalControlEnableStatus: 'urn:NETGEAR-ROUTER:service:ParentalControl:1#GetEnableStatus', // ***NEW***
+	enableParentalControl: 'urn:NETGEAR-ROUTER:service:ParentalControl:1#EnableParentalControl',	// ***NEW***
 
 	// device info
 	getInfo: 'urn:NETGEAR-ROUTER:service:DeviceInfo:1#GetInfo',
@@ -57,8 +59,24 @@ exports.action = {
 	set5GGuestAccessEnabled2: 'urn:NETGEAR-ROUTER:service:WLANConfiguration:1#Set5GGuestAccessEnabled2',	// 5G-2 R8000
 
 	// new stuff yet to implement
-	// setTrafficMeterEnable: 'urn:NETGEAR-ROUTER:service:DeviceConfig:1#SetTrafficMeterEnable', // THIS SHOULD EXIST, BUT IS NOT CAPTURED
-	// setParentalControlEnable	// THIS SHOULD EXIST, BUT IS NOT CAPTURED
+	// urn:NETGEAR-ROUTER:service:AdvancedQoS:1#GetCurrentAppBandwidth
+	// urn:NETGEAR-ROUTER:service:AdvancedQoS:1#GetCurrentDeviceBandwidth
+	// urn:NETGEAR-ROUTER:service:AdvancedQoS:1#GetCurrentAppBandwidthByMAC
+	// urn:NETGEAR-ROUTER:service:WLANConfiguration:1#GetWPASecurityKeys
+	// urn:NETGEAR-ROUTER:service:WLANConfiguration:1#Get5GWPASecurityKeys
+	// urn:NETGEAR-ROUTER:service:WLANConfiguration:1#Get5GInfo
+	// urn:NETGEAR-ROUTER:service:WLANConfiguration:1#Set5GWLANWPAPSKByPassphrase
+	// urn:NETGEAR-ROUTER:service:WLANConfiguration:1#GetAvailableChannel
+	// urn:NETGEAR-ROUTER:service:WLANConfiguration:1#GetGuestAccessNetworkInfo
+	// urn:NETGEAR-ROUTER:service:WLANConfiguration:1#SetGuestAccessNetwork
+	// urn:NETGEAR-ROUTER:service:WLANConfiguration:1#Get5GGuestAccessNetworkInfo
+	// urn:NETGEAR-ROUTER:service:ParentalControl:1#GetAllMACAddresses
+	// urn:NETGEAR-ROUTER:service:ParentalControl:1#GetDNSMasqDeviceID
+	// urn:NETGEAR-ROUTER:service:ParentalControl:1#SetDNSMasqDeviceID
+	// urn:NETGEAR-ROUTER:service:ParentalControl:1#DeleteMACAddress
+	// urn:NETGEAR-ROUTER:service:DeviceConfig:1#SetTrafficMeterOptions
+	// urn:NETGEAR-ROUTER:service:DeviceInfo:1#SetDeviceNameIconByMAC
+
 
 };
 
@@ -129,6 +147,15 @@ exports.getParentalControlEnableStatus = (sessionId) => {
 	return soapEnvelope(sessionId, soapBody);
 };
 
+exports.enableParentalControl = (sessionId, enabled) => {
+	const soapBody = `<SOAP-ENV:Body>
+		<EnableParentalControl>
+			<NewEnable>${enabled * 1}</NewEnable>
+		</EnableParentalControl>
+	</SOAP-ENV:Body>`;
+	return soapEnvelope(sessionId, soapBody);
+};
+
 exports.getQoSEnableStatus = (sessionId) => {
 	const soapBody = `<SOAP-ENV:Body>
 		<M1:GetQoSEnableStatus xmlns:M1="urn:NETGEAR-ROUTER:service:AdvancedQoS:1">
@@ -149,6 +176,15 @@ exports.getTrafficMeterEnabled = (sessionId) => {
 	const soapBody = `<SOAP-ENV:Body>
 		<M1:GetTrafficMeterEnabled xmlns:M1="urn:NETGEAR-ROUTER:service:DeviceConfig:1">
 		</M1:GetTrafficMeterEnabled>
+	</SOAP-ENV:Body>`;
+	return soapEnvelope(sessionId, soapBody);
+};
+
+exports.enableTrafficMeter = (sessionId, enabled) => {
+	const soapBody = `<SOAP-ENV:Body>
+		<M1:EnableTrafficMeter xmlns:M1="urn:NETGEAR-ROUTER:service:DeviceConfig:1">
+			<NewTrafficMeterEnable>${enabled * 1}</NewTrafficMeterEnable>
+		</M1:EnableTrafficMeter>
 	</SOAP-ENV:Body>`;
 	return soapEnvelope(sessionId, soapBody);
 };

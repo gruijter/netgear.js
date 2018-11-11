@@ -344,6 +344,22 @@ class NetgearRouter {
 		}
 	}
 
+	async enableParentalControl(enable) {
+		// console.log('set parental control enabled or disabled');
+		try {
+			await this._configurationStarted();
+			const message = soap.enableParentalControl(this.sessionId, enable);
+			await this._makeRequest(soap.action.enableParentalControl, message);
+			await this._configurationFinished()
+				.catch(() => {
+					// console.log(`finished with warning`);
+				});
+			return Promise.resolve(true);
+		} catch (error) {
+			return Promise.reject(error);
+		}
+	}
+
 	async getQoSEnableStatus() {
 		// Resolves promise of Qos status. Rejects if error occurred.
 		// console.log('Get Qos enabled status');
@@ -408,6 +424,23 @@ class NetgearRouter {
 				newControlOption, newNewMonthlyLimit, restartHour, restartMinute, restartDay,
 			};
 			return Promise.resolve(trafficMeterOptions);
+		} catch (error) {
+			return Promise.reject(error);
+		}
+	}
+
+	async enableTrafficMeter(enabled) { // true or false
+		// enable traffic meter statistics
+		// console.log('trying to enable traffic meter');
+		try {
+			await this._configurationStarted();
+			const message = soap.enableTrafficMeter(this.sessionId, enabled);
+			await this._makeRequest(soap.action.enableTrafficMeter, message);
+			await this._configurationFinished()
+				.catch(() => {
+					// console.log(`finished with warning.`);
+				});
+			return Promise.resolve(true);
 		} catch (error) {
 			return Promise.reject(error);
 		}
