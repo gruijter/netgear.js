@@ -87,6 +87,9 @@ N450
 > npm test yourPassword
 ```
 
+[## Documentation](https://gruijter.github.io/netgear.js/ "Netgear.js documentation")
+
+
 ## Example code:
 
 ```
