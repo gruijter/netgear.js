@@ -25,8 +25,6 @@ async function setupSession(password, user, host, port) {
 		log.push(`starting test on Netgear package version ${version}`);
 		router.password = password || router.password;
 		router.username = user || router.username;
-		log.push('trying to auto discover the router...');
-		log.push(await router.discover());
 		router.host = host || router.host;
 		router.port = port || router.port;
 	}	catch (error) {
@@ -43,6 +41,9 @@ async function getRouterInfo() {
 		// log.push('getting currentSetting...');
 		// const currentSetting = await router.getCurrentSetting();
 		// log.push(currentSetting);
+
+		log.push('trying to auto discover the router...');
+		log.push(await router.discover());
 
 		// for other methods you first need to be logged in.
 		log.push('trying to login...');
@@ -84,6 +85,7 @@ async function getRouterInfo() {
 		log.push('trying to get attachedDevices...');
 		const attachedDevices = await router.getAttachedDevices();
 		log.push(`Number of attached devices: ${attachedDevices.length}, method: ${router.getAttachedDevicesMethod}`);
+		log.push(`First attached device: ${JSON.stringify(attachedDevices[0])}`);
 
 		// get guest wifi status
 		log.push('trying to get Guest Wifi Status...');

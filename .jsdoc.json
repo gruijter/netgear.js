@@ -1,0 +1,31 @@
+{
+	"tags": {
+		"allowUnknownTags": true,
+		"dictionaries": ["jsdoc"]
+	},
+	"source": {
+		"include": ["netgear.js", "package.json", "README.md"],
+		"includePattern": ".js$",
+		"excludePattern": "(node_modules/|docs)"
+	},
+	"plugins": [
+		"plugins/markdown"
+	],
+	"templates": {
+		"cleverLinks": false,
+		"monospaceLinks": true,
+		"useLongnameInNav": false,
+		"showInheritedInNav": true,
+		"default": {
+			"outputSourceFiles": false
+		}
+	},
+	"opts": {
+		"destination": "./docs/",
+		"encoding": "utf8",
+		"private": true,
+		"recurse": true,
+		"outputSourceFiles": false,
+		"template": "../docdash"
+	}
+}

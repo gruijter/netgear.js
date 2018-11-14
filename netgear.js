@@ -46,6 +46,30 @@ const defaultPassword = 'password';
 // const defaultPort = 5000;	// 80 for orbi and R7800
 const defaultSessionId = 'A7D88AE69687E58D9A00';	// '10588AE69687E58D9A00'
 
+
+/** Class representing the state of a device attached to the Netgear router.
+* @property {string} ip - e.g. '10.0.0.10'
+* @property {string} Name - '--' for unknown.
+* @property {boolean} NameUserSet - e.g. false
+* @property {string} MAC - e.g. '61:56:FA:1B:E1:21'
+*	@property {string} ConnectionType - e.g. 'wired', '2.4GHz', 'Guest Wireless 2.4G'
+* @property {string} SSID - e.g. 'MyWiFi'
+* @property {number} LinkSpeed - e.g. 38
+* @property {number} SignalStrength - number <= 100
+* @property {string} AllowOrBlock - e.g. 'Allow'
+* @property {boolean} Schedule - e.g. false
+* @property {number} DeviceType - e.g. '20
+* @property {boolean} DeviceTypeUserSet - e.g. true
+* @property {string} DeviceTypeName - e.g. ''
+* @property {string} DeviceModel - e.g. ''
+* @property {boolean} DeviceModelUserSet - e.g. false
+* @property {number} Upload - e.g. 0
+* @property {number} Download - e.g. 0
+* @property {number} QosPriority - e.g. 2
+* @property {number} Grouping - e.g. 0
+* @property {number} SchedulePeriod - e.g. 0
+* @property {string} ConnAPMAC - e.g. ''
+*/
 class AttachedDevice {
 	constructor() {
 		this.IP = undefined;					// e.g. '10.0.0.10'
@@ -90,12 +114,43 @@ const xml10pattern = '[^'
 // 										+ '\ud800\udc00-\udbff\udfff'
 // 										+ ']+';
 
+/** Class representing a session with a Netgear router.
+* @property {string} host - The url or ip address of the router.
+* @property {number} port - The SOAP port of the router.
+* @property {string} username - The login username.
+* @property {string} password - The login password.
+*	@property {number} timeout - http timeout in milliseconds.
+* @readonly
+* @property {boolean} loggedIn - login state.
+* @example // create a router session, login to router, fetch attached devices
+	const Netgear = require('netgear');
+
+	const router = new Netgear();
+
+	async function getDevices() {
+		try {
+			await router.login('myPassword');
+			const deviceArray = await router.getAttachedDevices();
+			console.log(deviceArray);
+		} catch (error) {
+			console.log(error);
+		}
+	}
+
+	getDevices();
+	*/
 class NetgearRouter {
-	// Represents a session to a Netgear Router.
-	constructor(password, user, host, port) {
+	/**
+	* Create a router session.
+	* @param {string} [password = 'password'] - The login password.
+	* @param {string} [user = 'admin'] - The login username.
+	* @param {string} [host = 'routerlogin.net'] - The url or ip address of the router.
+	* @param {number} [port] - The SOAP port of the router.
+	*/
+	constructor(password, username, host, port) {
 		this.host = host || defaultHost;
 		this.port = port;
-		this.username = user || defaultUser;
+		this.username = username || defaultUser;
 		this.password = password || defaultPassword;
 		this.timeout = 10000;
 		this.sessionId = defaultSessionId;
@@ -113,8 +168,11 @@ class NetgearRouter {
 		this.lastResponse = undefined;
 	}
 
+	/**
+	* Discovers a netgear router in the network. Also sets the discovered ip address and soap port for this session.
+	* @returns {Promise<currentSetting>} The discovered router info, including host ip address and soap port.
+	*/
 	async discover() {
-		// returns a promise of the discovered router including host ip address and soap port. Also sets the values to this
 		try {
 			const discoveredInfo = await this._discoverHostInfo();	// also adds host ip to discovered router info
 			const soapPort = await this._getSoapPort(discoveredInfo.host);
@@ -127,15 +185,26 @@ class NetgearRouter {
 		}
 	}
 
-	async login(password, user, host, port) {
-		// console.log('Login');
+	/**
+	* Login to the router. Passing parameters will override the previous settings.
+	* If host and port are not set, login will try to auto discover these.
+	* @param {string} [password] - The login password.
+	* @param {string} [user] - The login username.
+	* @param {string} [host] - The url or ip address of the router.
+	* @param {number} [port] - The SOAP port of the router.
+	* @returns {Promise<loggedIn>} The loggedIn state.
+	*/
+	async login(password, username, host, port) {
 		try {
 			this.password = password || await this.password;
-			this.username = user || await this.username;
+			this.username = username || await this.username;
 			this.host = host || await this.host;
 			this.port = port || await this.port;
 			if (!this.host || this.host === '' || !this.port) {
-				throw Error('Cannot login: host IP and/or SOAP port not set');
+				await this.discover()
+					.catch(() => {
+						throw Error('Cannot login: host IP and/or SOAP port not set');
+					});
 			}
 			// try new login method
 			this.loginMethod = 2;
@@ -157,8 +226,12 @@ class NetgearRouter {
 		}
 	}
 
+
+	/**
+	* Logout from the router.
+	* @returns {Promise<loggedIn>} The loggedIn state.
+	*/
 	async logout() {
-		// console.log('logout');
 		try {
 			const message = soap.logout(this.sessionId);
 			await this._makeRequest(soap.action.logout, message);
@@ -169,15 +242,19 @@ class NetgearRouter {
 		}
 	}
 
-	async getCurrentSetting(host1) {
-		// Resolves promise of router information without need for credentials. Rejects if error occurred.
-		// console.log('Get current setting');
+
+	/**
+	* Get router information without need for credentials.
+	* @param {string} [host] - The url or ip address of the router.
+	* @returns {Promise<currentSetting>}
+	*/
+	async getCurrentSetting(host) {
 		try {
-			const host = host1 || this.host;
+			const host1 = host || this.host;
 			const headers = {
 			};
 			const options = {
-				hostname: host,
+				hostname: host1,
 				port: 80,
 				path: '/currentsetting.htm',
 				headers,
@@ -195,9 +272,26 @@ class NetgearRouter {
 						currentSetting[info[0]] = info[1];
 					}
 				});
-				currentSetting.host = host; // add the host address to the information
+				currentSetting.host = host1; // add the host address to the information
+				currentSetting.port = this.port; // add port address to the information
 				// this.loginMethod = Number(currentSetting.LoginMethod) || 1;
 				this.soapVersion = parseInt(currentSetting.SOAPVersion, 10) || 2;
+				/**
+				* @typedef currentSetting
+				* @description currentSetting is an object with properties similar to this.
+				* @property {string} Firmware: e.g. 'V1.0.2.60WW'
+				* @property {string} RegionTag e.g. 'R7800_WW'
+				* @property {string} Region e.g. 'ww'
+				* @property {string} Model  e.g. 'R7800'
+				* @property {string} InternetConnectionStatus e.g. 'Up'
+				* @property {string} ParentalControlSupported e.g. '1'
+				* @property {string} SOAPVersion e.g. '3.43'
+				* @property {string} ReadyShareSupportedLevel e.g. '29'
+				* @property {string} XCloudSupported e.g. '1'
+				* @property {string} LoginMethod e.g. '2'
+				* @property {string} host e.g. '192.168.1.1'
+					@property {string} port e.g. '80'
+				*/
 				return Promise.resolve(currentSetting);
 			}
 			// request failed
@@ -213,9 +307,12 @@ class NetgearRouter {
 		}
 	}
 
+
+	/**
+	* Get router information.
+	* @returns {Promise<info>}
+	*/
 	async getInfo() {
-		// Resolves promise of router information. Rejects if error occurred.
-		// console.log('Get router info');
 		try {
 			const message = soap.getInfo(this.sessionId);
 			const result = await this._makeRequest(soap.action.getInfo,	message);
@@ -235,27 +332,40 @@ class NetgearRouter {
 					info[property] = entries[property]._text;
 				}
 			});
-			// info is an object with the following properties:
-			// 	ModelName: e.g. 'R7000'
-			// 	Description: e.g. 'Netgear Smart Wizard 3.0, specification 0.7 version'
-			// 	SerialNumber: e.g. '1LG23B71067B2'
-			// 	Firmwareversion: e.g. 'V1.0.9.6'
-			// 	SmartAgentversion: // e.g. '3.0'
-			// 	FirewallVersion: // e.g. 'ACOS NAT-Netfilter v3.0.0.5 (Linux Cone NAT Hot Patch 06/11/2010)'
-			// 	VPNVersion: // e.g. 'N/A'
-			// 	OthersoftwareVersion: // e.g. '1.2.19'
-			// 	Hardwareversion: // e.g. 'R7000'
-			// 	Otherhardwareversion: // e.g. 'N/A'
-			// 	FirstUseDate: // e.g. 'Saturday, 20 Feb 2016 23:40:20'
-			// info.SerialNumber = 'TEST';
+			/**
+			* @typedef info
+			* @description info is an object with properties similar to this.
+			* @property {string} ModelName e.g. 'R7800'
+			* @property {string} Description e.g. 'Netgear Smart Wizard 3.0, specification 1.6 version'
+			* @property {string} SerialNumber e.g. '1LG23B71067B2'
+			* @property {string} Firmwareversion  e.g. 'V1.0.2.60'
+			* @property {string} SmartAgentversion e.g. '3.0'
+			* @property {string} FirewallVersion e.g. 'net-wall 2.0'
+			* @property {string} VPNVersion e.g. undefined
+			* @property {string} OthersoftwareVersion e.g. 'N/A'
+			* @property {string} Hardwareversion e.g. 'R7800'
+			* @property {string} Otherhardwareversion e.g. 'N/A'
+			* @property {string} FirstUseDate e.g. 'Saturday, 20 Feb 2016 23:40:20'
+			* @property {string} DeviceName e.g. 'R7800'
+			* @property {string} FirmwareDLmethod e.g. 'HTTPS'
+			* @property {string} FirmwareLastUpdate e.g. '2018_10.23_11:47:18'
+			* @property {string} FirmwareLastChecked e.g. '2018_11.14_15:5:37'
+			* @property {string} DeviceMode e.g. '0'
+			* @property {string} DeviceModeCapability e.g. '0;1;2'
+			* @property {string} DeviceNameUserSet e.g. 'false'
+			*/
 			return Promise.resolve(info);
 		} catch (error) {
 			return Promise.reject(error);
 		}
 	}
 
+
+	/**
+	* Get router SupportFeatureList.
+	* @returns {Promise<supportFeatureList>}
+	*/
 	async getSupportFeatureListXML() {
-		// console.log('Get suported feature list XML');
 		try {
 			const message = soap.getSupportFeatureListXML(this.sessionId);
 			const result = await this._makeRequest(soap.action.getSupportFeatureListXML, message);
@@ -269,33 +379,39 @@ class NetgearRouter {
 			};
 			const rawJson = parseXml.xml2js(patchedBody, parseOptions);
 			const entries = rawJson['soap-env:envelope']['soap-env:body']['m:GetSupportFeatureListXMLResponse'].newFeatureList.features;
-			const info = {};
+			const supportFeatureList = {};
 			Object.keys(entries).forEach((property) => {
 				if (Object.prototype.hasOwnProperty.call(entries, property)) {
-					info[property] = entries[property]._text;
+					supportFeatureList[property] = entries[property]._text;
 				}
 			});
-			// info is an object with the following properties (R7800):
-			//	DynamicQoS: '1.0',
-			//	OpenDNSParental: '1.0',
-			//	AccessControl: '1.0',
-			//	SpeedTest: '2.0',
-			//	GuestNetworkSchedule: '1.0',
-			//	TCAcceptance: '1.0',
-			//	DeviceTypeIdentification: '1.0',
-			//	AttachedDevice: '2.0',
-			//	NameNTGRDevice: '1.0',
-			//	SmartConnect: '2.0',
-			//	MaxMonthlyTrafficLimitation: '4095000000'
-			return Promise.resolve(info);
+			/**
+			* @typedef supportFeatureList
+			* @description supportFeatureList is an object with properties similar to this.
+			* @property {string} DynamicQoS e.g. '1.0'
+			* @property {string} OpenDNSParentalControl e.g. '1.0'
+			* @property {string} AccessControl e.g. '1.0'
+			* @property {string} SpeedTest  e.g. '2.0'
+			* @property {string} GuestNetworkSchedule e.g. '1.0'
+			* @property {string} TCAcceptance e.g. '1.0'
+			* @property {string} DeviceTypeIdentification e.g. '1.0'
+			* @property {string} AttachedDevice e.g. '2.0'
+			* @property {string} NameNTGRDevice e.g. '1.0'
+			* @property {string} SmartConnect e.g. '2.0'
+			* @property {string} MaxMonthlyTrafficLimitation e.g. '4095000000'
+			*/
+			return Promise.resolve(supportFeatureList);
 		} catch (error) {
 			return Promise.reject(error);
 		}
 	}
 
+
+	/**
+	* Get array of attached devices.
+	* @returns {Promise.<AttachedDevice[]>}
+	*/
 	async getAttachedDevices() {
-		// Resolves promise list of connected devices to the router. Rejects if error occurred.
-		// console.log('Get attached devices');
 		this.getAttachedDevicesMethod = 2;
 		const devices = await this._getAttachedDevices2()
 			.catch(() => {
@@ -307,9 +423,11 @@ class NetgearRouter {
 		return Promise.resolve(devices);
 	}
 
+	/**
+	* Get traffic meter statistics.
+	* @returns {Promise.<trafficStatistics>}
+	*/
 	async getTrafficMeter() {
-		// Resolves promise of traffic meter stats. Rejects if error occurred.
-		// console.log('Get traffic meter');
 		try {
 			const message = soap.trafficMeter(this.sessionId);
 			const result = await this._makeRequest(soap.action.getTrafficMeter,	message);
@@ -317,18 +435,29 @@ class NetgearRouter {
 			const newTodayDownload = Number(regexNewTodayDownload.exec(result.body)[1].replace(',', ''));
 			const newMonthUpload = Number(regexNewMonthUpload.exec(result.body)[1].split('/')[0].replace(',', ''));
 			const newMonthDownload = Number(regexNewMonthDownload.exec(result.body)[1].split('/')[0].replace(',', ''));
-			const traffic = {
+			/**
+			* @typedef trafficStatistics
+			* @description trafficStatistics is an object with these properties (in Mbytes).
+			* @property {number} newTodayUpload e.g. 561.29
+			* @property {number} newTodayDownload e.g. 5436
+			* @property {number} newMonthUpload e.g. 26909
+			* @property {number} newMonthDownload  e.g. 151850
+			*/
+			const trafficStatistics = {
 				newTodayUpload, newTodayDownload, newMonthUpload, newMonthDownload,
-			};	// in Mbytes
-			return Promise.resolve(traffic);
+			};
+			return Promise.resolve(trafficStatistics);
 		} catch (error) {
 			return Promise.reject(error);
 		}
 	}
 
+
+	/**
+	* Get Parental Control Enable Status (true / false).
+	* @returns {Promise.<parentalControlEnabled>}
+	*/
 	async getParentalControlEnableStatus() {
-		// Resolves promise of parental control status. Rejects if error occurred.
-		// console.log('Get parental control enabled status');
 		try {
 			await this._configurationStarted();
 			const message = soap.getParentalControlEnableStatus(this.sessionId);
@@ -344,8 +473,13 @@ class NetgearRouter {
 		}
 	}
 
+
+	/**
+	* Enable or Disable Parental Controls
+	* @param {boolean} enable - true to enable, false to disable.
+	* @returns {Promise<finished>}
+	*/
 	async enableParentalControl(enable) {
-		// console.log('set parental control enabled or disabled');
 		try {
 			await this._configurationStarted();
 			const message = soap.enableParentalControl(this.sessionId, enable);
@@ -360,9 +494,12 @@ class NetgearRouter {
 		}
 	}
 
+
+	/**
+	* Get QoS Enable Status (true / false).
+	* @returns {Promise.<qosEnabled>}
+	*/
 	async getQoSEnableStatus() {
-		// Resolves promise of Qos status. Rejects if error occurred.
-		// console.log('Get Qos enabled status');
 		try {
 			await this._configurationStarted();
 			const message = soap.getQoSEnableStatus(this.sessionId);
@@ -378,9 +515,13 @@ class NetgearRouter {
 		}
 	}
 
+
+	/**
+	* Enable or Disable QoS
+	* @param {boolean} enable - true to enable, false to disable.
+	* @returns {Promise<finished>}
+	*/
 	async setQoSEnableStatus(enable) {
-		// sets Qos status. Rejects if error occurred.
-		// console.log('set Qos enabled or disabled');
 		try {
 			await this._configurationStarted();
 			const message = soap.setQoSEnableStatus(this.sessionId, enable);
@@ -396,9 +537,11 @@ class NetgearRouter {
 	}
 
 
+	/**
+	* Get Traffic Meter Enable Status (true / false).
+	* @returns {Promise.<trafficMeterEnabled>}
+	*/
 	async getTrafficMeterEnabled() {
-		// Resolves promise of Traffic Meter Enabled status. Rejects if error occurred.
-		// console.log('Get traffic meter enabled status');
 		try {
 			const message = soap.getTrafficMeterEnabled(this.sessionId);
 			const result = await this._makeRequest(soap.action.getTrafficMeterEnabled, message);
@@ -409,9 +552,12 @@ class NetgearRouter {
 		}
 	}
 
+
+	/**
+	* Get Traffic Meter options
+	* @returns {Promise.<{newControlOption, newNewMonthlyLimit, restartHour, restartMinute, restartDay}>}
+	*/
 	async getTrafficMeterOptions() {
-		// Resolves promise of Traffic Meter Options. Rejects if error occurred.
-		// console.log('Get traffic meter options');
 		try {
 			const message = soap.getTrafficMeterOptions(this.sessionId);
 			const result = await this._makeRequest(soap.action.getTrafficMeterOptions, message);
@@ -429,9 +575,13 @@ class NetgearRouter {
 		}
 	}
 
+
+	/**
+	* Enable or Disable Traffic Meter statistics
+	* @param {boolean} enable - true to enable, false to disable.
+	* @returns {Promise<finished>}
+	*/
 	async enableTrafficMeter(enabled) { // true or false
-		// enable traffic meter statistics
-		// console.log('trying to enable traffic meter');
 		try {
 			await this._configurationStarted();
 			const message = soap.enableTrafficMeter(this.sessionId, enabled);
@@ -446,9 +596,12 @@ class NetgearRouter {
 		}
 	}
 
+
+	/**
+	* Get Bandwidt Control options
+	* @returns {Promise.<{newUplinkBandwidth, newDownlinkBandwidth, enabled}>}
+	*/
 	async getBandwidthControlOptions() {
-		// Resolves promise of Bandwidt Control Options. Rejects if error occurred.
-		// console.log('Get Bandwidth Control options');
 		try {
 			const message = soap.getBandwidthControlOptions(this.sessionId);
 			const result = await this._makeRequest(soap.action.getBandwidthControlOptions, message);
@@ -464,9 +617,14 @@ class NetgearRouter {
 		}
 	}
 
+
+	/**
+	* sets Qos bandwidth options
+	* @param {number} newUplinkBandwidth - maximum uplink bandwidth (Mb/s).
+	* @param {number} newDownlinkBandwidth - maximum downlink bandwidth (Mb/s).
+	* @returns {Promise<finished>}
+	*/
 	async setBandwidthControlOptions(newUplinkBandwidth, newDownlinkBandwidth) {
-		// sets Qos bandwidth. Rejects if error occurred.
-		// console.log('set Qos bandwidth control options');
 		try {
 			await this._configurationStarted();
 			const message = soap.setBandwidthControlOptions(this.sessionId, newUplinkBandwidth, newDownlinkBandwidth);
@@ -481,9 +639,12 @@ class NetgearRouter {
 		}
 	}
 
+
+	/**
+	* Get BlockDeviceEnabled status (= device access control)
+	* @returns {Promise<blockDeviceEnabled>}
+	*/
 	async getBlockDeviceEnableStatus() {
-		// Resolves promise of Block Device Enabled (= access control) status. Rejects if error occurred.
-		// console.log('Get block device enabled status');
 		try {
 			const message = soap.getBlockDeviceEnableStatus(this.sessionId);
 			const result = await this._makeRequest(soap.action.getBlockDeviceEnableStatus, message);
@@ -494,9 +655,13 @@ class NetgearRouter {
 		}
 	}
 
+
+	/**
+	* Enable or Disable BlockDevice (= device access control)
+	* @param {boolean} enable - true to enable, false to disable.
+	* @returns {Promise<finished>}
+	*/
 	async setBlockDeviceEnable(enable) {
-		// sets Block Device (= access control). Rejects if error occurred.
-		// console.log('setBlockDeviceEnable started');
 		try {
 			await this._configurationStarted();
 			const message = soap.setBlockDeviceEnable(this.sessionId, enable);
@@ -528,9 +693,14 @@ class NetgearRouter {
 		}
 	}
 
+
+	/**
+	* Enable or Disable BlockDevice (= device access control)
+	* @param {string} MAC - MAC address of the device to block or allow.
+	* @param {string} AllowOrBlock - either 'Allow' or 'Block'.
+	* @returns {Promise<MAC>}
+	*/
 	async setBlockDevice(MAC, AllowOrBlock) {
-		// Resolves promise of AllowOrBlock status. Rejects if error occurred.
-		// console.log('setBlockDevice started');
 		try {
 			await this._configurationStarted();
 			const message = soap.setBlockDevice(this.sessionId, MAC, AllowOrBlock);
@@ -545,8 +715,11 @@ class NetgearRouter {
 		}
 	}
 
+	/**
+	* Get 2.4GHz-1 guest Wifi status
+	* @returns {Promise<enabled>}
+	*/
 	async getGuestWifiEnabled() {
-		// console.log('Get 2.4GHz Guest wifi enabled status');
 		try {
 			const message = soap.getGuestAccessEnabled(this.sessionId);
 			const result = await this._makeRequest(soap.action.getGuestAccessEnabled,	message);
@@ -556,9 +729,13 @@ class NetgearRouter {
 		}
 	}
 
+
+	/**
+	* Enable or Disable 2.4GHz-1 guest Wifi
+	* @param {boolean} enable - true to enable, false to disable.
+	* @returns {Promise<wifiSetMethod>}
+	*/
 	async setGuestWifi(enable) { // true or false
-		// turn 2.4GHz-1 guest wifi on or off
-		// console.log('setGuestWifi started');
 		this.guestWifiMethod.set24_1 = 1;
 		const method = await this._setGuestAccessEnabled(enable)
 			.catch(async () => {
@@ -570,6 +747,11 @@ class NetgearRouter {
 		return Promise.resolve(method);
 	}
 
+
+	/**
+	* Get 5GHz-1 guest Wifi status
+	* @returns {Promise<enabled>}
+	*/
 	async get5GGuestWifiEnabled() {
 		// console.log('Get 5GHz-1 Guest wifi enabled status');
 		try {
@@ -588,8 +770,13 @@ class NetgearRouter {
 		}
 	}
 
+
+	/**
+	* Enable or Disable 5GHz-1 guest Wifi
+	* @param {boolean} enable - true to enable, false to disable.
+	* @returns {Promise<wifiSetMethod>}
+	*/
 	async set5GGuestWifi(enable) { // true or false
-		// turn 5GHz-1 guest wifi on or off
 		this.guestWifiMethod.set50_1 = 2;
 		const method = await this._set5G1GuestAccessEnabled2(enable)
 			.catch(async () => {
@@ -601,6 +788,11 @@ class NetgearRouter {
 		return Promise.resolve(method);
 	}
 
+
+	/**
+	* Get 5GHz-2 guest Wifi status
+	* @returns {Promise<enabled>}
+	*/
 	async get5GGuestWifi2Enabled() {
 		// console.log('Get 5GHz-1 Guest wifi enabled status');
 		try {
@@ -613,16 +805,23 @@ class NetgearRouter {
 		}
 	}
 
+
+	/**
+	* Enable or Disable 5GHz-2 guest Wifi
+	* @param {boolean} enable - true to enable, false to disable.
+	* @returns {Promise<wifiSetMethod>}
+	*/
 	async set5GGuestWifi2(enable) { // true or false
-		// turn 5GHz-2 guest wifi on or off
-		// console.log('setGuestWifi started');
 		const method = await this._set5GGuestAccessEnabled2(enable);
 		return Promise.resolve(method);
 	}
 
+
+	/**
+	* Reboot the router
+	* @returns {Promise<finished>}
+	*/
 	async reboot() {
-		// Resolves promise of reboot started. Rejects if error occurred.
-		// console.log('router reboot requested');
 		try {
 			await this._configurationStarted()
 				.catch((err) => {
@@ -640,9 +839,11 @@ class NetgearRouter {
 		}
 	}
 
+	/**
+	* Check present firmware level, and new firmware level if available
+	* @returns {Promise<{ currentVersion, newVersion, releaseNote}>
+	*/
 	async checkNewFirmware() {
-		// check present firmware lever, and new firmware level if available
-		// console.log('check new firmware requested');
 		try {
 			const message = soap.checkNewFirmware(this.sessionId);
 			const result = await this._makeRequest(soap.action.checkNewFirmware,	message);
@@ -655,9 +856,12 @@ class NetgearRouter {
 		}
 	}
 
+
+	/**
+	* Update the firmware of the router
+	* @returns {Promise<finished>}
+	*/
 	async updateNewFirmware() {
-		// Update the firmware of the router
-		// console.log('router firmware update requested');
 		try {
 			const message = soap.updateNewFirmware(this.sessionId);
 			await this._makeRequest(soap.action.updateNewFirmware,	message);
@@ -667,9 +871,12 @@ class NetgearRouter {
 		}
 	}
 
+
+	/**
+	* Perform Internet bandwidth speedtest (Note: takes a minute to respond)
+	* @returns {Promise<speed>}
+	*/
 	async speedTest() {
-		// Resolves promise of speed after 1 minute
-		// console.log('internet speed test requested');
 		try {
 			await this._speedTestStart();
 			await setTimeoutPromise(55 * 1000, 'waiting is done');
@@ -812,16 +1019,16 @@ class NetgearRouter {
 				const device = new AttachedDevice();
 				device.IP = entries[i].IP._text;						// e.g. '10.0.0.10'
 				device.Name = entries[i].Name._cdata;				// '--' for unknown
-				device.NameUserSet = (entries[i].NameUserSet._text === 'true');	// e.g. 'false'
+				device.NameUserSet = (entries[i].NameUserSet._text === 'true');	// e.g. false
 				device.MAC = entries[i].MAC._text;					// e.g. '61:56:FA:1B:E1:21'
 				device.ConnectionType = entries[i].ConnectionType._text;	// e.g. 'wired', '2.4GHz', 'Guest Wireless 2.4G'
 				device.SSID = entries[i].SSID._text;				// e.g. 'MyWiFi'
-				device.Linkspeed = entries[i].Linkspeed._text;
+				device.Linkspeed = Number(entries[i].Linkspeed._text);	// e.g. 38
 				device.SignalStrength = Number(entries[i].SignalStrength._text);	// number <= 100
 				device.AllowOrBlock = entries[i].AllowOrBlock._text;			// 'Allow' or 'Block'
-				device.Schedule = entries[i].Schedule._text;							// e.g. 'false'
+				device.Schedule = entries[i].Schedule._text;							// e.g. false
 				device.DeviceType = Number(entries[i].DeviceType._text);	// a number
-				device.DeviceTypeUserSet = (entries[i].DeviceTypeUserSet._text === 'true');	// e.g. 'false',
+				device.DeviceTypeUserSet = (entries[i].DeviceTypeUserSet._text === 'true');	// e.g. false,
 				device.DeviceTypeName = '';	// unknown, found in orbi response
 				device.DeviceModel = ''; // unknown, found in R7800 and orbi response
 				device.DeviceModelUserSet = false; // // unknown, found in orbi response
@@ -838,7 +1045,7 @@ class NetgearRouter {
 				}
 				if (Object.keys(entries[i]).length >= 21) { // only available for certain routers?:
 					device.DeviceTypeName = entries[i].DeviceTypeName._cdata; // '',
-					device.DeviceModelUserSet = (entries[i].DeviceModelUserSet._text === 'true'); // e.g. 'false',
+					device.DeviceModelUserSet = (entries[i].DeviceModelUserSet._text === 'true'); // e.g. false,
 					device.ConnAPMAC = entries[i].ConnAPMAC._text; // MAC of connected orbi?
 				}
 				devices.push(device);

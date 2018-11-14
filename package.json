@@ -1,10 +1,11 @@
 {
   "name": "netgear",
-  "version": "3.1.0",
+  "version": "3.2.0",
   "description": "Node module to interact with Netgear routers via SOAP",
   "main": "netgear.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "node test/test.js",
+		"generate-docs": "jsdoc --configure .jsdoc.json --verbose"
   },
   "repository": {
     "type": "git",
