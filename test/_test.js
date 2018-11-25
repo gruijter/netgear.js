@@ -11,6 +11,8 @@
 
 'use strict';
 
+const os = require('os');
+
 const NetgearRouter = require('../netgear.js');
 const { version } = require('../package.json');
 // const util = require('util');
@@ -21,8 +23,10 @@ const router = new NetgearRouter();
 // function to setup the router session
 async function setupSession(password, user, host, port) {
 	try {
-		log.push('===========================================');
-		log.push(`starting test on Netgear package version ${version}`);
+		log.push('========== STARTING TEST ==========');
+		log.push(`Node version: ${process.version}`);
+		log.push(`Netgear package version: ${version}`);
+		log.push(`OS: ${os.platform()} ${os.release()}`);
 		router.password = password || router.password;
 		router.username = user || router.username;
 		router.host = host || router.host;

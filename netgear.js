@@ -10,6 +10,7 @@ const http = require('http');
 const parseXml = require('xml-js');
 const util = require('util');
 const dns = require('dns');
+const os = require('os');
 const soap = require('./soapcalls');
 
 const setTimeoutPromise = util.promisify(setTimeout);
@@ -46,30 +47,6 @@ const defaultPassword = 'password';
 // const defaultPort = 5000;	// 80 for orbi and R7800
 const defaultSessionId = 'A7D88AE69687E58D9A00';	// '10588AE69687E58D9A00'
 
-
-/** Class representing the state of a device attached to the Netgear router.
-* @property {string} ip - e.g. '10.0.0.10'
-* @property {string} Name - '--' for unknown.
-* @property {boolean} NameUserSet - e.g. false
-* @property {string} MAC - e.g. '61:56:FA:1B:E1:21'
-*	@property {string} ConnectionType - e.g. 'wired', '2.4GHz', 'Guest Wireless 2.4G'
-* @property {string} SSID - e.g. 'MyWiFi'
-* @property {number} LinkSpeed - e.g. 38
-* @property {number} SignalStrength - number <= 100
-* @property {string} AllowOrBlock - e.g. 'Allow'
-* @property {boolean} Schedule - e.g. false
-* @property {number} DeviceType - e.g. '20
-* @property {boolean} DeviceTypeUserSet - e.g. true
-* @property {string} DeviceTypeName - e.g. ''
-* @property {string} DeviceModel - e.g. ''
-* @property {boolean} DeviceModelUserSet - e.g. false
-* @property {number} Upload - e.g. 0
-* @property {number} Download - e.g. 0
-* @property {number} QosPriority - e.g. 2
-* @property {number} Grouping - e.g. 0
-* @property {number} SchedulePeriod - e.g. 0
-* @property {string} ConnAPMAC - e.g. ''
-*/
 class AttachedDevice {
 	constructor() {
 		this.IP = undefined;					// e.g. '10.0.0.10'
@@ -100,53 +77,21 @@ class AttachedDevice {
 // XML 1.0
 // #x9 | #xA | #xD | [#x20-#xD7FF] | [#xE000-#xFFFD] | [#x10000-#x10FFFF]
 const xml10pattern = '[^'
-										+ '\u0009\r\n'
-										+ '\u0020-\uD7FF'
-										+ '\uE000-\uFFFD'
-										+ '\ud800\udc00-\udbff\udfff'
-										+ ']';
+					+ '\u0009\r\n'
+					+ '\u0020-\uD7FF'
+					+ '\uE000-\uFFFD'
+					+ '\ud800\udc00-\udbff\udfff'
+					+ ']';
 
 // // XML 1.1
 // // [#x1-#xD7FF] | [#xE000-#xFFFD] | [#x10000-#x10FFFF]
 // const xml11pattern = '[^'
-// 										+ '\u0001-\uD7FF'
-// 										+ '\uE000-\uFFFD'
-// 										+ '\ud800\udc00-\udbff\udfff'
-// 										+ ']+';
+// 						+ '\u0001-\uD7FF'
+// 						+ '\uE000-\uFFFD'
+// 						+ '\ud800\udc00-\udbff\udfff'
+// 						+ ']+';
 
-/** Class representing a session with a Netgear router.
-* @property {string} host - The url or ip address of the router.
-* @property {number} port - The SOAP port of the router.
-* @property {string} username - The login username.
-* @property {string} password - The login password.
-*	@property {number} timeout - http timeout in milliseconds.
-* @readonly
-* @property {boolean} loggedIn - login state.
-* @example // create a router session, login to router, fetch attached devices
-	const Netgear = require('netgear');
-
-	const router = new Netgear();
-
-	async function getDevices() {
-		try {
-			await router.login('myPassword');
-			const deviceArray = await router.getAttachedDevices();
-			console.log(deviceArray);
-		} catch (error) {
-			console.log(error);
-		}
-	}
-
-	getDevices();
-	*/
 class NetgearRouter {
-	/**
-	* Create a router session.
-	* @param {string} [password = 'password'] - The login password.
-	* @param {string} [user = 'admin'] - The login username.
-	* @param {string} [host = 'routerlogin.net'] - The url or ip address of the router.
-	* @param {number} [port] - The SOAP port of the router.
-	*/
 	constructor(password, username, host, port) {
 		this.host = host || defaultHost;
 		this.port = port;
@@ -226,7 +171,6 @@ class NetgearRouter {
 		}
 	}
 
-
 	/**
 	* Logout from the router.
 	* @returns {Promise<loggedIn>} The loggedIn state.
@@ -241,7 +185,6 @@ class NetgearRouter {
 			return Promise.reject(error);
 		}
 	}
-
 
 	/**
 	* Get router information without need for credentials.
@@ -276,22 +219,6 @@ class NetgearRouter {
 				currentSetting.port = this.port; // add port address to the information
 				// this.loginMethod = Number(currentSetting.LoginMethod) || 1;
 				this.soapVersion = parseInt(currentSetting.SOAPVersion, 10) || 2;
-				/**
-				* @typedef currentSetting
-				* @description currentSetting is an object with properties similar to this.
-				* @property {string} Firmware: e.g. 'V1.0.2.60WW'
-				* @property {string} RegionTag e.g. 'R7800_WW'
-				* @property {string} Region e.g. 'ww'
-				* @property {string} Model  e.g. 'R7800'
-				* @property {string} InternetConnectionStatus e.g. 'Up'
-				* @property {string} ParentalControlSupported e.g. '1'
-				* @property {string} SOAPVersion e.g. '3.43'
-				* @property {string} ReadyShareSupportedLevel e.g. '29'
-				* @property {string} XCloudSupported e.g. '1'
-				* @property {string} LoginMethod e.g. '2'
-				* @property {string} host e.g. '192.168.1.1'
-					@property {string} port e.g. '80'
-				*/
 				return Promise.resolve(currentSetting);
 			}
 			// request failed
@@ -306,7 +233,6 @@ class NetgearRouter {
 			return Promise.reject(error);
 		}
 	}
-
 
 	/**
 	* Get router information.
@@ -332,34 +258,11 @@ class NetgearRouter {
 					info[property] = entries[property]._text;
 				}
 			});
-			/**
-			* @typedef info
-			* @description info is an object with properties similar to this.
-			* @property {string} ModelName e.g. 'R7800'
-			* @property {string} Description e.g. 'Netgear Smart Wizard 3.0, specification 1.6 version'
-			* @property {string} SerialNumber e.g. '1LG23B71067B2'
-			* @property {string} Firmwareversion  e.g. 'V1.0.2.60'
-			* @property {string} SmartAgentversion e.g. '3.0'
-			* @property {string} FirewallVersion e.g. 'net-wall 2.0'
-			* @property {string} VPNVersion e.g. undefined
-			* @property {string} OthersoftwareVersion e.g. 'N/A'
-			* @property {string} Hardwareversion e.g. 'R7800'
-			* @property {string} Otherhardwareversion e.g. 'N/A'
-			* @property {string} FirstUseDate e.g. 'Saturday, 20 Feb 2016 23:40:20'
-			* @property {string} DeviceName e.g. 'R7800'
-			* @property {string} FirmwareDLmethod e.g. 'HTTPS'
-			* @property {string} FirmwareLastUpdate e.g. '2018_10.23_11:47:18'
-			* @property {string} FirmwareLastChecked e.g. '2018_11.14_15:5:37'
-			* @property {string} DeviceMode e.g. '0'
-			* @property {string} DeviceModeCapability e.g. '0;1;2'
-			* @property {string} DeviceNameUserSet e.g. 'false'
-			*/
 			return Promise.resolve(info);
 		} catch (error) {
 			return Promise.reject(error);
 		}
 	}
-
 
 	/**
 	* Get router SupportFeatureList.
@@ -385,27 +288,11 @@ class NetgearRouter {
 					supportFeatureList[property] = entries[property]._text;
 				}
 			});
-			/**
-			* @typedef supportFeatureList
-			* @description supportFeatureList is an object with properties similar to this.
-			* @property {string} DynamicQoS e.g. '1.0'
-			* @property {string} OpenDNSParentalControl e.g. '1.0'
-			* @property {string} AccessControl e.g. '1.0'
-			* @property {string} SpeedTest  e.g. '2.0'
-			* @property {string} GuestNetworkSchedule e.g. '1.0'
-			* @property {string} TCAcceptance e.g. '1.0'
-			* @property {string} DeviceTypeIdentification e.g. '1.0'
-			* @property {string} AttachedDevice e.g. '2.0'
-			* @property {string} NameNTGRDevice e.g. '1.0'
-			* @property {string} SmartConnect e.g. '2.0'
-			* @property {string} MaxMonthlyTrafficLimitation e.g. '4095000000'
-			*/
 			return Promise.resolve(supportFeatureList);
 		} catch (error) {
 			return Promise.reject(error);
 		}
 	}
-
 
 	/**
 	* Get array of attached devices.
@@ -435,14 +322,6 @@ class NetgearRouter {
 			const newTodayDownload = Number(regexNewTodayDownload.exec(result.body)[1].replace(',', ''));
 			const newMonthUpload = Number(regexNewMonthUpload.exec(result.body)[1].split('/')[0].replace(',', ''));
 			const newMonthDownload = Number(regexNewMonthDownload.exec(result.body)[1].split('/')[0].replace(',', ''));
-			/**
-			* @typedef trafficStatistics
-			* @description trafficStatistics is an object with these properties (in Mbytes).
-			* @property {number} newTodayUpload e.g. 561.29
-			* @property {number} newTodayDownload e.g. 5436
-			* @property {number} newMonthUpload e.g. 26909
-			* @property {number} newMonthDownload  e.g. 151850
-			*/
 			const trafficStatistics = {
 				newTodayUpload, newTodayDownload, newMonthUpload, newMonthDownload,
 			};
@@ -451,7 +330,6 @@ class NetgearRouter {
 			return Promise.reject(error);
 		}
 	}
-
 
 	/**
 	* Get Parental Control Enable Status (true / false).
@@ -473,7 +351,6 @@ class NetgearRouter {
 		}
 	}
 
-
 	/**
 	* Enable or Disable Parental Controls
 	* @param {boolean} enable - true to enable, false to disable.
@@ -493,7 +370,6 @@ class NetgearRouter {
 			return Promise.reject(error);
 		}
 	}
-
 
 	/**
 	* Get QoS Enable Status (true / false).
@@ -515,7 +391,6 @@ class NetgearRouter {
 		}
 	}
 
-
 	/**
 	* Enable or Disable QoS
 	* @param {boolean} enable - true to enable, false to disable.
@@ -536,7 +411,6 @@ class NetgearRouter {
 		}
 	}
 
-
 	/**
 	* Get Traffic Meter Enable Status (true / false).
 	* @returns {Promise.<trafficMeterEnabled>}
@@ -551,7 +425,6 @@ class NetgearRouter {
 			return Promise.reject(error);
 		}
 	}
-
 
 	/**
 	* Get Traffic Meter options
@@ -575,7 +448,6 @@ class NetgearRouter {
 		}
 	}
 
-
 	/**
 	* Enable or Disable Traffic Meter statistics
 	* @param {boolean} enable - true to enable, false to disable.
@@ -596,7 +468,6 @@ class NetgearRouter {
 		}
 	}
 
-
 	/**
 	* Get Bandwidt Control options
 	* @returns {Promise.<{newUplinkBandwidth, newDownlinkBandwidth, enabled}>}
@@ -616,7 +487,6 @@ class NetgearRouter {
 			return Promise.reject(error);
 		}
 	}
-
 
 	/**
 	* sets Qos bandwidth options
@@ -639,7 +509,6 @@ class NetgearRouter {
 		}
 	}
 
-
 	/**
 	* Get BlockDeviceEnabled status (= device access control)
 	* @returns {Promise<blockDeviceEnabled>}
@@ -654,7 +523,6 @@ class NetgearRouter {
 			return Promise.reject(error);
 		}
 	}
-
 
 	/**
 	* Enable or Disable BlockDevice (= device access control)
@@ -693,7 +561,6 @@ class NetgearRouter {
 		}
 	}
 
-
 	/**
 	* Enable or Disable BlockDevice (= device access control)
 	* @param {string} MAC - MAC address of the device to block or allow.
@@ -729,7 +596,6 @@ class NetgearRouter {
 		}
 	}
 
-
 	/**
 	* Enable or Disable 2.4GHz-1 guest Wifi
 	* @param {boolean} enable - true to enable, false to disable.
@@ -746,7 +612,6 @@ class NetgearRouter {
 			});
 		return Promise.resolve(method);
 	}
-
 
 	/**
 	* Get 5GHz-1 guest Wifi status
@@ -770,7 +635,6 @@ class NetgearRouter {
 		}
 	}
 
-
 	/**
 	* Enable or Disable 5GHz-1 guest Wifi
 	* @param {boolean} enable - true to enable, false to disable.
@@ -788,7 +652,6 @@ class NetgearRouter {
 		return Promise.resolve(method);
 	}
 
-
 	/**
 	* Get 5GHz-2 guest Wifi status
 	* @returns {Promise<enabled>}
@@ -805,7 +668,6 @@ class NetgearRouter {
 		}
 	}
 
-
 	/**
 	* Enable or Disable 5GHz-2 guest Wifi
 	* @param {boolean} enable - true to enable, false to disable.
@@ -815,7 +677,6 @@ class NetgearRouter {
 		const method = await this._set5GGuestAccessEnabled2(enable);
 		return Promise.resolve(method);
 	}
-
 
 	/**
 	* Reboot the router
@@ -841,7 +702,7 @@ class NetgearRouter {
 
 	/**
 	* Check present firmware level, and new firmware level if available
-	* @returns {Promise<{ currentVersion, newVersion, releaseNote}>
+	* @returns {Promise<newFirmwareInfo>}
 	*/
 	async checkNewFirmware() {
 		try {
@@ -856,7 +717,6 @@ class NetgearRouter {
 		}
 	}
 
-
 	/**
 	* Update the firmware of the router
 	* @returns {Promise<finished>}
@@ -870,7 +730,6 @@ class NetgearRouter {
 			return Promise.reject(error);
 		}
 	}
-
 
 	/**
 	* Perform Internet bandwidth speedtest (Note: takes a minute to respond)
@@ -1188,8 +1047,17 @@ class NetgearRouter {
 		// returns a promise with an array of info on all discovered netgears, assuming class C network, or rejects with an error
 		const timeOutBefore = this.timeOut;
 		try {
-			const servers = dns.getServers() || [];	// get the IP address of all routers in the LAN
 			const hostsToTest = [];	// make an array of all host IP's in the LAN
+			// const servers = dns.getServers() || [];	// get the IP address of all routers in the LAN
+			const servers = [];
+			const ifaces = os.networkInterfaces();	// get ip address info from all network interfaces
+			Object.keys(ifaces).forEach((ifName) => {
+				ifaces[ifName].forEach((iface) => {
+					if (iface.family === 'IPv4' && !iface.internal) {
+						servers.push(iface.address);
+					}
+				});
+			});
 			servers.map((server) => {
 				for (let host = 1; host <= 254; host += 1) {
 					const ipToTest = server.replace(/\.\d+$/, `.${host}`);
@@ -1321,3 +1189,206 @@ class NetgearRouter {
 }
 
 module.exports = NetgearRouter;
+
+
+// definitions for JSDoc
+
+/**
+* @class NetgearRouter
+* @classdesc Class representing a session with a Netgear router.
+
+* @param {string} [password = 'password'] - The login password.
+* @param {string} [user = 'admin'] - The login username.
+* @param {string} [host = 'routerlogin.net'] - The url or ip address of the router. Leave empty to try autodiscovery.
+* @param {number} [port] - The SOAP port of the router. Leave empty to try autodiscovery.
+* @property {number} timeout - http timeout in milliseconds.
+* @property {boolean} loggedIn - login state.
+* @example // create a router session, login to router, fetch attached devices
+	const Netgear = require('netgear');
+
+	const router = new Netgear();
+
+	async function getDevices() {
+		try {
+			await router.login('myPassword');
+			const deviceArray = await router.getAttachedDevices();
+			console.log(deviceArray);
+		} catch (error) {
+			console.log(error);
+		}
+	}
+
+	getDevices();
+	*/
+
+
+/**
+* @typedef AttachedDevice
+* @description Object representing the state of a device attached to the Netgear router.
+* @property {string} ip - e.g. '10.0.0.10'
+* @property {string} Name - '--' for unknown.
+* @property {boolean} NameUserSet - e.g. false
+* @property {string} MAC - e.g. '61:56:FA:1B:E1:21'
+* @property {string} ConnectionType - e.g. 'wired', '2.4GHz', 'Guest Wireless 2.4G'
+* @property {string} SSID - e.g. 'MyWiFi'
+* @property {number} LinkSpeed - e.g. 38
+* @property {number} SignalStrength - number <= 100
+* @property {string} AllowOrBlock - e.g. 'Allow'
+* @property {boolean} Schedule - e.g. false
+* @property {number} DeviceType - e.g. '20
+* @property {boolean} DeviceTypeUserSet - e.g. true
+* @property {string} DeviceTypeName - e.g. ''
+* @property {string} DeviceModel - e.g. ''
+* @property {boolean} DeviceModelUserSet - e.g. false
+* @property {number} Upload - e.g. 0
+* @property {number} Download - e.g. 0
+* @property {number} QosPriority - e.g. 2
+* @property {number} Grouping - e.g. 0
+* @property {number} SchedulePeriod - e.g. 0
+* @property {string} ConnAPMAC - e.g. ''
+* @example // AttachedDevice
+{ IP: 192.168.1.24,
+  Name: 'MyIPHONE',
+  NameUserSet: true,
+  MAC: 'E1:4F:25:68:34:BA',
+  ConnectionType: '2.4GHz',
+  SSID: 'MyNetworkID',
+  Linkspeed: 70
+  SignalStrength: 64,
+  AllowOrBlock: 'Allow',
+  Schedule: 'false',
+  DeviceType: 17,
+  DeviceTypeUserSet: true,
+  DeviceTypeName: '',
+  DeviceModelUserSet: false,
+  Upload: 0,
+  Download: 0,
+  QosPriority: 3,
+  Grouping: 0,
+  SchedulePeriod: 0,
+  ConnAPMAC: '' }
+*/
+
+/**
+* @typedef currentSetting
+* @description currentSetting is an object with properties similar to this.
+* @property {string} Firmware: e.g. 'V1.0.2.60WW'
+* @property {string} RegionTag e.g. 'R7800_WW'
+* @property {string} Region e.g. 'ww'
+* @property {string} Model  e.g. 'R7800'
+* @property {string} InternetConnectionStatus e.g. 'Up'
+* @property {string} ParentalControlSupported e.g. '1'
+* @property {string} SOAPVersion e.g. '3.43'
+* @property {string} ReadyShareSupportedLevel e.g. '29'
+* @property {string} XCloudSupported e.g. '1'
+* @property {string} LoginMethod e.g. '2'
+* @property {string} host e.g. '192.168.1.1'
+* @property {string} port e.g. '80'
+* @example // currentSetting (depending on router type)
+{ Firmware: 'V1.0.2.60WW',
+  RegionTag: 'R7800_WW',
+  Region: 'ww',
+  Model: 'R7800',
+  InternetConnectionStatus: 'Up',
+  ParentalControlSupported: '1',
+  SOAPVersion: '3.43',
+  ReadyShareSupportedLevel: '29',
+  XCloudSupported: '1',
+  LoginMethod: '2.0',
+  host: '192.168.1.1',
+  port: 80 }
+*/
+
+/**
+* @typedef info
+* @description info is an object with properties similar to this.
+* @property {string} ModelName e.g. 'R7800'
+* @property {string} Description e.g. 'Netgear Smart Wizard 3.0, specification 1.6 version'
+* @property {string} SerialNumber e.g. '1LG23B71067B2'
+* @property {string} Firmwareversion  e.g. 'V1.0.2.60'
+* @property {string} SmartAgentversion e.g. '3.0'
+* @property {string} FirewallVersion e.g. 'net-wall 2.0'
+* @property {string} VPNVersion e.g. undefined
+* @property {string} OthersoftwareVersion e.g. 'N/A'
+* @property {string} Hardwareversion e.g. 'R7800'
+* @property {string} Otherhardwareversion e.g. 'N/A'
+* @property {string} FirstUseDate e.g. 'Saturday, 20 Feb 2016 23:40:20'
+* @property {string} DeviceName e.g. 'R7800'
+* @property {string} FirmwareDLmethod e.g. 'HTTPS'
+* @property {string} FirmwareLastUpdate e.g. '2018_10.23_11:47:18'
+* @property {string} FirmwareLastChecked e.g. '2018_11.14_15:5:37'
+* @property {string} DeviceMode e.g. '0'
+* @property {string} DeviceModeCapability e.g. '0;1;2'
+* @property {string} DeviceNameUserSet e.g. 'false'
+* @example // info (depending on router type)
+{ ModelName: 'R7800',
+  Description: 'Netgear Smart Wizard 3.0, specification 1.6 version',
+  SerialNumber: '**********',
+  Firmwareversion: 'V1.0.2.60',
+  SmartAgentversion: '3.0',
+  FirewallVersion: 'net-wall 2.0',
+  VPNVersion: undefined,
+  OthersoftwareVersion: 'N/A',
+  Hardwareversion: 'R7800',
+  Otherhardwareversion: 'N/A',
+  FirstUseDate: 'Sunday, 30 Sep 2007 01:10:03',
+  DeviceName: 'R7800',
+  FirmwareDLmethod: 'HTTPS',
+  FirmwareLastUpdate: '2018_10.23_11:47:18',
+  FirmwareLastChecked: '2018_11.25_20:29:3',
+  DeviceMode: '0',
+  DeviceModeCapability: '0;1;2',
+  DeviceNameUserSet: 'false' }
+*/
+
+/**
+* @typedef supportFeatureList
+* @description supportFeatureList is an object with properties similar to this.
+* @property {string} DynamicQoS e.g. '1.0'
+* @property {string} OpenDNSParentalControl e.g. '1.0'
+* @property {string} AccessControl e.g. '1.0'
+* @property {string} SpeedTest  e.g. '2.0'
+* @property {string} GuestNetworkSchedule e.g. '1.0'
+* @property {string} TCAcceptance e.g. '1.0'
+* @property {string} DeviceTypeIdentification e.g. '1.0'
+* @property {string} AttachedDevice e.g. '2.0'
+* @property {string} NameNTGRDevice e.g. '1.0'
+* @property {string} SmartConnect e.g. '2.0'
+* @property {string} MaxMonthlyTrafficLimitation e.g. '4095000000'
+* @example // supportFeatureList (depending on router type)
+{ DynamicQoS: '1.0',
+  OpenDNSParentalControl: '1.0',
+  AccessControl: '1.0',
+  SpeedTest: '2.0',
+  GuestNetworkSchedule: '1.0',
+  TCAcceptance: '1.0',
+  DeviceTypeIdentification: '1.0',
+  AttachedDevice: '2.0',
+  NameNTGRDevice: '1.0',
+  SmartConnect: '2.0',
+  MaxMonthlyTrafficLimitation: '4095000000' }
+*/
+
+/**
+* @typedef trafficStatistics
+* @description trafficStatistics is an object with these properties (in Mbytes).
+* @property {number} newTodayUpload e.g. 561.29
+* @property {number} newTodayDownload e.g. 5436
+* @property {number} newMonthUpload e.g. 26909
+* @property {number} newMonthDownload  e.g. 151850
+* @example // trafficStatitics
+{ newTodayUpload: 92.15,
+  newTodayDownload: 743.3,
+  newMonthUpload: 92.15,
+  newMonthDownload: 743.3 }
+*/
+
+/**
+* @typedef newFirmwareInfo
+* @description newFirmwareInfo is an object with these properties.
+* @property {string} currentVersion e.g. 'V1.0.2.60'
+* @property {number} newVersion e.g. ''
+* @property {number} releaseNote e.g. ''
+* @example // trafficStatitics
+{ currentVersion: 'V1.0.2.60', newVersion: '', releaseNote: '' }
+*/
