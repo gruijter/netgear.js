@@ -88,7 +88,7 @@ N450
 ```
 
 ## Documentation:
-[Extensive documentation](https://gruijter.github.io/netgear.js/ "Netgear.js documentation")
+[Detailed documentation](https://gruijter.github.io/netgear.js/ "Netgear.js documentation")
 
 
 ## Example code:
