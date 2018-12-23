@@ -1,3 +1,4 @@
+/* eslint-disable prefer-destructuring */
 /* This Source Code Form is subject to the terms of the Mozilla Public
 	License, v. 2.0. If a copy of the MPL was not distributed with this
 	file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -10,6 +11,9 @@ const http = require('http');
 const parseXml = require('xml-js');
 const util = require('util');
 const dns = require('dns');
+const dgram = require('dgram');
+// const net = require('net');
+// const Buffer = require('buffer').Buffer;
 const os = require('os');
 const soap = require('./soapcalls');
 
@@ -151,19 +155,23 @@ class NetgearRouter {
 						throw Error('Cannot login: host IP and/or SOAP port not set');
 					});
 			}
-			// try new login method
-			this.loginMethod = 2;
-			const message = soap.login(this.sessionId, this.username, this.password);
-			await this._makeRequest(soap.action.login, message)
-				.catch(() => {	// new login failed, trying old login
-					this.loginMethod = 1;
-					this.cookie = undefined; // reset the cookie
-					const messageOld = soap.loginOld(this.sessionId, this.username, this.password);
-					return this._makeRequest(soap.action.loginOld, messageOld)
-						.catch(() => {
-							throw Error('Failed to login');
-						});
-				});
+			let loggedIn = false;
+			// trying old login method
+			this.loginMethod = 1;
+			const messageOld = soap.loginOld(this.sessionId, this.username, this.password);
+			loggedIn = await this._makeRequest(soap.action.loginOld, messageOld)
+				.catch(() => false);
+			if (!loggedIn) {
+				// new login failed, trying new login method
+				this.loginMethod = 2;
+				const message = soap.login(this.sessionId, this.username, this.password);
+				loggedIn = await this._makeRequest(soap.action.login, message)
+					.catch(() => {
+						this.cookie = undefined; // reset the cookie
+						return false;
+					});
+			}
+			if (!loggedIn) throw Error('Failed to login');
 			this.loggedIn = true;
 			return Promise.resolve(this.loggedIn);
 		} catch (error) {
@@ -746,6 +754,34 @@ class NetgearRouter {
 		}
 	}
 
+	/**
+	* Send Wake On Lan command to a mac address
+	* @param {string} MAC - MAC address of the device to wake.
+	* @param {string} [secureOnPassword = '00:00:00:00:00:00'] - optional WOL Password.
+	* @returns {Promise<finished>}
+	*/
+	async wol(MAC, secureOnPassword) {
+		try {
+			// const getBroadcastAddr = (ip, netmask) => {
+			// 	const a = ip.split('.').map(s => parseInt(s, 10));
+			// 	const b = netmask.split('.').map(s => parseInt(s, 10));
+			// 	const c = [];
+			// 	// eslint-disable-next-line no-bitwise
+			// 	for (let i = 0; i < a.length; i += 1) c.push((a[i] & b[i]) | (b[i] ^ 255));
+			// 	return c.join('.');
+			// };
+			// const address = getBroadcastAddr(iface.address, iface.netmask);
+			const options = {
+				port: 9,
+				address: '255.255.255.255',
+			};
+			const result = await this._sendWol(MAC, secureOnPassword, options);
+			return result;
+		} catch (error) {
+			return Promise.reject(error);
+		}
+	}
+
 	async _speedTestStart() {
 		// start internet bandwith speedtest
 		// console.log('speed test requested');
@@ -1049,18 +1085,18 @@ class NetgearRouter {
 		try {
 			const hostsToTest = [];	// make an array of all host IP's in the LAN
 			// const servers = dns.getServers() || [];	// get the IP address of all routers in the LAN
-			const servers = [];
+			const networks = [];
 			const ifaces = os.networkInterfaces();	// get ip address info from all network interfaces
 			Object.keys(ifaces).forEach((ifName) => {
 				ifaces[ifName].forEach((iface) => {
 					if (iface.family === 'IPv4' && !iface.internal) {
-						servers.push(iface.address);
+						networks.push(iface);
 					}
 				});
 			});
-			servers.map((server) => {
+			networks.map((network) => {
 				for (let host = 1; host <= 254; host += 1) {
-					const ipToTest = server.replace(/\.\d+$/, `.${host}`);
+					const ipToTest = network.address.replace(/\.\d+$/, `.${host}`);
 					hostsToTest.push(ipToTest);
 				}
 				return hostsToTest;
@@ -1106,6 +1142,29 @@ class NetgearRouter {
 			}
 			this.port = portBefore;
 			return soapPort;
+		} catch (error) {
+			return Promise.reject(error);
+		}
+	}
+
+	async _sendWol(mac, secureOnPassword, options) {
+		try {
+			// check if mac is valid
+			const macPatched = mac.replace(/:/g, '');
+			if (macPatched.length !== 12 || macPatched.match(/[^a-fA-F0-9]/)) {
+				throw new Error(`Invalid MAC address: ${mac}`);
+			}
+			// check if password is valid
+			const password = secureOnPassword || '00'.repeat(6);
+			const passwordPatched = password.replace(/:/g, '');
+			if (passwordPatched.length !== 12 || passwordPatched.match(/[^a-fA-F0-9]/)) {
+				throw new Error(`Invalid secureOn password: ${secureOnPassword}`);
+			}
+			// create magic packet
+			const magicPacket = Buffer.from('ff'.repeat(6) + macPatched.repeat(16) + passwordPatched, 'hex');
+			// set the options to broadcast on port 9
+			await this._makeUdpRequest(options, magicPacket);
+			return Promise.resolve(mac);
 		} catch (error) {
 			return Promise.reject(error);
 		}
@@ -1186,6 +1245,30 @@ class NetgearRouter {
 		});
 	}
 
+	_makeUdpRequest(options, msg) {
+		return new Promise((resolve, reject) => {
+			const broadcast = '255.255.255.255';
+			// const protocol = net.isIPv6(options.address) ? 'udp6' : 'udp4';
+			const client = dgram.createSocket('udp4');
+			client.once('listening', () => {
+				client.setBroadcast(options.address === broadcast);
+			});
+			client.once('error', (e) => {
+				client.close();
+				this.lastResponse = e;
+				reject(e);
+			});
+			client.send(msg, options.port, options.address, (e) => {
+				client.close();
+				if (e) {
+					this.lastResponse = e;
+					return reject(e);
+				}
+				return resolve(true);
+			});
+		});
+	}
+
 }
 
 module.exports = NetgearRouter;
@@ -1235,7 +1318,7 @@ module.exports = NetgearRouter;
 * @property {number} SignalStrength - number <= 100
 * @property {string} AllowOrBlock - e.g. 'Allow'
 * @property {boolean} Schedule - e.g. false
-* @property {number} DeviceType - e.g. '20
+* @property {number} DeviceType - e.g. 20
 * @property {boolean} DeviceTypeUserSet - e.g. true
 * @property {string} DeviceTypeName - e.g. ''
 * @property {string} DeviceModel - e.g. ''
@@ -1281,7 +1364,7 @@ module.exports = NetgearRouter;
 * @property {string} SOAPVersion e.g. '3.43'
 * @property {string} ReadyShareSupportedLevel e.g. '29'
 * @property {string} XCloudSupported e.g. '1'
-* @property {string} LoginMethod e.g. '2'
+* @property {string} LoginMethod e.g. '2.0'
 * @property {string} host e.g. '192.168.1.1'
 * @property {string} port e.g. '80'
 * @example // currentSetting (depending on router type)
@@ -1387,8 +1470,8 @@ module.exports = NetgearRouter;
 * @typedef newFirmwareInfo
 * @description newFirmwareInfo is an object with these properties.
 * @property {string} currentVersion e.g. 'V1.0.2.60'
-* @property {number} newVersion e.g. ''
-* @property {number} releaseNote e.g. ''
+* @property {string} newVersion e.g. ''
+* @property {string} releaseNote e.g. ''
 * @example // trafficStatitics
 { currentVersion: 'V1.0.2.60', newVersion: '', releaseNote: '' }
 */

@@ -1,1 +1,2 @@
-3.2.2 - 25.11.2018 changed discovery strategy from dns to ip interfaces. Expanded test content. Docs update.
+3.3.0 - 23-12-2018 Added Wake On Lan (wol). Changed login method order. Improved test procedure. 
+3.2.2 - 25.11.2018 Changed discovery strategy from dns to ip interfaces. Expanded test content. Docs update.

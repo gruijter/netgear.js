@@ -1,3 +1,4 @@
+/* eslint-disable no-unused-vars */
 /* This Source Code Form is subject to the terms of the Mozilla Public
 	License, v. 2.0. If a copy of the MPL was not distributed with this
 	file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -18,6 +19,7 @@ const { version } = require('../package.json');
 // const util = require('util');
 
 let log = [];
+let errorCount = 0;
 const router = new NetgearRouter();
 
 // function to setup the router session
@@ -38,6 +40,14 @@ async function setupSession(password, user, host, port) {
 	}
 }
 
+function logError(error) {
+	log.push(error.message);
+	const lastResponse = { lastResponse: router.lastResponse };
+	log.push(lastResponse);
+	errorCount += 1;
+	return {};
+}
+
 // function to get various information
 async function getRouterInfo() {
 	try {
@@ -56,38 +66,45 @@ async function getRouterInfo() {
 
 		// Get router type, serial number, hardware version, firmware version, soap version, firewall version, etc.
 		log.push('trying to getInfo...');
-		const info = await router.getInfo();
+		const info = await router.getInfo()
+			.catch(error => logError(error));
 		info.SerialNumber = '**********';
 		log.push(info);
 
 		// Get the support features.
 		log.push('trying to get supportFeatures...');
-		const supportFeatures = await router.getSupportFeatureListXML();
+		const supportFeatures = await router.getSupportFeatureListXML()
+			.catch(error => logError(error));
 		log.push(supportFeatures);
 
 		// Get the parentalControlEnableStatus.
 		log.push('trying to get Parental Control Status...');
-		const parentalControlEnabled = await router.getParentalControlEnableStatus();
+		const parentalControlEnabled = await router.getParentalControlEnableStatus()
+			.catch(error => logError(error));
 		log.push(`Parental Control Enabled: ${parentalControlEnabled}`);
 
 		// Get the qosEnableStatus.
 		log.push('trying to get Qos Status...');
-		const qosEnabled = await router.getQoSEnableStatus();
+		const qosEnabled = await router.getQoSEnableStatus()
+			.catch(error => logError(error));
 		log.push(`Qos Enabled: ${qosEnabled}`);
 
 		// Get the getBandwidthControlOptions.
 		log.push('trying to get Qos Bandwidth options...');
-		const bandwidthControlOptions = await router.getBandwidthControlOptions();
+		const bandwidthControlOptions = await router.getBandwidthControlOptions()
+			.catch(error => logError(error));
 		log.push(bandwidthControlOptions);
 
 		// Get the blockDeviceEnabledStatus.
 		log.push('trying to get Device Access Control Status...');
-		const blockDeviceEnabled = await router.getBlockDeviceEnableStatus();
+		const blockDeviceEnabled = await router.getBlockDeviceEnableStatus()
+			.catch(error => logError(error));
 		log.push(`Block Device Enabled: ${blockDeviceEnabled}`);
 
 		// get a list of attached devices
 		log.push('trying to get attachedDevices...');
-		const attachedDevices = await router.getAttachedDevices();
+		const attachedDevices = await router.getAttachedDevices()
+			.catch(error => logError(error));
 		log.push(`Number of attached devices: ${attachedDevices.length}, method: ${router.getAttachedDevicesMethod}`);
 		log.push(`First attached device: ${JSON.stringify(attachedDevices[0])}`);
 
@@ -105,28 +122,41 @@ async function getRouterInfo() {
 
 		// Get the trafficMeterEnabled status.
 		log.push('trying to get the Traffic Meter Enabled Status...');
-		const trafficMeterEnabled = await router.getTrafficMeterEnabled();
+		const trafficMeterEnabled = await router.getTrafficMeterEnabled()
+			.catch(error => logError(error));
 		log.push(`Traffic Meter Enabled: ${trafficMeterEnabled}`);
 
 		// Get the trafficMeter Options
 		log.push('trying to get the Traffic Meter Options...');
-		const getTrafficMeterOptions = await router.getTrafficMeterOptions();
+		const getTrafficMeterOptions = await router.getTrafficMeterOptions()
+			.catch(error => logError(error));
 		log.push(getTrafficMeterOptions);
 
 		// get traffic statistics for this day and this month. Note: traffic monitoring must be enabled in router
 		log.push('trying to get trafficMeter...');
-		const traffic = await router.getTrafficMeter();
+		const traffic = await router.getTrafficMeter()
+			.catch(error => logError(error));
 		log.push(traffic);
 
 		// check for new router firmware and release note
 		log.push('trying to check newFirmware...');
-		const firmware = await router.checkNewFirmware();
+		const firmware = await router.checkNewFirmware()
+			.catch(error => logError(error));
 		log.push(firmware);
 
 		// logout
 		log.push('trying to logout...');
-		await router.logout();
-		log.push('test finished o.k. :)');
+		await router.logout()
+			.catch(error => logError(error));
+
+		// finish test
+		router.password = '*****';
+		log.push(router);
+		if (errorCount) {
+			log.push(`test finished with ${errorCount} errors`);
+		} else {
+			log.push('test finished without errors :)');
+		}
 
 	}	catch (error) {
 		log.push(error);
@@ -259,6 +289,18 @@ async function reboot() {
 	}
 }
 
+// function to send WakeOnLan command to a device
+async function wol(mac, secureOnPassword) {
+	try {
+		log.push(`performing WOL for ${mac}`);
+		await router.wol(mac, secureOnPassword);
+	}	catch (error) {
+		log.push(error);
+		router.password = '*****';
+		log.push(router);
+	}
+}
+
 exports.discover = () => {
 	try {
 		return Promise.resolve(router.discover());
@@ -281,6 +323,7 @@ exports.test = async (password, user, host, port) => {
 		// await doParentalControlStuff();
 		// await updateNewFirmware();
 		// await reboot();
+		// await wol('AA:BB:CC:DD:EE:FF', '00:00:00:00:00:00');
 		return Promise.resolve(log);
 	}	catch (error) {
 		return Promise.resolve(log);

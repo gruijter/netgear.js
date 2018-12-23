@@ -318,4 +318,17 @@ async function reboot() {
 }
 
 reboot();
+
+
+// function to send WakeOnLan command to a device
+async function wol(MAC, secureOnPassword) {
+	try {
+		console.log(`performing WOL for ${mac}`)
+		await router.wol(MAC, secureOnPassword);
+	}	catch (error) {
+		console.log(error);
+	}
+}
+
+wol('AA:BB:CC:DD:EE:FF', '00:00:00:00:00:00');
 ```
