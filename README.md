@@ -2,7 +2,7 @@
 Can do (almost) everything the netgear genie app can do.
 
 ## Supported routers
-In general: If you can use the genie app to manage the router then this module will most likely work. The module is confirmed to work with WNR2000v5, WNDR4500v2, R6250, R7000, R7800, R8000 and Orbi.
+In general: If you can use the genie app to manage the router then this package will most likely work. The package is confirmed to work with WNR2000v5, WNDR4500v2, R6250, R7000, R7800, R8000 and Orbi.
 You can check the router version by browsing to [routerlogin.net](http://routerlogin.net/currentsetting.htm). According to the NETGEAR Genie app description, the following routers should work:
 
 Wi-Fi Routers:
