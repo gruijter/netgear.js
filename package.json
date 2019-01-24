@@ -1,20 +1,20 @@
 {
   "name": "netgear",
-  "version": "3.3.1",
+  "version": "3.3.2",
   "description": "Node module to interact with Netgear routers via SOAP",
   "main": "netgear.js",
   "scripts": {
     "test": "node test/test.js",
-		"generate-docs": "jsdoc --configure .jsdoc.json --verbose"
+    "generate-docs": "jsdoc --configure .jsdoc.json --verbose"
   },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/gruijter/netgear.js.git"
   },
-	"directories": {
-		"doc": "docs",
-		"test": "test"
-	},
+  "directories": {
+    "doc": "docs",
+    "test": "test"
+  },
   "keywords": [
     "netgear",
     "router",
@@ -28,7 +28,7 @@
   },
   "homepage": "https://github.com/gruijter/netgear.js#readme",
   "dependencies": {
-    "xml-js": "^1.6.8"
+    "xml-js": "^1.6.9"
   },
   "runkitExampleFilename": "test/runkitTest.js"
 }

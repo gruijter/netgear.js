@@ -1,3 +1,4 @@
+3.3.2 - 24-01-2019 http timeout extended to 20 seconds. Xmljs updated to v 1.6.9.
 3.3.1 - 28-12-2018 Reverted login method order.
 3.3.0 - 23-12-2018 Added Wake On Lan (wol). Changed login method order. Improved test procedure. 
 3.2.2 - 25.11.2018 Changed discovery strategy from dns to ip interfaces. Expanded test content. Docs update.

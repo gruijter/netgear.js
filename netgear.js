@@ -101,7 +101,7 @@ class NetgearRouter {
 		this.port = port;
 		this.username = username || defaultUser;
 		this.password = password || defaultPassword;
-		this.timeout = 10000;
+		this.timeout = 20000;
 		this.sessionId = defaultSessionId;
 		this.cookie = undefined;
 		this.loggedIn = false;
@@ -1081,7 +1081,7 @@ class NetgearRouter {
 
 	async _discoverAllHostsInfo() {
 		// returns a promise with an array of info on all discovered netgears, assuming class C network, or rejects with an error
-		const timeOutBefore = this.timeOut;
+		const timeOutBefore = this.timeout;
 		try {
 			const hostsToTest = [];	// make an array of all host IP's in the LAN
 			// const servers = dns.getServers() || [];	// get the IP address of all routers in the LAN
@@ -1101,7 +1101,7 @@ class NetgearRouter {
 				}
 				return hostsToTest;
 			});
-			this.timeOut = 3000;	// temporarily set http timeout to 3 seconds
+			this.timeout = 3000;	// temporarily set http timeout to 3 seconds
 			const allHostsPromise = hostsToTest.map(async (hostToTest) => {
 				const result = await this.getCurrentSetting(hostToTest)
 					.catch(() => undefined);
@@ -1109,10 +1109,10 @@ class NetgearRouter {
 			});
 			const allHosts = await Promise.all(allHostsPromise);
 			const discoveredHosts = allHosts.filter(host => host);
-			this.timeOut = timeOutBefore;	// reset the timeout
+			this.timeout = timeOutBefore;	// reset the timeout
 			return Promise.resolve(discoveredHosts);
 		} catch (error) {
-			this.timeOut = timeOutBefore;
+			this.timeout = timeOutBefore;
 			this.lastResponse = error;
 			return Promise.reject(error);
 		}
@@ -1284,7 +1284,7 @@ module.exports = NetgearRouter;
 * @param {string} [user = 'admin'] - The login username.
 * @param {string} [host = 'routerlogin.net'] - The url or ip address of the router. Leave empty to try autodiscovery.
 * @param {number} [port] - The SOAP port of the router. Leave empty to try autodiscovery.
-* @property {number} timeout - http timeout in milliseconds.
+* @property {number} timeout - http timeout in milliseconds. Defaults to 20000.
 * @property {boolean} loggedIn - login state.
 * @example // create a router session, login to router, fetch attached devices
 	const Netgear = require('netgear');
