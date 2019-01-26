@@ -15,12 +15,34 @@ const _test = require('./_test.js');
 
 console.log('Testing now. Hang on.....');
 
-_test.test(
-	process.argv[2], // password
-	process.argv[3], // user
-	process.argv[4], // host
-	process.argv[5], // port
-)
+let password = process.argv[2];
+let user = process.argv[3];
+let host = process.argv[4];
+let port = process.argv[5];
+
+if (password) {
+	// eslint-disable-next-line quotes
+	if (password === '' || password === "" || password === "''") {
+		password = '';
+	} else {
+		password = password.replace(/'/g, '').replace(/"/g, '');
+	}
+}
+
+if (user) {
+	user = user.replace(/'/g, '').replace(/"/g, '');
+}
+
+if (host) {
+	host = host.replace(/'/g, '').replace(/"/g, '');
+}
+
+if (port) {
+	port = port.toString().replace(/'/g, '').replace(/"/g, '');
+	port = Number(port);
+}
+
+_test.test(password, user, host, port)
 	.then((log) => {
 		for (let i = 0; i < (log.length); i += 1) {
 			console.log(log[i]);
