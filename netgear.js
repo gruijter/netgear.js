@@ -156,20 +156,20 @@ class NetgearRouter {
 					});
 			}
 			let loggedIn = false;
-			// new login failed, trying new login method
-			this.loginMethod = 2;
-			const message = soap.login(this.sessionId, this.username, this.password);
-			loggedIn = await this._makeRequest(soap.action.login, message)
-				.catch(() => {
-					this.cookie = undefined; // reset the cookie
-					return false;
-				});
+			// try old login method first
+			this.loginMethod = 1;
+			const messageOld = soap.loginOld(this.sessionId, this.username, this.password);
+			loggedIn = await this._makeRequest(soap.action.loginOld, messageOld)
+				.catch(() => false);
 			if (!loggedIn) {
-				// trying old login method
-				this.loginMethod = 1;
-				const messageOld = soap.loginOld(this.sessionId, this.username, this.password);
-				loggedIn = await this._makeRequest(soap.action.loginOld, messageOld)
-					.catch(() => false);
+				// trying new login method
+				this.loginMethod = 2;
+				const message = soap.login(this.sessionId, this.username, this.password);
+				loggedIn = await this._makeRequest(soap.action.login, message)
+					.catch(() => {
+						this.cookie = undefined; // reset the cookie
+						return false;
+					});
 			}
 			if (!loggedIn) throw Error('Failed to login');
 			this.loggedIn = true;

@@ -1,3 +1,4 @@
+3.3.4 - 31-01-2019 Changed login order again.
 3.3.3 - 26-01-2019 Improved test from cli.
 3.3.2 - 24-01-2019 http timeout extended to 20 seconds. Xmljs updated to v 1.6.9.
 3.3.1 - 28-12-2018 Reverted login method order.
