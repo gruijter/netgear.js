@@ -101,7 +101,7 @@ class NetgearRouter {
 		this.port = port;
 		this.username = username || defaultUser;
 		this.password = password || defaultPassword;
-		this.timeout = 20000;
+		this.timeout = 30000;
 		this.sessionId = defaultSessionId;
 		this.cookie = undefined;
 		this.loggedIn = false;

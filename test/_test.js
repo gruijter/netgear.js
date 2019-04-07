@@ -20,6 +20,7 @@ const { version } = require('../package.json');
 
 let log = [];
 let errorCount = 0;
+let t0 = Date.now();
 const router = new NetgearRouter();
 
 // function to setup the router session
@@ -33,6 +34,9 @@ async function setupSession(password, user, host, port) {
 		router.username = user || router.username;
 		router.host = host || router.host;
 		router.port = port || router.port;
+		t0 = Date.now();
+		errorCount = 0;
+		log.push('t = 0');
 	}	catch (error) {
 		log.push(error);
 		router.password = '*****';
@@ -58,11 +62,13 @@ async function getRouterInfo() {
 
 		log.push('trying to auto discover the router...');
 		log.push(await router.discover());
+		log.push(`t = ${(Date.now() - t0) / 1000}`);
 
 		// for other methods you first need to be logged in.
 		log.push('trying to login...');
 		await router.login(); // [password], [username], [host], [port] will override previous settings
 		log.push(`login method: ${router.loginMethod}`);
+		log.push(`t = ${(Date.now() - t0) / 1000}`);
 
 		// Get router type, serial number, hardware version, firmware version, soap version, firewall version, etc.
 		log.push('trying to getInfo...');
@@ -70,36 +76,42 @@ async function getRouterInfo() {
 			.catch(error => logError(error));
 		info.SerialNumber = '**********';
 		log.push(info);
+		log.push(`t = ${(Date.now() - t0) / 1000}`);
 
 		// Get the support features.
 		log.push('trying to get supportFeatures...');
 		const supportFeatures = await router.getSupportFeatureListXML()
 			.catch(error => logError(error));
 		log.push(supportFeatures);
+		log.push(`t = ${(Date.now() - t0) / 1000}`);
 
 		// Get the parentalControlEnableStatus.
 		log.push('trying to get Parental Control Status...');
 		const parentalControlEnabled = await router.getParentalControlEnableStatus()
 			.catch(error => logError(error));
 		log.push(`Parental Control Enabled: ${parentalControlEnabled}`);
+		log.push(`t = ${(Date.now() - t0) / 1000}`);
 
 		// Get the qosEnableStatus.
 		log.push('trying to get Qos Status...');
 		const qosEnabled = await router.getQoSEnableStatus()
 			.catch(error => logError(error));
 		log.push(`Qos Enabled: ${qosEnabled}`);
+		log.push(`t = ${(Date.now() - t0) / 1000}`);
 
 		// Get the getBandwidthControlOptions.
 		log.push('trying to get Qos Bandwidth options...');
 		const bandwidthControlOptions = await router.getBandwidthControlOptions()
 			.catch(error => logError(error));
 		log.push(bandwidthControlOptions);
+		log.push(`t = ${(Date.now() - t0) / 1000}`);
 
 		// Get the blockDeviceEnabledStatus.
 		log.push('trying to get Device Access Control Status...');
 		const blockDeviceEnabled = await router.getBlockDeviceEnableStatus()
 			.catch(error => logError(error));
 		log.push(`Block Device Enabled: ${blockDeviceEnabled}`);
+		log.push(`t = ${(Date.now() - t0) / 1000}`);
 
 		// get a list of attached devices
 		log.push('trying to get attachedDevices...');
@@ -107,6 +119,7 @@ async function getRouterInfo() {
 			.catch(error => logError(error));
 		log.push(`Number of attached devices: ${attachedDevices.length}, method: ${router.getAttachedDevicesMethod}`);
 		log.push(`First attached device: ${JSON.stringify(attachedDevices[0])}`);
+		log.push(`t = ${(Date.now() - t0) / 1000}`);
 
 		// get guest wifi status
 		log.push('trying to get Guest Wifi Status...');
@@ -119,30 +132,35 @@ async function getRouterInfo() {
 		await router.get5GGuestWifi2Enabled()
 			.then((enabled) => { log.push(`5.0G-2 Guest wifi enabled: ${enabled}`); })
 			.catch(() => { log.push('5.0G-2 Guest wifi is not available');	});
+		log.push(`t = ${(Date.now() - t0) / 1000}`);
 
 		// Get the trafficMeterEnabled status.
 		log.push('trying to get the Traffic Meter Enabled Status...');
 		const trafficMeterEnabled = await router.getTrafficMeterEnabled()
 			.catch(error => logError(error));
 		log.push(`Traffic Meter Enabled: ${trafficMeterEnabled}`);
+		log.push(`t = ${(Date.now() - t0) / 1000}`);
 
 		// Get the trafficMeter Options
 		log.push('trying to get the Traffic Meter Options...');
 		const getTrafficMeterOptions = await router.getTrafficMeterOptions()
 			.catch(error => logError(error));
 		log.push(getTrafficMeterOptions);
+		log.push(`t = ${(Date.now() - t0) / 1000}`);
 
 		// get traffic statistics for this day and this month. Note: traffic monitoring must be enabled in router
 		log.push('trying to get trafficMeter...');
 		const traffic = await router.getTrafficMeter()
 			.catch(error => logError(error));
 		log.push(traffic);
+		log.push(`t = ${(Date.now() - t0) / 1000}`);
 
 		// check for new router firmware and release note
 		log.push('trying to check newFirmware...');
 		const firmware = await router.checkNewFirmware()
 			.catch(error => logError(error));
 		log.push(firmware);
+		log.push(`t = ${(Date.now() - t0) / 1000}`);
 
 		// logout
 		log.push('trying to logout...');
@@ -152,6 +170,7 @@ async function getRouterInfo() {
 		// finish test
 		router.password = '*****';
 		log.push(router);
+		log.push(`t = ${(Date.now() - t0) / 1000}`);
 		if (errorCount) {
 			log.push(`test finished with ${errorCount} errors`);
 		} else {
