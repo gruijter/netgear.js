@@ -60,8 +60,8 @@ async function getRouterInfo() {
 		// const currentSetting = await router.getCurrentSetting();
 		// log.push(currentSetting);
 
-		log.push('trying to auto discover the router...');
-		log.push(await router.discover());
+		log.push('trying to auto discover Netgear routers...');
+		log.push(await router._discoverAllHostsInfo());
 		log.push(`t = ${(Date.now() - t0) / 1000}`);
 
 		// for other methods you first need to be logged in.

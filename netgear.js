@@ -1,9 +1,10 @@
+/* eslint-disable no-await-in-loop */
 /* eslint-disable prefer-destructuring */
 /* This Source Code Form is subject to the terms of the Mozilla Public
 	License, v. 2.0. If a copy of the MPL was not distributed with this
 	file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-	Copyright 2017, 2018, Robin de Gruijter <gruijter@hotmail.com> */
+	Copyright 2017 - 2019, Robin de Gruijter <gruijter@hotmail.com> */
 
 'use strict';
 
@@ -64,18 +65,21 @@ class AttachedDevice {
 		this.AllowOrBlock = undefined;		// 'Allow' or 'Block'
 		this.Schedule = undefined;				// e.g. 'false'
 		this.DeviceType = undefined;	// a number
+		this.DeviceTypeV2 = undefined;	// e.g. 1, found in R7000 response
 		this.DeviceTypeUserSet = undefined;	// e.g. 'false',
 		this.DeviceTypeName = undefined;	// unknown, found in orbi response
+		this.DeviceTypeNameV2 = undefined;	// 'Computer (Generic)', found in R7000 response
 		this.DeviceModel = undefined; // unknown, found in R7800 and orbi response
-		this.DeviceModelUserSet = undefined; // unknown, found in orbi response
-		this.Upload = undefined;
-		this.Download = undefined;
+		this.DeviceModelUserSet = undefined; // boolean , found in orbi response
+		this.Upload = undefined;	// e.g. 0
+		this.Download = undefined;	// e.g. 0
 		this.QosPriority = undefined;	// 1, 2, 3, 4
-		this.Grouping = undefined;
+		this.Grouping = undefined; // e.g. 0
 		this.SchedulePeriod = undefined;
 		this.ConnAPMAC = undefined; // unknown, found in orbi response
 	}
 }
+
 
 // filters for illegal xml characters
 // XML 1.0
@@ -101,7 +105,7 @@ class NetgearRouter {
 		this.port = port;
 		this.username = username || defaultUser;
 		this.password = password || defaultPassword;
-		this.timeout = 30000;
+		this.timeout = 19000;
 		this.sessionId = defaultSessionId;
 		this.cookie = undefined;
 		this.loggedIn = false;
@@ -123,9 +127,7 @@ class NetgearRouter {
 	*/
 	async discover() {
 		try {
-			const discoveredInfo = await this._discoverHostInfo();	// also adds host ip to discovered router info
-			const soapPort = await this._getSoapPort(discoveredInfo.host);
-			discoveredInfo.port = soapPort;	// add soap port to discovered router info
+			const discoveredInfo = await this._discoverHostInfo();
 			this.host = discoveredInfo.host;
 			this.port = discoveredInfo.port;
 			return Promise.resolve(discoveredInfo);
@@ -149,21 +151,37 @@ class NetgearRouter {
 			this.username = username || await this.username;
 			this.host = host || await this.host;
 			this.port = port || await this.port;
-			if (!this.host || this.host === '' || !this.port) {
+			if (!this.host || this.host === '') {
 				await this.discover()
 					.catch(() => {
 						throw Error('Cannot login: host IP and/or SOAP port not set');
 					});
 			}
+			if (!this.loginMethod || !this.port) {
+				const currentSetting = await this.getCurrentSetting();
+				this.port = currentSetting.port;
+			}
 			let loggedIn = false;
-			// try old login method first
-			this.loginMethod = 1;
-			const messageOld = soap.loginOld(this.sessionId, this.username, this.password);
-			loggedIn = await this._makeRequest(soap.action.loginOld, messageOld)
-				.catch(() => false);
+			// use new method first if loginMethod = '2.0'
+			if (this.loginMethod >= 2) {
+				const message = soap.login(this.sessionId, this.username, this.password);
+				loggedIn = await this._makeRequest(soap.action.login, message)
+					.then(() => true)
+					.catch(() => {
+						this.cookie = undefined; // reset the cookie
+						return false;
+					});
+			}
+			// use old method as fallback
 			if (!loggedIn) {
-				// trying new login method
-				this.loginMethod = 2;
+				const messageOld = soap.loginOld(this.sessionId, this.username, this.password);
+				loggedIn = await this._makeRequest(soap.action.loginOld, messageOld)
+					.then(() => true)
+					.catch(() => false);
+			}
+			// use new login method as second fallback
+			if (!loggedIn) {
+				this.loginMethod = 2.22;
 				const message = soap.login(this.sessionId, this.username, this.password);
 				loggedIn = await this._makeRequest(soap.action.login, message)
 					.catch(() => {
@@ -199,7 +217,7 @@ class NetgearRouter {
 	* @param {string} [host] - The url or ip address of the router.
 	* @returns {Promise<currentSetting>}
 	*/
-	async getCurrentSetting(host) {
+	async getCurrentSetting(host, timeout) {
 		try {
 			const host1 = host || this.host;
 			const headers = {
@@ -211,7 +229,7 @@ class NetgearRouter {
 				headers,
 				method: 'GET',
 			};
-			const result = await this._makeHttpRequest(options, '');
+			const result = await this._makeHttpRequest(options, '', timeout);
 			this.lastResponse = result.body;
 			// request successfull
 			if (result.statusCode === 200 && result.body.includes('Model=')) {
@@ -224,8 +242,8 @@ class NetgearRouter {
 					}
 				});
 				currentSetting.host = host1; // add the host address to the information
-				currentSetting.port = this.port; // add port address to the information
-				// this.loginMethod = Number(currentSetting.LoginMethod) || 1;
+				currentSetting.port = await this._getSoapPort(host1); // add port address to the information
+				this.loginMethod = Number(currentSetting.LoginMethod) || 1;
 				this.soapVersion = parseInt(currentSetting.SOAPVersion, 10) || 2;
 				return Promise.resolve(currentSetting);
 			}
@@ -713,14 +731,19 @@ class NetgearRouter {
 	* @returns {Promise<newFirmwareInfo>}
 	*/
 	async checkNewFirmware() {
+		const timeoutBefore = this.timeout;
 		try {
+			// this.host = '10.0.0.199';
+			// this.timeout = 2000;
 			const message = soap.checkNewFirmware(this.sessionId);
-			const result = await this._makeRequest(soap.action.checkNewFirmware,	message);
+			const result = await this._makeRequest(soap.action.checkNewFirmware, message);
 			const currentVersion = regexCurrentVersion.exec(result.body)[1];
 			const newVersion = regexNewVersion.exec(result.body)[1];
 			const releaseNote = regexReleaseNote.exec(result.body)[1];
+			this.timeout = timeoutBefore;
 			return Promise.resolve({ currentVersion, newVersion, releaseNote });
 		} catch (error) {
+			this.timeout = timeoutBefore;
 			return Promise.reject(error);
 		}
 	}
@@ -871,21 +894,20 @@ class NetgearRouter {
 			const message = soap.attachedDevices2(this.sessionId);
 			const result = await this._makeRequest(soap.action.getAttachedDevices2, message);
 			const patchedBody = result.body
-				.replace(/&lt/g, '')
-				.replace(/&gt/g, '')
-				.replace(/<Name>/g, '<Name><![CDATA[')
-				.replace(/<\/Name>/g, ']]></Name>')
-				.replace(/<DeviceModel>/g, '<DeviceModel><![CDATA[')
-				.replace(/<\/DeviceModel>/g, ']]></DeviceModel>')
-				.replace(/<DeviceTypeName>/g, '<DeviceTypeName><![CDATA[')
-				.replace(/<\/DeviceTypeName>/g, ']]></DeviceTypeName>')
+				// .replace(/&lt/g, '')
+				// .replace(/&gt/g, '')
+				// .replace(/<Name>/g, '<Name><![CDATA[')
+				// .replace(/<\/Name>/g, ']]></Name>')
+				// .replace(/<DeviceModel>/g, '<DeviceModel><![CDATA[')
+				// .replace(/<\/DeviceModel>/g, ']]></DeviceModel>')
+				// .replace(/<DeviceTypeName>/g, '<DeviceTypeName><![CDATA[')
+				// .replace(/<\/DeviceTypeName>/g, ']]></DeviceTypeName>')
 				.replace(xml10pattern, '')
 				.replace(/soap-env:envelope/gi, 'soap-env:envelope')
 				.replace(/soap-env:body/gi, 'soap-env:body');
-
 			// parse xml to json object
 			const parseOptions = {
-				compact: true, ignoreDeclaration: true, ignoreAttributes: true, spaces: 2,
+				compact: true, nativeType: true, ignoreDeclaration: true, ignoreAttributes: true,
 			};
 			const rawJson = parseXml.xml2js(patchedBody, parseOptions);
 			let entries;
@@ -908,43 +930,13 @@ class NetgearRouter {
 			if (entries.length < 1) {
 				throw Error('Error parsing device-list');
 			}
-			const entryCount = entries.length;
-			const devices = [];
-			for (let i = 0; i < entryCount; i += 1) {
-				const device = new AttachedDevice();
-				device.IP = entries[i].IP._text;						// e.g. '10.0.0.10'
-				device.Name = entries[i].Name._cdata;				// '--' for unknown
-				device.NameUserSet = (entries[i].NameUserSet._text === 'true');	// e.g. false
-				device.MAC = entries[i].MAC._text;					// e.g. '61:56:FA:1B:E1:21'
-				device.ConnectionType = entries[i].ConnectionType._text;	// e.g. 'wired', '2.4GHz', 'Guest Wireless 2.4G'
-				device.SSID = entries[i].SSID._text;				// e.g. 'MyWiFi'
-				device.Linkspeed = Number(entries[i].Linkspeed._text);	// e.g. 38
-				device.SignalStrength = Number(entries[i].SignalStrength._text);	// number <= 100
-				device.AllowOrBlock = entries[i].AllowOrBlock._text;			// 'Allow' or 'Block'
-				device.Schedule = entries[i].Schedule._text;							// e.g. false
-				device.DeviceType = Number(entries[i].DeviceType._text);	// a number
-				device.DeviceTypeUserSet = (entries[i].DeviceTypeUserSet._text === 'true');	// e.g. false,
-				device.DeviceTypeName = '';	// unknown, found in orbi response
-				device.DeviceModel = ''; // unknown, found in R7800 and orbi response
-				device.DeviceModelUserSet = false; // // unknown, found in orbi response
-				device.Upload = Number(entries[i].Upload._text);
-				device.Download = Number(entries[i].Download._text);
-				device.QosPriority = Number(entries[i].QosPriority._text);	// 1, 2, 3, 4
-				device.Grouping = '0';
-				device.SchedulePeriod = '0';
-				device.ConnAPMAC = ''; // unknown, found in orbi response
-				if (Object.keys(entries[i]).length >= 18) { // only available for certain routers?:
-					device.DeviceModel = entries[i].DeviceModel._cdata; // '',
-					device.Grouping = Number(entries[i].Grouping._text); // 0
-					device.SchedulePeriod = Number(entries[i].SchedulePeriod._text); // 0
-				}
-				if (Object.keys(entries[i]).length >= 21) { // only available for certain routers?:
-					device.DeviceTypeName = entries[i].DeviceTypeName._cdata; // '',
-					device.DeviceModelUserSet = (entries[i].DeviceModelUserSet._text === 'true'); // e.g. false,
-					device.ConnAPMAC = entries[i].ConnAPMAC._text; // MAC of connected orbi?
-				}
-				devices.push(device);
-			}
+			const devices = entries.map((entry) => {
+				const device = {};
+				Object.keys(entry).forEach((key) => {
+					device[key] = entry[key]._text;
+				});
+				return device;
+			});
 			return Promise.resolve(devices);
 		} catch (error) {
 			return Promise.reject(error);
@@ -1061,16 +1053,14 @@ class NetgearRouter {
 		// returns a promise of the netgear router info including host IP address, or rejects with an error
 		try {
 			let info = await dnsLookupPromise('routerlogin.net')
-				.then((netgear) => {
+				.then(async (netgear) => {
 					const hostToTest = netgear.address || netgear;	// weird, sometimes it doesn't have .address
-					return this.getCurrentSetting(hostToTest);
+					const currentSetting = await this.getCurrentSetting(hostToTest);
+					return currentSetting;
 				})
 				.catch(() => undefined);
 			if (!info) {	// routerlogin.net is not working...
 				[info] = await this._discoverAllHostsInfo();
-			}
-			if (!info) {
-				throw Error('Netgear host could not be discovered');
 			}
 			return Promise.resolve(info);	// info.host has the ipAddress
 		} catch (error) {
@@ -1081,7 +1071,6 @@ class NetgearRouter {
 
 	async _discoverAllHostsInfo() {
 		// returns a promise with an array of info on all discovered netgears, assuming class C network, or rejects with an error
-		const timeOutBefore = this.timeout;
 		try {
 			const hostsToTest = [];	// make an array of all host IP's in the LAN
 			// const servers = dns.getServers() || [];	// get the IP address of all routers in the LAN
@@ -1101,18 +1090,24 @@ class NetgearRouter {
 				}
 				return hostsToTest;
 			});
-			this.timeout = 3000;	// temporarily set http timeout to 3 seconds
 			const allHostsPromise = hostsToTest.map(async (hostToTest) => {
-				const result = await this.getCurrentSetting(hostToTest)
+				const result = await this.getCurrentSetting(hostToTest, 3000) // temporarily set http timeout to 3 seconds
 					.catch(() => undefined);
 				return result;
 			});
 			const allHosts = await Promise.all(allHostsPromise);
 			const discoveredHosts = allHosts.filter(host => host);
-			this.timeout = timeOutBefore;	// reset the timeout
-			return Promise.resolve(discoveredHosts);
+			const found = [];
+			for (let index = 0; index < discoveredHosts.length; index += 1) {
+				const currentSetting = discoveredHosts[index];
+				currentSetting.port = await this._getSoapPort(currentSetting.host);
+				found.push(currentSetting);
+			}
+			if (!found[0]) {
+				throw Error('No Netgear router could be discovered');
+			}
+			return Promise.resolve(found);
 		} catch (error) {
-			this.timeout = timeOutBefore;
 			this.lastResponse = error;
 			return Promise.reject(error);
 		}
@@ -1124,24 +1119,22 @@ class NetgearRouter {
 			if (!host1 || host1 === '') {
 				throw Error('getSoapPort failed: Host ip is not provided');
 			}
-			const portBefore = this.port;
-			let soapPort;
+			const message = soap.getInfo(this.sessionId);
+			const action = soap.action.getInfo;
 			// try port 5000 first
-			this.port = 5000;
-			await this.login()
-				.catch(() => false);
-			if (JSON.stringify(this.lastResponse).includes('<ResponseCode>')) {
-				soapPort = 5000;
-			} else { 	// 5000 failed, try port 80 now
-				this.port = 80;
-				await this.login()
-					.catch(() => false);
-				if (JSON.stringify(this.lastResponse).includes('<ResponseCode>')) {
-					soapPort = 80;
-				}
+			const result5000 = await this._makeRequest2(action, message, host1, 5000, 5000)
+				.catch(() => ({ body: null }));
+			if (JSON.stringify(result5000.body).includes('<ResponseCode>')) {
+				return Promise.resolve(5000);
 			}
-			this.port = portBefore;
-			return soapPort;
+			// try port 80 now
+			const result80 = await this._makeRequest2(action, message, host1, 80, 5000)
+				.catch(() => ({ body: null }));
+			if (JSON.stringify(result80.body).includes('<ResponseCode>')) {
+				return Promise.resolve(80);
+			}
+			// soap port could not be found
+			return Promise.resolve(undefined);
 		} catch (error) {
 			return Promise.reject(error);
 		}
@@ -1176,15 +1169,15 @@ class NetgearRouter {
 				return Promise.reject(Error('Not logged in'));
 			}
 			const headers = {
-				SOAPAction: action,
-				'Cache-Control': 'no-cache',
-				'User-Agent': 'node-netgearjs',
-				'Content-type': 'multipart/form-data',
-				'Content-Length': Buffer.byteLength(message),
-				Connection: 'Keep-Alive',
+				soapaction: action,
+				'cache-control': 'no-cache',
+				'user-agent': 'node-netgearjs',
+				'content-type': 'multipart/form-data',
+				'content-length': Buffer.byteLength(message),
+				connection: 'Keep-Alive',
 			};
 			if (this.cookie) {
-				headers.Cookie = this.cookie;
+				headers.cookie = this.cookie;
 			}
 			const options = {
 				hostname: this.host,
@@ -1221,7 +1214,36 @@ class NetgearRouter {
 		}
 	}
 
-	_makeHttpRequest(options, postData) {
+	// soap request without login check, and without using this
+	// used for _getSoapPort
+	async _makeRequest2(action, message, host, port, timeout) {
+		try {
+			const headers = {
+				soapaction: action,
+				'cache-control': 'no-cache',
+				'user-agent': 'node-netgearjs',
+				'content-type': 'multipart/form-data',
+				'content-length': Buffer.byteLength(message),
+				// connection: 'Keep-Alive',
+			};
+			if (this.cookie) {
+				headers.cookie = this.cookie;
+			}
+			const options = {
+				hostname: host,
+				port,
+				path: '/soap/server_sa/',
+				headers,
+				method: 'POST',
+			};
+			const result = await this._makeHttpRequest(options, message, timeout);
+			return Promise.resolve(result);
+		} catch (error) {
+			return Promise.reject(error);
+		}
+	}
+
+	_makeHttpRequest(options, postData, timeout) {
 		return new Promise((resolve, reject) => {
 			const req = http.request(options, (res) => {
 				let resBody = '';
@@ -1233,15 +1255,15 @@ class NetgearRouter {
 					return resolve(res); // resolve the request
 				});
 			});
-			req.write(postData);
-			req.end();
-			req.setTimeout(this.timeout, () => {
+			req.setTimeout(timeout || this.timeout, () => {
 				req.abort();
 			});
 			req.once('error', (e) => {
 				this.lastResponse = e;	// e.g. ECONNREFUSED on wrong soap port or wrong IP // ECONNRESET on wrong IP
 				reject(e);
 			});
+			// req.write(postData);
+			req.end(postData);
 		});
 	}
 
@@ -1307,7 +1329,7 @@ module.exports = NetgearRouter;
 
 /**
 * @typedef AttachedDevice
-* @description Object representing the state of a device attached to the Netgear router.
+* @description Object representing the state of a device attached to the Netgear router, with properties similar to this.
 * @property {string} ip - e.g. '10.0.0.10'
 * @property {string} Name - '--' for unknown.
 * @property {boolean} NameUserSet - e.g. false
@@ -1366,7 +1388,7 @@ module.exports = NetgearRouter;
 * @property {string} XCloudSupported e.g. '1'
 * @property {string} LoginMethod e.g. '2.0'
 * @property {string} host e.g. '192.168.1.1'
-* @property {string} port e.g. '80'
+* @property {number} port e.g. '80'
 * @example // currentSetting (depending on router type)
 { Firmware: 'V1.0.2.60WW',
   RegionTag: 'R7800_WW',
