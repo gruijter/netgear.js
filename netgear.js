@@ -1388,7 +1388,7 @@ module.exports = NetgearRouter;
 * @property {string} XCloudSupported e.g. '1'
 * @property {string} LoginMethod e.g. '2.0'
 * @property {string} host e.g. '192.168.1.1'
-* @property {number} port e.g. '80'
+* @property {number} port e.g. 80
 * @example // currentSetting (depending on router type)
 { Firmware: 'V1.0.2.60WW',
   RegionTag: 'R7800_WW',
