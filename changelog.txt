@@ -1,3 +1,4 @@
+3.5.0 - 13-04-2019 Additional soap actions added. Reduced soap calls size. Fix for checkNewFirmware.
 3.4.0 - 10-04-2019 Fixes for getAttachedDevices2, autodiscovery and docs. Improvements for getSoapPort and login. Http timeout set to 19 seconds. Xmljs updated to 1.6.11. 
 3.3.5 - 05-02-2019 http timeout extended to 30s. Added time capture in test procedure.
 3.3.4 - 31-01-2019 Changed login order again.

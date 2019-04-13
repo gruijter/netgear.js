@@ -159,6 +159,7 @@ async function getRouterInfo() {
 		log.push('trying to check newFirmware...');
 		const firmware = await router.checkNewFirmware()
 			.catch(error => logError(error));
+		log.push(`check newFirmware method: ${router.checkNewFirmwareMethod}`);
 		log.push(firmware);
 		log.push(`t = ${(Date.now() - t0) / 1000}`);
 

@@ -111,8 +111,9 @@ class NetgearRouter {
 		this.loggedIn = false;
 		this.configStarted = false;
 		this.soapVersion = undefined;	// 2 or 3
-		this.loginMethod = undefined;	// 2.0 for newer models
-		this.getAttachedDevicesMethod = undefined;
+		this.loginMethod = undefined;	// 2.0 for newer models, 1 for old model, 2.2.2 for weird success
+		this.getAttachedDevicesMethod = undefined;	// 2 or 1
+		this.checkNewFirmwareMethod = undefined;	// 2 or 1
 		this.guestWifiMethod = {
 			set24_1: undefined,
 			get50_1: undefined,
@@ -731,19 +732,23 @@ class NetgearRouter {
 	* @returns {Promise<newFirmwareInfo>}
 	*/
 	async checkNewFirmware() {
-		const timeoutBefore = this.timeout;
 		try {
-			// this.host = '10.0.0.199';
-			// this.timeout = 2000;
-			const message = soap.checkNewFirmware(this.sessionId);
-			const result = await this._makeRequest(soap.action.checkNewFirmware, message);
+			// first try new method
+			this.checkNewFirmwareMethod = 2;
+			const message = soap.checkAppNewFirmware(this.sessionId);
+			let result = await this._makeRequest(soap.action.checkAppNewFirmware, message)
+				.catch(() => false);
+			// try old method on fail
+			if (!result) {
+				this.checkNewFirmwareMethod = 1;
+				const message2 = soap.checkNewFirmware(this.sessionId);
+				result = await this._makeRequest(soap.action.checkNewFirmware, message2);
+			}
 			const currentVersion = regexCurrentVersion.exec(result.body)[1];
 			const newVersion = regexNewVersion.exec(result.body)[1];
 			const releaseNote = regexReleaseNote.exec(result.body)[1];
-			this.timeout = timeoutBefore;
 			return Promise.resolve({ currentVersion, newVersion, releaseNote });
 		} catch (error) {
-			this.timeout = timeoutBefore;
 			return Promise.reject(error);
 		}
 	}
@@ -1422,7 +1427,7 @@ module.exports = NetgearRouter;
 * @property {string} FirmwareDLmethod e.g. 'HTTPS'
 * @property {string} FirmwareLastUpdate e.g. '2018_10.23_11:47:18'
 * @property {string} FirmwareLastChecked e.g. '2018_11.14_15:5:37'
-* @property {string} DeviceMode e.g. '0'
+* @property {string} DeviceMode e.g. '0' 0=router, 1=AP mode
 * @property {string} DeviceModeCapability e.g. '0;1;2'
 * @property {string} DeviceNameUserSet e.g. 'false'
 * @example // info (depending on router type)
