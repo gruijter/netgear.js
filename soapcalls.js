@@ -59,7 +59,7 @@ exports.action = {
 	set5G1GuestAccessEnabled2: 'urn:NETGEAR-ROUTER:service:WLANConfiguration:1#Set5G1GuestAccessEnabled2',	// 5G-1 R8000
 	set5GGuestAccessEnabled2: 'urn:NETGEAR-ROUTER:service:WLANConfiguration:1#Set5GGuestAccessEnabled2',	// 5G-2 R8000
 
-	// Potentially NEW STUFF > still needs to be in soapcalls.js
+	// Potentially NEW STUFF > still needs to be implemented in soapcalls.js
 	// urn:NETGEAR-ROUTER:service:AdvancedQoS:1#GetCurrentAppBandwidth
 	// urn:NETGEAR-ROUTER:service:AdvancedQoS:1#GetCurrentDeviceBandwidth
 	// urn:NETGEAR-ROUTER:service:AdvancedQoS:1#GetCurrentAppBandwidthByMAC

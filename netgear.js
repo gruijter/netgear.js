@@ -52,6 +52,7 @@ const defaultPassword = 'password';
 // const defaultPort = 5000;	// 80 for orbi and R7800
 const defaultSessionId = 'A7D88AE69687E58D9A00';	// '10588AE69687E58D9A00'
 
+
 class AttachedDevice {
 	constructor() {
 		this.IP = undefined;					// e.g. '10.0.0.10'
@@ -98,6 +99,11 @@ const xml10pattern = '[^'
 // 						+ '\uE000-\uFFFD'
 // 						+ '\ud800\udc00-\udbff\udfff'
 // 						+ ']+';
+
+const patchBody = body => body
+	.replace(xml10pattern, '')
+	.replace(/soap-env:envelope/gi, 'v:Envelope')
+	.replace(/soap-env:body/gi, 'v:Body');
 
 class NetgearRouter {
 	constructor(password, username, host, port) {
@@ -269,16 +275,13 @@ class NetgearRouter {
 		try {
 			const message = soap.getInfo(this.sessionId);
 			const result = await this._makeRequest(soap.action.getInfo,	message);
-			const patchedBody = result.body
-				.replace(xml10pattern, '')
-				.replace(/soap-env:envelope/gi, 'soap-env:envelope')
-				.replace(/soap-env:body/gi, 'soap-env:body');
+			const patchedBody = patchBody(result.body);
 			// parse xml to json object
 			const parseOptions = {
 				compact: true, ignoreDeclaration: true, ignoreAttributes: true, spaces: 2,
 			};
 			const rawJson = parseXml.xml2js(patchedBody, parseOptions);
-			const entries = rawJson['soap-env:envelope']['soap-env:body']['m:GetInfoResponse'];
+			const entries = rawJson['v:Envelope']['v:Body']['m:GetInfoResponse'];
 			const info = {};
 			Object.keys(entries).forEach((property) => {
 				if (Object.prototype.hasOwnProperty.call(entries, property)) {
@@ -299,16 +302,13 @@ class NetgearRouter {
 		try {
 			const message = soap.getSupportFeatureListXML(this.sessionId);
 			const result = await this._makeRequest(soap.action.getSupportFeatureListXML, message);
-			const patchedBody = result.body
-				.replace(xml10pattern, '')
-				.replace(/soap-env:envelope/gi, 'soap-env:envelope')
-				.replace(/soap-env:body/gi, 'soap-env:body');
+			const patchedBody = patchBody(result.body);
 			// parse xml to json object
 			const parseOptions = {
 				compact: true, ignoreDeclaration: true, ignoreAttributes: true, spaces: 2,
 			};
 			const rawJson = parseXml.xml2js(patchedBody, parseOptions);
-			const entries = rawJson['soap-env:envelope']['soap-env:body']['m:GetSupportFeatureListXMLResponse'].newFeatureList.features;
+			const entries = rawJson['v:Envelope']['v:Body']['m:GetSupportFeatureListXMLResponse'].newFeatureList.features;
 			const supportFeatureList = {};
 			Object.keys(entries).forEach((property) => {
 				if (Object.prototype.hasOwnProperty.call(entries, property)) {
@@ -850,10 +850,7 @@ class NetgearRouter {
 			const message = soap.attachedDevices(this.sessionId);
 			const result = await this._makeRequest(soap.action.getAttachedDevices, message);
 			const devices = [];
-			const patchedBody = result.body
-				.replace(/\r?\n|\r/g, ' ')
-				.replace(/&lt/g, '')
-				.replace(/&gt/g, '');
+			const patchedBody = patchBody(result.body);
 			const raw = regexAttachedDevices.exec(patchedBody)[1];
 			const entries = raw.split('@');
 			if (entries.length < 1) {
@@ -898,18 +895,7 @@ class NetgearRouter {
 		try {
 			const message = soap.attachedDevices2(this.sessionId);
 			const result = await this._makeRequest(soap.action.getAttachedDevices2, message);
-			const patchedBody = result.body
-				// .replace(/&lt/g, '')
-				// .replace(/&gt/g, '')
-				// .replace(/<Name>/g, '<Name><![CDATA[')
-				// .replace(/<\/Name>/g, ']]></Name>')
-				// .replace(/<DeviceModel>/g, '<DeviceModel><![CDATA[')
-				// .replace(/<\/DeviceModel>/g, ']]></DeviceModel>')
-				// .replace(/<DeviceTypeName>/g, '<DeviceTypeName><![CDATA[')
-				// .replace(/<\/DeviceTypeName>/g, ']]></DeviceTypeName>')
-				.replace(xml10pattern, '')
-				.replace(/soap-env:envelope/gi, 'soap-env:envelope')
-				.replace(/soap-env:body/gi, 'soap-env:body');
+			const patchedBody = patchBody(result.body);
 			// parse xml to json object
 			const parseOptions = {
 				compact: true, nativeType: true, ignoreDeclaration: true, ignoreAttributes: true,
@@ -917,7 +903,7 @@ class NetgearRouter {
 			const rawJson = parseXml.xml2js(patchedBody, parseOptions);
 			let entries;
 			try {
-				entries = rawJson['soap-env:envelope']['soap-env:body']['m:GetAttachDevice2Response'].NewAttachDevice.Device;
+				entries = rawJson['v:Envelope']['v:Body']['m:GetAttachDevice2Response'].NewAttachDevice.Device;
 			} catch (err) {
 				// console.log(rawJson);
 				// console.log(err);
