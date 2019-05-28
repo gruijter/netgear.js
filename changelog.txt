@@ -1,3 +1,4 @@
+3.6.0 - 28-05-2019 Added soap actions for SmartConnect and LAN/WAN config. Fix getCurrentSetting.
 3.5.1 - 28-05-2019 Fix for new SOAP Body in R6020.
 3.5.0 - 13-04-2019 Additional soap actions added. Reduced soap calls size. Fix for checkNewFirmware.
 3.4.0 - 10-04-2019 Fixes for getAttachedDevices2, autodiscovery and docs. Improvements for getSoapPort and login. Http timeout set to 19 seconds. Xmljs updated to 1.6.11. 

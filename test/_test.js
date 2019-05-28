@@ -85,6 +85,27 @@ async function getRouterInfo() {
 		log.push(supportFeatures);
 		log.push(`t = ${(Date.now() - t0) / 1000}`);
 
+		// Get the Device config.
+		log.push('trying to get the Device configuration...');
+		const DeviceConfig = await router.getDeviceConfig()
+			.catch(error => logError(error));
+		log.push(DeviceConfig);
+		log.push(`t = ${(Date.now() - t0) / 1000}`);
+
+		// Get the LAN config.
+		log.push('trying to get the LAN configuration...');
+		const LANConfig = await router.getLANConfig()
+			.catch(error => logError(error));
+		log.push(LANConfig);
+		log.push(`t = ${(Date.now() - t0) / 1000}`);
+
+		// Get the WAN config.
+		log.push('trying to get the WAN configuration...');
+		const WANConfig = await router.getWANConfig()
+			.catch(error => logError(error));
+		log.push(WANConfig);
+		log.push(`t = ${(Date.now() - t0) / 1000}`);
+
 		// Get the parentalControlEnableStatus.
 		log.push('trying to get Parental Control Status...');
 		const parentalControlEnabled = await router.getParentalControlEnableStatus()
@@ -132,6 +153,13 @@ async function getRouterInfo() {
 		await router.get5GGuestWifi2Enabled()
 			.then((enabled) => { log.push(`5.0G-2 Guest wifi enabled: ${enabled}`); })
 			.catch(() => { log.push('5.0G-2 Guest wifi is not available');	});
+		log.push(`t = ${(Date.now() - t0) / 1000}`);
+
+		// Get the smartConnectEnableStatus.
+		log.push('trying to get Smart Connect Status...');
+		const smartConnectEnabled = await router.getSmartConnectEnabled()
+			.catch(error => logError(error));
+		log.push(`Smart Connect Enabled: ${smartConnectEnabled}`);
 		log.push(`t = ${(Date.now() - t0) / 1000}`);
 
 		// Get the trafficMeterEnabled status.
@@ -207,11 +235,14 @@ async function doWifiStuff() {
 		await router.setGuestWifi(true);
 		log.push('2.4-1 enabled');
 		// disable 5GHz-1 guest wifi
-		await router.set5GGuestWifi(false);
-		log.push('5-1 disabled');
+		await router.set5GGuestWifi(true);
+		log.push('5-1 enabled');
 		// disable 5GHz-2 guest wifi
 		await router.set5GGuestWifi2(false);
 		log.push('5-2 disabled');
+		// enable Smart Connect
+		await router.setSmartConnectEnabled(true);
+		log.push('Smart Connect Enabled');
 	}	catch (error) {
 		log.push(error);
 		router.password = '*****';

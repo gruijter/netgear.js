@@ -1,10 +1,11 @@
-/* eslint-disable no-await-in-loop */
-/* eslint-disable prefer-destructuring */
 /* This Source Code Form is subject to the terms of the Mozilla Public
 	License, v. 2.0. If a copy of the MPL was not distributed with this
 	file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 	Copyright 2017 - 2019, Robin de Gruijter <gruijter@hotmail.com> */
+
+/* eslint-disable no-await-in-loop */
+/* eslint-disable prefer-destructuring */
 
 'use strict';
 
@@ -38,6 +39,7 @@ const regexDownlinkBandwidth = new RegExp(/<NewOOKLADownlinkBandwidth>(.*)<\/New
 const regexAveragePing = new RegExp(/<AveragePing>(.*)<\/AveragePing>/);
 const regexParentalControl = new RegExp(/<ParentalControl>(.*)<\/ParentalControl>/);
 const regexNewQoSEnableStatus = new RegExp(/<NewQoSEnableStatus>(.*)<\/NewQoSEnableStatus>/);
+const regexNewSmartConnectEnable = new RegExp(/<NewSmartConnectEnable>(.*)<\/NewSmartConnectEnable>/);
 const regexNewBlockDeviceEnable = new RegExp(/<NewBlockDeviceEnable>(.*)<\/NewBlockDeviceEnable>/);
 const regexNewTrafficMeterEnable = new RegExp(/<NewTrafficMeterEnable>(.*)<\/NewTrafficMeterEnable>/);
 const regexNewControlOption = new RegExp(/<NewControlOption>(.*)<\/NewControlOption>/);
@@ -241,7 +243,7 @@ class NetgearRouter {
 			// request successfull
 			if (result.statusCode === 200 && result.body.includes('Model=')) {
 				const currentSetting = {};
-				const entries = result.body.replace(/\n/g, '').split('\r');
+				const entries = result.body.replace(/\n/g, '').split(/[\r\t\s]/);
 				Object.keys(entries).forEach((entry) => {
 					const info = entries[entry].split('=');
 					if (info.length === 2) {
@@ -316,6 +318,88 @@ class NetgearRouter {
 				}
 			});
 			return Promise.resolve(supportFeatureList);
+		} catch (error) {
+			return Promise.reject(error);
+		}
+	}
+
+	/**
+	* Get Device Config.
+	* @returns {Promise<deviceConfig>}
+	*/
+	async getDeviceConfig() {
+		try {
+			const message = soap.getDeviceConfig(this.sessionId);
+			const result = await this._makeRequest(soap.action.getDeviceConfig, message);
+			const patchedBody = patchBody(result.body);
+			// parse xml to json object
+			const parseOptions = {
+				compact: true, ignoreDeclaration: true, ignoreAttributes: true, spaces: 2,
+			};
+			const rawJson = parseXml.xml2js(patchedBody, parseOptions);
+			const entries = rawJson['v:Envelope']['v:Body']['m:GetInfoResponse'];
+			const deviceConfig = {};
+			Object.keys(entries).forEach((property) => {
+				if (Object.prototype.hasOwnProperty.call(entries, property)) {
+					deviceConfig[property] = entries[property]._text;
+				}
+			});
+			return Promise.resolve(deviceConfig);
+		} catch (error) {
+			return Promise.reject(error);
+		}
+	}
+
+
+	/**
+	* Get LAN config
+	* @returns {Promise.<LANConfig>}
+	*/
+	async getLANConfig() {
+		try {
+			const message = soap.getLANConfig(this.sessionId);
+			const result = await this._makeRequest(soap.action.getLANConfig, message);
+			const patchedBody = patchBody(result.body);
+			// parse xml to json object
+			const parseOptions = {
+				compact: true, ignoreDeclaration: true, ignoreAttributes: true, spaces: 2,
+			};
+			const rawJson = parseXml.xml2js(patchedBody, parseOptions);
+			const entries = rawJson['v:Envelope']['v:Body']['m:GetInfoResponse'];
+			const LANConfig = {};
+			Object.keys(entries).forEach((property) => {
+				if (Object.prototype.hasOwnProperty.call(entries, property)) {
+					LANConfig[property] = entries[property]._text;
+				}
+			});
+			return Promise.resolve(LANConfig);
+		} catch (error) {
+			return Promise.reject(error);
+		}
+	}
+
+	/**
+	* Get LAN config
+	* @returns {Promise.<WANConfig>}
+	*/
+	async getWANConfig() {
+		try {
+			const message = soap.getWANIPConnection(this.sessionId);
+			const result = await this._makeRequest(soap.action.getWANIPConnection, message);
+			const patchedBody = patchBody(result.body);
+			// parse xml to json object
+			const parseOptions = {
+				compact: true, ignoreDeclaration: true, ignoreAttributes: true, spaces: 2,
+			};
+			const rawJson = parseXml.xml2js(patchedBody, parseOptions);
+			const entries = rawJson['v:Envelope']['v:Body']['m:GetInfoResponse'];
+			const WANConfig = {};
+			Object.keys(entries).forEach((property) => {
+				if (Object.prototype.hasOwnProperty.call(entries, property)) {
+					WANConfig[property] = entries[property]._text;
+				}
+			});
+			return Promise.resolve(WANConfig);
 		} catch (error) {
 			return Promise.reject(error);
 		}
@@ -703,6 +787,46 @@ class NetgearRouter {
 	async set5GGuestWifi2(enable) { // true or false
 		const method = await this._set5GGuestAccessEnabled2(enable);
 		return Promise.resolve(method);
+	}
+
+	/**
+	* Get smartConnect Enable Status (true / false).
+	* @returns {Promise.<smartConnectEnabled>}
+	*/
+	async getSmartConnectEnabled() {
+		try {
+			await this._configurationStarted();
+			const message = soap.getSmartConnectEnabled(this.sessionId);
+			const result = await this._makeRequest(soap.action.getSmartConnectEnabled, message);
+			await this._configurationFinished()
+				.catch(() => {
+					// console.log(`finished with warning`);
+				});
+			const smartConnectEnabled = regexNewSmartConnectEnable.exec(result.body)[1] === '1';
+			return Promise.resolve(smartConnectEnabled);
+		} catch (error) {
+			return Promise.reject(error);
+		}
+	}
+
+	/**
+	* Enable or Disable smartConnect
+	* @param {boolean} enable - true to enable, false to disable.
+	* @returns {Promise<finished>}
+	*/
+	async setSmartConnectEnabled(enable) {
+		try {
+			await this._configurationStarted();
+			const message = soap.setSmartConnectEnabled(this.sessionId, enable);
+			await this._makeRequest(soap.action.setSmartConnectEnabled, message);
+			await this._configurationFinished()
+				.catch(() => {
+					// console.log(`finished with warning`);
+				});
+			return Promise.resolve(true);
+		} catch (error) {
+			return Promise.reject(error);
+		}
 	}
 
 	/**
@@ -1487,4 +1611,64 @@ module.exports = NetgearRouter;
 * @property {string} releaseNote e.g. ''
 * @example // trafficStatitics
 { currentVersion: 'V1.0.2.60', newVersion: '', releaseNote: '' }
+*/
+
+/**
+* @typedef LANConfig
+* @description LANConfig is an object with properties similar to this.
+* @property {string} NewLANSubnet e.g. '255.255.255.0'
+* @property {string} NewWANLAN_Subnet_Match e.g. '1'
+* @property {string} NewLANMACAddress e.g. 'B07AB9A81D1A'
+* @property {string} NewLANIP e.g. '192.168.0.1'
+* @property {string} NewDHCPEnabled e.g. 'true'
+* @example // LANConfig
+{ NewLANSubnet: '255.255.255.0',
+  NewWANLAN_Subnet_Match: '1',
+  NewLANMACAddress: 'B07FB9F81DEA',
+  NewLANIP: '10.0.0.1',
+  NewDHCPEnabled: 'true' }
+*/
+
+/**
+* @typedef WANConfig
+* @description WANConfig is an object with properties similar to this.
+* @property {string} NewEnable e.g. '1'
+* @property {string} NewConnectionType e.g. 'DHCP'
+* @property {string} NewExternalIPAddress e.g. '66.220.144.18'
+* @property {string} NewSubnetMask e.g. '255.255.255.0'
+* @property {string} NewAddressingType e.g. 'DHCP'
+* @property {string} NewDefaultGateway e.g. '66.220.144.254'
+* @property {string} NewMACAddress e.g. 'B07AB9A81D1B',
+* @property {string} NewMACAddressOverride e.g. '0',
+* @property {string} NewMaxMTUSize e.g. '1500',
+* @property {string} NewDNSEnabled e.g. '1',
+* @property {string} NewDNSServers e.g. '66.220.144.254'
+* @example // WANConfig
+{ NewEnable: '1',
+  NewConnectionType: 'DHCP',
+  NewExternalIPAddress: '66.220.144.18',
+  NewSubnetMask: '255.255.255.0',
+  NewAddressingType: 'DHCP',
+  NewDefaultGateway: '66.220.144.254',
+  NewMACAddress: 'B07FB9F81DEB',
+  NewMACAddressOverride: '0',
+  NewMaxMTUSize: '1500',
+  NewDNSEnabled: '1',
+  NewDNSServers: '66.220.144.254' }
+*/
+
+/**
+* @typedef deviceConfig
+* @description deviceConfig is an object with properties similar to this.
+* @property {string} BlankState e.g. '0'
+* @property {string} NewBlockSiteEnable e.g. '0'
+* @property {string} NewBlockSiteName e.g. '0'
+* @property {string} NewTimeZone e.g. '+2'
+* @property {string} NewDaylightSaving e.g. '1'
+* @example // deviceConfig
+{ BlankState: '0',
+  NewBlockSiteEnable: '0',
+  NewBlockSiteName: '0',
+  NewTimeZone: '+2',
+  NewDaylightSaving: '1' }
 */

@@ -17,6 +17,7 @@ exports.action = {
 	updateNewFirmware: 'urn:NETGEAR-ROUTER:service:DeviceConfig:1#UpdateNewFirmware',
 	configurationStarted: 'urn:NETGEAR-ROUTER:service:DeviceConfig:1#ConfigurationStarted',
 	configurationFinished: 'urn:NETGEAR-ROUTER:service:DeviceConfig:1#ConfigurationFinished',
+	getDeviceConfig: 'urn:NETGEAR-ROUTER:service:DeviceConfig:1#GetInfo',	// ***NEW***
 
 	// device config, block/allow device related
 	getBlockDeviceEnableStatus: 'urn:NETGEAR-ROUTER:service:DeviceConfig:1#GetBlockDeviceEnableStatus',
@@ -29,6 +30,10 @@ exports.action = {
 	getTrafficMeterOptions: 'urn:NETGEAR-ROUTER:service:DeviceConfig:1#GetTrafficMeterOptions',
 	getTrafficMeter: 'urn:NETGEAR-ROUTER:service:DeviceConfig:1#GetTrafficMeterStatistics',
 	enableTrafficMeter: 'urn:NETGEAR-ROUTER:service:DeviceConfig:1#EnableTrafficMeter',
+
+	// device config, LAN/WAN related
+	getLANConfig: 'urn:NETGEAR-ROUTER:service:LANConfigSecurity:1#GetInfo',	// ***NEW***
+	getWANIPConnection: 'urn:NETGEAR-ROUTER:service:WANIPConnection:1#GetInfo', // ***NEW***
 
 	// parental control
 	getParentalControlEnableStatus: 'urn:NETGEAR-ROUTER:service:ParentalControl:1#GetEnableStatus',
@@ -58,6 +63,8 @@ exports.action = {
 	set5G1GuestAccessEnabled: 'urn:NETGEAR-ROUTER:service:WLANConfiguration:1#Set5GGuestAccessEnabled',	// 5G-1 R7800
 	set5G1GuestAccessEnabled2: 'urn:NETGEAR-ROUTER:service:WLANConfiguration:1#Set5G1GuestAccessEnabled2',	// 5G-1 R8000
 	set5GGuestAccessEnabled2: 'urn:NETGEAR-ROUTER:service:WLANConfiguration:1#Set5GGuestAccessEnabled2',	// 5G-2 R8000
+	getSmartConnectEnabled: 'urn:NETGEAR-ROUTER:service:WLANConfiguration:1#IsSmartConnectEnabled',	// ***NEW***
+	setSmartConnectEnabled: 'urn:NETGEAR-ROUTER:service:WLANConfiguration:1#SetSmartConnectEnable',	// ***NEW***
 
 	// Potentially NEW STUFF > still needs to be implemented in soapcalls.js
 	// urn:NETGEAR-ROUTER:service:AdvancedQoS:1#GetCurrentAppBandwidth
@@ -79,12 +86,7 @@ exports.action = {
 
 	// NEW STUFF > still needs to be implemented in netger.js
 	setUserOptionsTC: 'urn:NETGEAR-ROUTER:service:UserOptionsTC:1#SetUserOptionsTC',	// ***NEW***
-	getDeviceConfig: 'urn:NETGEAR-ROUTER:service:DeviceConfig:1#GetInfo',	// ***NEW***
 	getAvailableChannel: 'urn:NETGEAR-ROUTER:service:WLANConfiguration:1#GetAvailableChannel',	// ***NEW***
-	getSmartConnectEnabled: 'urn:NETGEAR-ROUTER:service:WLANConfiguration:1#IsSmartConnectEnabled',	// ***NEW***
-	setSmartConnectEnabled: 'urn:NETGEAR-ROUTER:service:WLANConfiguration:1#SetSmartConnectEnable',	// ***NEW***
-	getLANConfig: 'urn:NETGEAR-ROUTER:service:LANConfigSecurity:1#GetInfo',	// ***NEW***
-	getWANIPConnection: 'urn:NETGEAR-ROUTER:service:WANIPConnection:1#GetInfo', // ***NEW***
 	setNetgearDeviceName: 'urn:NETGEAR-ROUTER:service:DeviceInfo:1#SetNetgearDeviceName', // ***NEW***
 
 };
@@ -138,6 +140,27 @@ exports.getInfo = (sessionId) => {
 exports.getSupportFeatureListXML = (sessionId) => {
 	const soapBody = `<v:Body>
 		<M1:GetSupportFeatureListXML xmlns:M1="urn:NETGEAR-ROUTER:service:DeviceInfo:1" />
+	</v:Body>`;
+	return soapEnvelope(sessionId, soapBody);
+};
+
+exports.getLANConfig = (sessionId) => {
+	const soapBody = `<v:Body>
+		<n0:GetInfo xmlns:n0="urn:NETGEAR-ROUTER:service:LANConfigSecurity:1" />
+	</v:Body>`;
+	return soapEnvelope(sessionId, soapBody);
+};
+
+exports.getWANIPConnection = (sessionId) => {
+	const soapBody = `<v:Body>
+		<n0:GetInfo xmlns:n0="urn:NETGEAR-ROUTER:service:WANIPConnection:1" />
+	</v:Body>`;
+	return soapEnvelope(sessionId, soapBody);
+};
+
+exports.getDeviceConfig = (sessionId) => {
+	const soapBody = `<v:Body>
+		<n0:GetInfo xmlns:n0="urn:NETGEAR-ROUTER:service:DeviceConfig:1" />
 	</v:Body>`;
 	return soapEnvelope(sessionId, soapBody);
 };
@@ -368,6 +391,15 @@ exports.checkNewFirmware = (sessionId) => {
 	return soapEnvelope(sessionId, soapBody);
 };
 
+exports.checkAppNewFirmware = (sessionId) => {
+	const soapBody = `<v:Body>
+		<n0:CheckAppNewFirmware xmlns:n0="urn:NETGEAR-ROUTER:service:DeviceConfig:1">
+			<CheckDurationSecond>150</CheckDurationSecond>
+		</n0:CheckAppNewFirmware>
+	</v:Body>`;
+	return soapEnvelope(sessionId, soapBody);
+};
+
 exports.updateNewFirmware = (sessionId) => {
 	const soapBody = `<v:Body>
 		<M1:UpdateNewFirmware xmlns:M1="urn:NETGEAR-ROUTER:service:DeviceConfig:1">
@@ -391,36 +423,6 @@ exports.speedTestResult = (sessionId) => {
 	return soapEnvelope(sessionId, soapBody);
 };
 
-
-// new stuff
-
-// no clue what this does....
-exports.setUserOptionsTC = (sessionId, enabled) => {
-	const soapBody = `<v:Body>
-		<n0:SetUserOptionsTC xmlns:n0="urn:NETGEAT-ROUTER:service:UserOptionsTC:1">
-		<UserOptions>${enabled * 1}</UserOptions>
-		</n0:SetUserOptionsTC>
-	</v:Body>`;
-	return soapEnvelope(sessionId, soapBody);
-};
-
-exports.getDeviceConfig = (sessionId) => {
-	const soapBody = `<v:Body>
-		<n0:GetInfo xmlns:n0="urn:NETGEAR-ROUTER:service:DeviceConfig:1" />
-	</v:Body>`;
-	return soapEnvelope(sessionId, soapBody);
-};
-
-// band = 2.4G or 5G
-exports.getAvailableChannel = (sessionId, band) => {
-	const soapBody = `<v:Body>
-		<n0:GetAvailableChannel xmlns:n0="urn:NETGEAR-ROUTER:service:WLANConfiguration:1">
-			<NewBand>${band}</NewBand>
-		</n0:GetAvailableChannel>
-	</v:Body>`;
-	return soapEnvelope(sessionId, soapBody);
-};
-
 exports.getSmartConnectEnabled = (sessionId) => {
 	const soapBody = `<v:Body>
 		<n0:IsSmartConnectEnabled xmlns:n0="urn:NETGEAR-ROUTER:service:WLANConfiguration:1" />
@@ -437,25 +439,24 @@ exports.setSmartConnectEnabled = (sessionId, enabled) => {
 	return soapEnvelope(sessionId, soapBody);
 };
 
-exports.getLANConfig = (sessionId) => {
+// new stuff
+
+// no clue what this does....
+exports.setUserOptionsTC = (sessionId, enabled) => {
 	const soapBody = `<v:Body>
-		<n0:GetInfo xmlns:n0="urn:NETGEAR-ROUTER:service:LANConfigSecurity:1" />
+		<n0:SetUserOptionsTC xmlns:n0="urn:NETGEAT-ROUTER:service:UserOptionsTC:1">
+		<UserOptions>${enabled * 1}</UserOptions>
+		</n0:SetUserOptionsTC>
 	</v:Body>`;
 	return soapEnvelope(sessionId, soapBody);
 };
 
-exports.getWANIPConnection = (sessionId) => {
+// band = 2.4G or 5G
+exports.getAvailableChannel = (sessionId, band) => {
 	const soapBody = `<v:Body>
-		<n0:GetInfo xmlns:n0="urn:NETGEAR-ROUTER:service:WANIPConnection:1" />
-	</v:Body>`;
-	return soapEnvelope(sessionId, soapBody);
-};
-
-exports.checkAppNewFirmware = (sessionId) => {
-	const soapBody = `<v:Body>
-		<n0:CheckAppNewFirmware xmlns:n0="urn:NETGEAR-ROUTER:service:DeviceConfig:1">
-			<CheckDurationSecond>150</CheckDurationSecond>
-		</n0:CheckAppNewFirmware>
+		<n0:GetAvailableChannel xmlns:n0="urn:NETGEAR-ROUTER:service:WLANConfiguration:1">
+			<NewBand>${band}</NewBand>
+		</n0:GetAvailableChannel>
 	</v:Body>`;
 	return soapEnvelope(sessionId, soapBody);
 };
