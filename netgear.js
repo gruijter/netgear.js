@@ -243,7 +243,7 @@ class NetgearRouter {
 			// request successfull
 			if (result.statusCode === 200 && result.body.includes('Model=')) {
 				const currentSetting = {};
-				const entries = result.body.replace(/\n/g, '').split(/[\r\t\s]/);
+				const entries = result.body.split(/[\r\n\t\s]+/gm);
 				Object.keys(entries).forEach((entry) => {
 					const info = entries[entry].split('=');
 					if (info.length === 2) {
