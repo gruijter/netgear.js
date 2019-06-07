@@ -62,7 +62,7 @@
     <h2>Constructor</h2>
     
 
-    <h4 class="name" id="NetgearRouter"><span class="type-signature"></span>new NetgearRouter<span class="signature">(password<span class="signature-attributes">opt</span>, user<span class="signature-attributes">opt</span>, host<span class="signature-attributes">opt</span>, port<span class="signature-attributes">opt</span>)</span><span class="type-signature"></span></h4>
+    <h4 class="name" id="NetgearRouter"><span class="type-signature"></span>new NetgearRouter<span class="signature">(options<span class="signature-attributes">opt</span>)</span><span class="type-signature"></span></h4>
 
     
 
@@ -132,29 +132,6 @@
 
         <tr>
             
-                <td class="name"><code>timeout</code></td>
-            
-
-            <td class="type">
-            
-                
-<span class="param-type">number</span>
-
-
-            
-            </td>
-
-            
-
-            
-
-            <td class="description last"><p>http timeout in milliseconds. Defaults to 20000.</p></td>
-        </tr>
-
-    
-
-        <tr>
-            
                 <td class="name"><code>loggedIn</code></td>
             
 
@@ -200,7 +177,8 @@
 
 	async function getDevices() {
 		try {
-			await router.login('myPassword');
+			const options = { password: 'myPassword' };
+			await router.login(options);
 			const deviceArray = await router.getAttachedDevices();
 			console.log(deviceArray);
 		} catch (error) {
@@ -230,8 +208,6 @@
         
 
         
-        <th>Default</th>
-        
 
         <th class="last">Description</th>
     </tr>
@@ -242,13 +218,13 @@
 
         <tr>
             
-                <td class="name"><code>password</code></td>
+                <td class="name"><code>options</code></td>
             
 
             <td class="type">
             
                 
-<span class="param-type">string</span>
+<span class="param-type"><a href="global.html#sessionOptions">sessionOptions</a></span>
 
 
             
@@ -267,129 +243,8 @@
             
 
             
-                <td class="default">
-                
-                    <code>'password'</code>
-                
-                </td>
-            
 
-            <td class="description last"><p>The login password.</p></td>
-        </tr>
-
-    
-
-        <tr>
-            
-                <td class="name"><code>user</code></td>
-            
-
-            <td class="type">
-            
-                
-<span class="param-type">string</span>
-
-
-            
-            </td>
-
-            
-                <td class="attributes">
-                
-                    &lt;optional><br>
-                
-
-                
-
-                
-                </td>
-            
-
-            
-                <td class="default">
-                
-                    <code>'admin'</code>
-                
-                </td>
-            
-
-            <td class="description last"><p>The login username.</p></td>
-        </tr>
-
-    
-
-        <tr>
-            
-                <td class="name"><code>host</code></td>
-            
-
-            <td class="type">
-            
-                
-<span class="param-type">string</span>
-
-
-            
-            </td>
-
-            
-                <td class="attributes">
-                
-                    &lt;optional><br>
-                
-
-                
-
-                
-                </td>
-            
-
-            
-                <td class="default">
-                
-                    <code>'routerlogin.net'</code>
-                
-                </td>
-            
-
-            <td class="description last"><p>The url or ip address of the router. Leave empty to try autodiscovery.</p></td>
-        </tr>
-
-    
-
-        <tr>
-            
-                <td class="name"><code>port</code></td>
-            
-
-            <td class="type">
-            
-                
-<span class="param-type">number</span>
-
-
-            
-            </td>
-
-            
-                <td class="attributes">
-                
-                    &lt;optional><br>
-                
-
-                
-
-                
-                </td>
-            
-
-            
-                <td class="default">
-                
-                </td>
-            
-
-            <td class="description last"><p>The SOAP port of the router. Leave empty to try autodiscovery.</p></td>
+            <td class="description last"><p>configurable session options</p></td>
         </tr>
 
     
@@ -2732,7 +2587,7 @@
 
     
 
-    <h4 class="name" id="login"><span class="type-signature">(async) </span>login<span class="signature">(password<span class="signature-attributes">opt</span>, user<span class="signature-attributes">opt</span>, host<span class="signature-attributes">opt</span>, port<span class="signature-attributes">opt</span>)</span><span class="type-signature"> &rarr; {Promise.&lt;loggedIn>}</span></h4>
+    <h4 class="name" id="login"><span class="type-signature">(async) </span>login<span class="signature">(options<span class="signature-attributes">opt</span>)</span><span class="type-signature"> &rarr; {Promise.&lt;loggedIn>}</span></h4>
 
     
 
@@ -2779,8 +2634,8 @@
 
 
 <div class="description">
-    <p>Login to the router. Passing parameters will override the previous settings.
-If host and port are not set, login will try to auto discover these.</p>
+    <p>Login to the router. Passing options will override any existing session settings.
+If host or port are not set, login will try to auto discover these.</p>
 </div>
 
 
@@ -2820,13 +2675,13 @@ If host and port are not set, login will try to auto discover these.</p>
 
         <tr>
             
-                <td class="name"><code>password</code></td>
+                <td class="name"><code>options</code></td>
             
 
             <td class="type">
             
                 
-<span class="param-type">string</span>
+<span class="param-type"><a href="global.html#sessionOptions">sessionOptions</a></span>
 
 
             
@@ -2846,106 +2701,7 @@ If host and port are not set, login will try to auto discover these.</p>
 
             
 
-            <td class="description last"><p>The login password.</p></td>
-        </tr>
-
-    
-
-        <tr>
-            
-                <td class="name"><code>user</code></td>
-            
-
-            <td class="type">
-            
-                
-<span class="param-type">string</span>
-
-
-            
-            </td>
-
-            
-                <td class="attributes">
-                
-                    &lt;optional><br>
-                
-
-                
-
-                
-                </td>
-            
-
-            
-
-            <td class="description last"><p>The login username.</p></td>
-        </tr>
-
-    
-
-        <tr>
-            
-                <td class="name"><code>host</code></td>
-            
-
-            <td class="type">
-            
-                
-<span class="param-type">string</span>
-
-
-            
-            </td>
-
-            
-                <td class="attributes">
-                
-                    &lt;optional><br>
-                
-
-                
-
-                
-                </td>
-            
-
-            
-
-            <td class="description last"><p>The url or ip address of the router.</p></td>
-        </tr>
-
-    
-
-        <tr>
-            
-                <td class="name"><code>port</code></td>
-            
-
-            <td class="type">
-            
-                
-<span class="param-type">number</span>
-
-
-            
-            </td>
-
-            
-                <td class="attributes">
-                
-                    &lt;optional><br>
-                
-
-                
-
-                
-                </td>
-            
-
-            
-
-            <td class="description last"><p>The SOAP port of the router.</p></td>
+            <td class="description last"><p>configurable session options</p></td>
         </tr>
 
     
@@ -4816,7 +4572,7 @@ If host and port are not set, login will try to auto discover these.</p>
 <br class="clear">
 
 <footer>
-    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 3.5.5</a> on Tue May 28 2019 17:46:25 GMT+0200 (GMT+02:00) using the <a href="https://github.com/clenemt/docdash">docdash</a> theme.
+    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 3.6.2</a> on Fri Jun 07 2019 21:13:23 GMT+0200 (GMT+02:00) using the <a href="https://github.com/clenemt/docdash">docdash</a> theme.
 </footer>
 
 <script>prettyPrint();</script>

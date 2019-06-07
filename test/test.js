@@ -1,3 +1,4 @@
+/* eslint-disable prefer-destructuring */
 /* eslint-disable no-console */
 /* This Source Code Form is subject to the terms of the Mozilla Public
 	License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -16,34 +17,35 @@ const _test = require('./_test.js');
 
 console.log('Testing now. Hang on.....');
 
-let password = process.argv[2];
-let user = process.argv[3];
-let host = process.argv[4];
-let port = process.argv[5];
-
-if (password) {
-	// eslint-disable-next-line quotes
-	if (password === '' || password === "" || password === "''") {
-		password = '';
-	} else {
-		password = password.replace(/'/g, '').replace(/"/g, '');
+const options = {};
+const args = process.argv.slice(2);
+Object.keys(args).forEach((arg) => {
+	const info = args[arg].split(/=+/g);
+	if (info.length === 2) {
+		options[info[0]] = info[1].replace(/['"]+/g, '');
 	}
+});
+
+if (Object.keys(options).length === 0) {
+	options.password = process.argv[2];
+	options.user = process.argv[3];
+	options.host = process.argv[4];
+	options.port = process.argv[5];
 }
 
-if (user) {
-	user = user.replace(/'/g, '').replace(/"/g, '');
+if (options.port) {
+	options.port = Number(options.port);
 }
 
-if (host) {
-	host = host.replace(/'/g, '').replace(/"/g, '');
+if (options.tls) {
+	options.tls = options.tls.toLowerCase() === 'true';
 }
 
-if (port) {
-	port = port.toString().replace(/'/g, '').replace(/"/g, '');
-	port = Number(port);
+if (options.timeout) {
+	options.timeout = Number(options.timeout);
 }
 
-_test.test(password, user, host, port)
+_test.test(options)
 	.then((log) => {
 		for (let i = 0; i < (log.length); i += 1) {
 			console.log(log[i]);

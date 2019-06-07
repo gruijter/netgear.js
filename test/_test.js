@@ -24,16 +24,19 @@ let t0 = Date.now();
 const router = new NetgearRouter();
 
 // function to setup the router session
-async function setupSession(password, user, host, port) {
+async function setupSession(opts) {
 	try {
 		log.push('========== STARTING TEST ==========');
 		log.push(`Node version: ${process.version}`);
 		log.push(`Netgear package version: ${version}`);
 		log.push(`OS: ${os.platform()} ${os.release()}`);
-		router.password = password || router.password;
-		router.username = user || router.username;
-		router.host = host || router.host;
-		router.port = port || router.port;
+		Object.keys(opts).forEach((opt) => {
+			if (opt === 'info') {
+				log.push(`Info: ${opts[opt]}`);
+				return;
+			}
+			router[opt] = opts[opt];
+		});
 		t0 = Date.now();
 		errorCount = 0;
 		log.push('t = 0');
@@ -360,10 +363,10 @@ exports.discover = () => {
 	}
 };
 
-exports.test = async (password, user, host, port) => {
+exports.test = async (opts) => {
 	log = [];	// empty the log
 	try {
-		await setupSession(password, user, host, port);
+		await setupSession(opts);
 		await getRouterInfo();
 		// await blockOrAllow('AA:BB:CC:DD:EE:FF', 'Block');
 		// await blockOrAllow('AA:BB:CC:DD:EE:FF', 'Allow');

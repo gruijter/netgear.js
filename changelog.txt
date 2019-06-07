@@ -1,3 +1,4 @@
+3.7.0 - 07-06-2019 Added TLS/SSL (https) support. Added passing options for Netgear Class and login.
 3.6.1 - 06-06-2019 Fix parsing currentSetting for R6800.
 3.6.0 - 28-05-2019 Added soap actions for SmartConnect and LAN/WAN config. Fix getCurrentSetting.
 3.5.1 - 28-05-2019 Fix for new SOAP Body in R6020.

@@ -9,7 +9,10 @@
 
 'use strict';
 
+// process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+
 const http = require('http');
+const https = require('https');
 const parseXml = require('xml-js');
 const util = require('util');
 const dns = require('dns');
@@ -108,12 +111,15 @@ const patchBody = body => body
 	.replace(/soap-env:body/gi, 'v:Body');
 
 class NetgearRouter {
-	constructor(password, username, host, port) {
-		this.host = host || defaultHost;
-		this.port = port;
-		this.username = username || defaultUser;
-		this.password = password || defaultPassword;
-		this.timeout = 19000;
+	// password, username, host and port are deprecated. Now use { password: '', username: '', host:'routerlogin.net', port: 80, timeout: 19000, tls: false}
+	constructor(opts, username, host, port) {
+		const options = opts || {};
+		this.host = options.host || host || defaultHost;
+		this.port = options.port || port;
+		this.tls = options.tls || false;
+		this.username = options.username || username || defaultUser;
+		this.password = options.password || opts || defaultPassword;
+		this.timeout = options.timeout || 19000;
 		this.sessionId = defaultSessionId;
 		this.cookie = undefined;
 		this.loggedIn = false;
@@ -132,7 +138,7 @@ class NetgearRouter {
 
 	/**
 	* Discovers a netgear router in the network. Also sets the discovered ip address and soap port for this session.
-	* @returns {Promise<currentSetting>} The discovered router info, including host ip address and soap port.
+	* @returns {Promise.<currentSetting>} The discovered router info, including host ip address and soap port.
 	*/
 	async discover() {
 		try {
@@ -146,20 +152,20 @@ class NetgearRouter {
 	}
 
 	/**
-	* Login to the router. Passing parameters will override the previous settings.
-	* If host and port are not set, login will try to auto discover these.
-	* @param {string} [password] - The login password.
-	* @param {string} [user] - The login username.
-	* @param {string} [host] - The url or ip address of the router.
-	* @param {number} [port] - The SOAP port of the router.
-	* @returns {Promise<loggedIn>} The loggedIn state.
+	* Login to the router. Passing options will override any existing session settings.
+	* If host or port are not set, login will try to auto discover these.
+	* @param {sessionOptions} [options] - configurable session options
+	* @returns {Promise.<loggedIn>} The loggedIn state.
 	*/
-	async login(password, username, host, port) {
+	async login(opts, username, host, port) {
 		try {
-			this.password = password || await this.password;
-			this.username = username || await this.username;
-			this.host = host || await this.host;
-			this.port = port || await this.port;
+			const options = opts || {};
+			this.host = options.host || host || await this.host;
+			this.port = options.port || port || await this.port;
+			this.tls = options.tls || this.tls;
+			this.username = options.username || username || this.username;
+			this.password = options.password || opts || this.password;
+			this.timeout = options.timeout || this.timeout;
 			if (!this.host || this.host === '') {
 				await this.discover()
 					.catch(() => {
@@ -208,7 +214,7 @@ class NetgearRouter {
 
 	/**
 	* Logout from the router.
-	* @returns {Promise<loggedIn>} The loggedIn state.
+	* @returns {Promise.<loggedIn>} The loggedIn state.
 	*/
 	async logout() {
 		try {
@@ -224,7 +230,7 @@ class NetgearRouter {
 	/**
 	* Get router information without need for credentials.
 	* @param {string} [host] - The url or ip address of the router.
-	* @returns {Promise<currentSetting>}
+	* @returns {Promise.<currentSetting>}
 	*/
 	async getCurrentSetting(host, timeout) {
 		try {
@@ -271,7 +277,7 @@ class NetgearRouter {
 
 	/**
 	* Get router information.
-	* @returns {Promise<info>}
+	* @returns {Promise.<info>}
 	*/
 	async getInfo() {
 		try {
@@ -298,7 +304,7 @@ class NetgearRouter {
 
 	/**
 	* Get router SupportFeatureList.
-	* @returns {Promise<supportFeatureList>}
+	* @returns {Promise.<supportFeatureList>}
 	*/
 	async getSupportFeatureListXML() {
 		try {
@@ -325,7 +331,7 @@ class NetgearRouter {
 
 	/**
 	* Get Device Config.
-	* @returns {Promise<deviceConfig>}
+	* @returns {Promise.<deviceConfig>}
 	*/
 	async getDeviceConfig() {
 		try {
@@ -1212,16 +1218,10 @@ class NetgearRouter {
 			});
 			const allHosts = await Promise.all(allHostsPromise);
 			const discoveredHosts = allHosts.filter(host => host);
-			const found = [];
-			for (let index = 0; index < discoveredHosts.length; index += 1) {
-				const currentSetting = discoveredHosts[index];
-				currentSetting.port = await this._getSoapPort(currentSetting.host);
-				found.push(currentSetting);
-			}
-			if (!found[0]) {
+			if (!discoveredHosts[0]) {
 				throw Error('No Netgear router could be discovered');
 			}
-			return Promise.resolve(found);
+			return Promise.all(discoveredHosts);
 		} catch (error) {
 			this.lastResponse = error;
 			return Promise.reject(error);
@@ -1236,14 +1236,22 @@ class NetgearRouter {
 			}
 			const message = soap.getInfo(this.sessionId);
 			const action = soap.action.getInfo;
+			// try port 443 if Https selected
+			if (this.tls) {
+				const result443 = await this._makeRequest2(action, message, host1, 443, 3000)
+					.catch(() => ({ body: null }));
+				if (JSON.stringify(result443.body).includes('<ResponseCode>')) {
+					return Promise.resolve(443);
+				}
+			}
 			// try port 5000 first
-			const result5000 = await this._makeRequest2(action, message, host1, 5000, 5000)
+			const result5000 = await this._makeRequest2(action, message, host1, 5000, 3000)
 				.catch(() => ({ body: null }));
 			if (JSON.stringify(result5000.body).includes('<ResponseCode>')) {
 				return Promise.resolve(5000);
 			}
 			// try port 80 now
-			const result80 = await this._makeRequest2(action, message, host1, 80, 5000)
+			const result80 = await this._makeRequest2(action, message, host1, 80, 3000)
 				.catch(() => ({ body: null }));
 			if (JSON.stringify(result80.body).includes('<ResponseCode>')) {
 				return Promise.resolve(80);
@@ -1298,10 +1306,16 @@ class NetgearRouter {
 				hostname: this.host,
 				port: this.port,
 				path: '/soap/server_sa/',
+				rejectUnauthorized: false,
 				headers,
 				method: 'POST',
 			};
-			const result = await this._makeHttpRequest(options, message);
+			let result;
+			if (this.tls) {
+				result = await this._makeHttpsRequest(options, message);
+			} else {
+				result = await this._makeHttpRequest(options, message);
+			}
 			this.lastResponse = result.body;
 			if (result.headers['set-cookie']) {
 				this.cookie = result.headers['set-cookie'];
@@ -1347,11 +1361,17 @@ class NetgearRouter {
 			const options = {
 				hostname: host,
 				port,
+				rejectUnauthorized: false,
 				path: '/soap/server_sa/',
 				headers,
 				method: 'POST',
 			};
-			const result = await this._makeHttpRequest(options, message, timeout);
+			let result;
+			if (this.tls && port === 443) {
+				result = await this._makeHttpsRequest(options, message, timeout);
+			} else {
+				result = await this._makeHttpRequest(options, message, timeout);
+			}
 			return Promise.resolve(result);
 		} catch (error) {
 			return Promise.reject(error);
@@ -1375,7 +1395,31 @@ class NetgearRouter {
 			});
 			req.once('error', (e) => {
 				this.lastResponse = e;	// e.g. ECONNREFUSED on wrong soap port or wrong IP // ECONNRESET on wrong IP
-				reject(e);
+				return reject(e);
+			});
+			// req.write(postData);
+			req.end(postData);
+		});
+	}
+
+	_makeHttpsRequest(options, postData, timeout) {
+		return new Promise((resolve, reject) => {
+			const req = https.request(options, (res) => {
+				let resBody = '';
+				res.on('data', (chunk) => {
+					resBody += chunk;
+				});
+				res.once('end', () => {
+					res.body = resBody;
+					return resolve(res); // resolve the request
+				});
+			});
+			req.setTimeout(timeout || this.timeout, () => {
+				req.abort();
+			});
+			req.once('error', (e) => {
+				this.lastResponse = e;	// e.g. ECONNREFUSED on wrong soap port or wrong IP // ECONNRESET on wrong IP
+				return reject(e);
 			});
 			// req.write(postData);
 			req.end(postData);
@@ -1416,12 +1460,7 @@ module.exports = NetgearRouter;
 /**
 * @class NetgearRouter
 * @classdesc Class representing a session with a Netgear router.
-
-* @param {string} [password = 'password'] - The login password.
-* @param {string} [user = 'admin'] - The login username.
-* @param {string} [host = 'routerlogin.net'] - The url or ip address of the router. Leave empty to try autodiscovery.
-* @param {number} [port] - The SOAP port of the router. Leave empty to try autodiscovery.
-* @property {number} timeout - http timeout in milliseconds. Defaults to 20000.
+* @param {sessionOptions} [options] - configurable session options
 * @property {boolean} loggedIn - login state.
 * @example // create a router session, login to router, fetch attached devices
 	const Netgear = require('netgear');
@@ -1430,7 +1469,8 @@ module.exports = NetgearRouter;
 
 	async function getDevices() {
 		try {
-			await router.login('myPassword');
+			const options = { password: 'myPassword' };
+			await router.login(options);
 			const deviceArray = await router.getAttachedDevices();
 			console.log(deviceArray);
 		} catch (error) {
@@ -1439,8 +1479,24 @@ module.exports = NetgearRouter;
 	}
 
 	getDevices();
-	*/
+*/
 
+/**
+* @typedef sessionOptions
+* @description Set of configurable options to set on the router class
+* @property {string} [password = 'password'] - The login password. Defaults to 'password'.
+* @property {string} [user = 'admin'] - The login username. Defaults to 'admin'.
+* @property {string} [host = 'routerlogin.net'] - The url or ip address of the router. Leave undefined to try autodiscovery.
+* @property {number} [port = 80] - The SOAP port of the router. Leave undefined to try autodiscovery.
+* @property {number} [timeout = 19000] - http(s) timeout in milliseconds. Defaults to 19000ms.
+* @property {boolean} [tls = false] - Use TLS/SSL (HTTPS) for SOAP calls. Defaults to false.
+* @example // router options
+{ password: 'mySecretPassword',
+  host:'routerlogin.net',
+  port: 5000,
+  timeout: 19000,
+  tls: false }
+*/
 
 /**
 * @typedef AttachedDevice

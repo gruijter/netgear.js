@@ -23,7 +23,7 @@ Cable Gateway: C7000 C6300 C6250 C3700 C3000 N450
 
 ## Test:
 ```
-> npm test yourPassword
+> npm test password=mySecretPassword
 ```
 
 ## Documentation:
@@ -39,7 +39,8 @@ const router = new Netgear();
 
 async function getDevices() {
 	try {
-		await router.login('myPassword');
+		const options = { password: 'mySecretPassword' };
+		await router.login(options);
 		const deviceArray = await router.getAttachedDevices();
 		console.log(deviceArray);
 	} catch (error) {
@@ -54,8 +55,8 @@ getDevices();
 ```
 const NetgearRouter = require('netgear');
 
-// password, username, host and port are optional. Defaults are: 'password', 'admin', 'routerlogin.net', undefined
-const router = new NetgearRouter(); // [password], [user], [host], [port]
+// note: options can be passed in here. See login options.
+const router = new NetgearRouter();
 
 // auto discovery a netgear router, including IP address and SOAP port. The discovered address and SOAP port will override previous settings
 router.discover()
@@ -69,8 +70,14 @@ async function getRouterInfo() {
 		const currentSetting = await router.getCurrentSetting();
 		console.log(currentSetting);
 
-		// for other methods you first need to be logged in.
-		await router.login('your_password'); // [password], [username], [host], [port] will override previous settings
+		// for other methods you first need to be logged in. Passing options will override previous settings
+		const options = {
+			password: 'mySecretPassword',	// Password can also be passed during login
+			host: '192.168.1.1',	// Autodiscovery will be performed when left out
+			port: 80,	// SOAP port. Autodiscovery will be performed when left out
+			tls: false,
+		}
+		await router.login(options);
 
 		// Get router type, serial number, hardware version, firmware version, soap version, firewall version, etc.
 		const info = await router.getInfo();

@@ -3,7 +3,7 @@
 
 const NetgearRouter = require('netgear');
 
-const router = new NetgearRouter('password');
+const router = new NetgearRouter({ password: 'password' });
 
 router.getCurrentSetting()
 	.then(console.log)
