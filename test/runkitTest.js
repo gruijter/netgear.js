@@ -1,3 +1,5 @@
+/* eslint-disable no-console */
+/* eslint-disable import/no-unresolved */
 // testing from runkit is not (yet) supported.
 // please try testing from a desktop (see test.js)
 
