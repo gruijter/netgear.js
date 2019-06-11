@@ -138,11 +138,19 @@ async function getRouterInfo() {
 		log.push(`t = ${(Date.now() - t0) / 1000}`);
 
 		// get a list of attached devices
-		log.push('trying to get attachedDevices...');
-		const attachedDevices = await router.getAttachedDevices()
+		log.push('trying to get attachedDevices method 1...');
+		const attachedDevices = await router._getAttachedDevices()
 			.catch(error => logError(error));
-		log.push(`Number of attached devices: ${attachedDevices.length}, method: ${router.getAttachedDevicesMethod}`);
+		log.push(`Number of attached devices: ${attachedDevices.length}`);
 		log.push(`First attached device: ${JSON.stringify(attachedDevices[0])}`);
+		log.push(`t = ${(Date.now() - t0) / 1000}`);
+
+		// get a list of attached devices
+		log.push('trying to get attachedDevices method 2...');
+		const attachedDevices2 = await router._getAttachedDevices2()
+			.catch(error => logError(error));
+		log.push(`Number of attached devices: ${attachedDevices2.length}`);
+		log.push(`First attached device: ${JSON.stringify(attachedDevices2[0])}`);
 		log.push(`t = ${(Date.now() - t0) / 1000}`);
 
 		// get guest wifi status
@@ -201,6 +209,8 @@ async function getRouterInfo() {
 
 		// finish test
 		router.password = '*****';
+		router.lastResponse = '...';
+		router.cookie = Array.isArray(router.cookie);
 		log.push(router);
 		log.push(`t = ${(Date.now() - t0) / 1000}`);
 		if (errorCount) {
@@ -355,6 +365,28 @@ async function wol(mac, secureOnPassword) {
 	}
 }
 
+// function to get Attached devices list
+async function getAttachedDevices() {
+	try {
+		await router.login();
+		log.push('trying to get attachedDevices method 1...');
+		const attachedDevices = await router._getAttachedDevices();
+		log.push(`Number of attached devices: ${attachedDevices.length}`);
+		log.push(attachedDevices);
+
+		// get a list of attached devices
+		log.push('trying to get attachedDevices method 2...');
+		const attachedDevices2 = await router._getAttachedDevices2()
+			.catch(error => logError(error));
+		log.push(`Number of attached devices: ${attachedDevices2.length}`);
+		log.push(attachedDevices2);
+	}	catch (error) {
+		log.push(error);
+		router.password = '*****';
+		log.push(router);
+	}
+}
+
 exports.discover = () => {
 	try {
 		return Promise.resolve(router.discover());
@@ -368,6 +400,7 @@ exports.test = async (opts) => {
 	try {
 		await setupSession(opts);
 		await getRouterInfo();
+		// await getAttachedDevices();
 		// await blockOrAllow('AA:BB:CC:DD:EE:FF', 'Block');
 		// await blockOrAllow('AA:BB:CC:DD:EE:FF', 'Allow');
 		// await speedTest();

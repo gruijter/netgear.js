@@ -26,7 +26,7 @@ const setTimeoutPromise = util.promisify(setTimeout);
 const dnsLookupPromise = util.promisify(dns.lookup);
 
 const regexResponseCode = new RegExp(/<ResponseCode>(.*)<\/ResponseCode>/);
-const regexAttachedDevices = new RegExp(/<NewAttachDevice>(.*)<\/NewAttachDevice>/);
+const regexAttachedDevices = new RegExp(/<NewAttachDevice>(.*)<\/NewAttachDevice>/s);
 const regexNewTodayUpload = new RegExp(/<NewTodayUpload>(.*)<\/NewTodayUpload>/);
 const regexNewTodayDownload = new RegExp(/<NewTodayDownload>(.*)<\/NewTodayDownload>/);
 const regexNewMonthUpload = new RegExp(/<NewMonthUpload>(.*)<\/NewMonthUpload>/);
@@ -980,7 +980,9 @@ class NetgearRouter {
 			const message = soap.attachedDevices(this.sessionId);
 			const result = await this._makeRequest(soap.action.getAttachedDevices, message);
 			const devices = [];
-			const patchedBody = patchBody(result.body);
+			const patchedBody = patchBody(result.body)
+				.replace(/&lt;/gi, '')
+				.replace(/&gt;/gi, '');
 			const raw = regexAttachedDevices.exec(patchedBody)[1];
 			const entries = raw.split('@');
 			if (entries.length < 1) {
@@ -1035,7 +1037,6 @@ class NetgearRouter {
 			try {
 				entries = rawJson['v:Envelope']['v:Body']['m:GetAttachDevice2Response'].NewAttachDevice.Device;
 			} catch (err) {
-				// console.log(rawJson);
 				// console.log(err);
 				throw err;
 			}
