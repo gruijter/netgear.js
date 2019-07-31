@@ -58,7 +58,7 @@ const NetgearRouter = require('netgear');
 // note: options can be passed in here. See login options.
 const router = new NetgearRouter();
 
-// auto discovery a netgear router, including IP address and SOAP port. The discovered address and SOAP port will override previous settings
+// discover a netgear router, including IP address and SOAP port. The discovered address and SOAP port will override previous settings
 router.discover()
 	.then(discovered => console.log(discovered))
 	.catch(error => console.log(error));
@@ -75,7 +75,7 @@ async function getRouterInfo() {
 			password: 'mySecretPassword',	// Password can also be passed during login
 			host: '192.168.1.1',	// Autodiscovery will be performed when left out
 			port: 80,	// SOAP port. Autodiscovery will be performed when left out
-			tls: false,
+			tls: false,	// TLS/SSL (HTTPS) is only supported on certain router types
 		}
 		await router.login(options);
 
@@ -181,6 +181,8 @@ async function doWifiStuff() {
 		// disable 5GHz-2 guest wifi
 		await router.set5GGuestWifi2(false);
 		console.log('5-2 disabled');
+		// set 5GHz-1 wifi to channel 40
+		await router.setWifiChannel(40, '5G');
 	}	catch (error) {
 		console.log(error);
 	}
@@ -239,6 +241,21 @@ async function doParentalControlStuff() {
 }
 
 doParentalControlStuff();
+
+
+// function to change router name
+async function setNetgearDeviceName() {
+	try {
+		await router.login();
+		// set router name to 'TEST'
+		await router.setNetgearDeviceName('TEST');
+		console.log('router name changed to TEST');
+	}	catch (error) {
+		console.log(error);
+	}
+}
+
+setNetgearDeviceName();
 
 
 // function to update router firmware

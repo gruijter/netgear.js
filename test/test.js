@@ -28,7 +28,7 @@ Object.keys(args).forEach((arg) => {
 
 if (Object.keys(options).length === 0) {
 	options.password = process.argv[2];
-	options.user = process.argv[3];
+	options.username = process.argv[3] || 'admin';
 	options.host = process.argv[4];
 	options.port = process.argv[5];
 }

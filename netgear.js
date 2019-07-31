@@ -50,6 +50,10 @@ const regexNewMonthlyLimit = new RegExp(/<NewMonthlyLimit>(.*)<\/NewMonthlyLimit
 const regexRestartHour = new RegExp(/<RestartHour>(.*)<\/RestartHour>/);
 const regexRestartMinute = new RegExp(/<RestartMinute>(.*)<\/RestartMinute>/);
 const regexRestartDay = new RegExp(/<RestartDay>(.*)<\/RestartDay>/);
+const regexNewAvailableChannel = new RegExp(/<NewAvailableChannel>(.*)<\/NewAvailableChannel>/);
+const regexNewChannel = new RegExp(/<NewChannel>(.*)<\/NewChannel>/);
+const regexNew5GChannel = new RegExp(/<New5GChannel>(.*)<\/New5GChannel>/);
+const regexNew5G1Channel = new RegExp(/<New5G1Channel>(.*)<\/New5G1Channel>/);
 
 const defaultHost = 'routerlogin.net';
 const defaultUser = 'admin';
@@ -119,7 +123,7 @@ class NetgearRouter {
 		this.tls = options.tls || false;
 		this.username = options.username || username || defaultUser;
 		this.password = options.password || opts || defaultPassword;
-		this.timeout = options.timeout || 19000;
+		this.timeout = options.timeout || 18000;
 		this.sessionId = defaultSessionId;
 		this.cookie = undefined;
 		this.loggedIn = false;
@@ -385,7 +389,7 @@ class NetgearRouter {
 	}
 
 	/**
-	* Get LAN config
+	* Get WAN config
 	* @returns {Promise.<WANConfig>}
 	*/
 	async getWANConfig() {
@@ -463,6 +467,23 @@ class NetgearRouter {
 				});
 			const parentalControlEnabled = regexParentalControl.exec(result.body)[1] === '1';
 			return Promise.resolve(parentalControlEnabled);
+		} catch (error) {
+			return Promise.reject(error);
+		}
+	}
+
+	/**
+	* Set the device name
+	* @param {string} name - e.g. 'MyNetgearRouter'
+	* @returns {Promise<finished>}
+	*/
+	async setNetgearDeviceName(name) {
+		try {
+			const lanConfig = await this.getLANConfig();
+			const MAC = lanConfig.NewLANMACAddress;
+			const message = soap.setNetgearDeviceName(this.sessionId, MAC, name);
+			await this._makeRequest(soap.action.setNetgearDeviceName, message);
+			return Promise.resolve(true);
 		} catch (error) {
 			return Promise.reject(error);
 		}
@@ -793,6 +814,109 @@ class NetgearRouter {
 	async set5GGuestWifi2(enable) { // true or false
 		const method = await this._set5GGuestAccessEnabled2(enable);
 		return Promise.resolve(method);
+	}
+
+	/**
+	* Get available Wifi channels
+	* @param {string} [band = '2.4G'] - '2.4G', '5G' or '5G1'
+	* @returns {Promise.<channels[]>}
+	*/
+	async getWifiChannels(band) {
+		// console.log('Get available wifi channels');
+		try {
+
+			const message = soap.getAvailableChannel(this.sessionId, band || '2.4G');
+			const result = await this._makeRequest(soap.action.getAvailableChannel, message);
+			const availableChannels = regexNewAvailableChannel.exec(result.body)[1];
+			const availableChannelsArray = availableChannels.split(',');
+			return Promise.resolve(availableChannelsArray);
+		} catch (error) {
+			return Promise.reject(error);
+		}
+	}
+
+	/**
+	* Set the wifi channel
+	* @param {string} [channel = 'Auto'] - e.g. '6'
+	* @param {string} [band = '2.4G'] - '2.4G', '5G' or '5G1'
+	* @returns {Promise<finished>}
+	*/
+	async setWifiChannel(channel, band) {
+		// console.log('setting wifi channel');
+		try {
+			const chnl = channel || 'Auto';
+			const availableChannels = await this.getWifiChannels(band);
+			if (!availableChannels.includes(chnl)) throw Error('Channel is not supported on this band');
+			await this._configurationStarted();
+			if (band === '5G') {
+				const message = soap.set5GChannel(this.sessionId, chnl);
+				await this._makeRequest(soap.action.set5GChannel, message);
+			} else if (band === '5G1') {
+				const message = soap.set5G1Channel(this.sessionId, chnl);
+				await this._makeRequest(soap.action.set5G1Channel, message);
+			} else {
+				const message = soap.setChannel(this.sessionId, chnl);
+				await this._makeRequest(soap.action.setChannel, message);
+			}
+			await this._configurationFinished()
+				.catch(() => {
+					// console.log(`setGuestAccessEnabled finished with warning.`);
+				});
+			return Promise.resolve(true);
+		} catch (error) {
+			return Promise.reject(error);
+		}
+	}
+
+	/**
+	* Get 2.4G Wifi channel info
+	* @returns {Promise.<channel>}
+	*/
+	async getChannelInfo() {
+		// console.log('Get available 2.4G channel');
+		try {
+
+			const message = soap.getChannelInfo(this.sessionId);
+			const result = await this._makeRequest(soap.action.getChannelInfo, message);
+			const channel = regexNewChannel.exec(result.body)[1];
+			return Promise.resolve(channel);
+		} catch (error) {
+			return Promise.reject(error);
+		}
+	}
+
+	/**
+	* Get 5G-1 Wifi channel info
+	* @returns {Promise.<channel>}
+	*/
+	async get5GChannelInfo() {
+		// console.log('Get available 5G channel');
+		try {
+
+			const message = soap.get5GChannelInfo(this.sessionId);
+			const result = await this._makeRequest(soap.action.get5GChannelInfo, message);
+			const channel5G = regexNew5GChannel.exec(result.body)[1];
+			return Promise.resolve(channel5G);
+		} catch (error) {
+			return Promise.reject(error);
+		}
+	}
+
+	/**
+	* Get 5G-2 Wifi channel info
+	* @returns {Promise.<channel>}
+	*/
+	async get5G1ChannelInfo() {
+		// console.log('Get available 5G-2 channel');
+		try {
+
+			const message = soap.get5G1ChannelInfo(this.sessionId);
+			const result = await this._makeRequest(soap.action.get5G1ChannelInfo, message);
+			const channel5G1 = regexNew5G1Channel.exec(result.body)[1];
+			return Promise.resolve(channel5G1);
+		} catch (error) {
+			return Promise.reject(error);
+		}
 	}
 
 	/**
@@ -1334,9 +1458,15 @@ class NetgearRouter {
 				return Promise.resolve(result);
 			}
 			// request failed
+			if (responseCode === 1) {
+				throw Error('1 Unknown. The requested function is not available');
+			}
 			if (responseCode === 401) {
 				this.loggedIn = false;
-				throw Error('Unauthorized. Incorrect username/password?');
+				throw Error('401 Unauthorized. Incorrect password?');
+			}
+			if (responseCode === 404) {
+				throw Error('404 Not Found. The requested function/page is not available');
 			}
 			throw Error(`Invalid response code from router: ${responseCode}`);
 		} catch (error) {
@@ -1486,10 +1616,10 @@ module.exports = NetgearRouter;
 * @typedef sessionOptions
 * @description Set of configurable options to set on the router class
 * @property {string} [password = 'password'] - The login password. Defaults to 'password'.
-* @property {string} [user = 'admin'] - The login username. Defaults to 'admin'.
+* @property {string} [username = 'admin'] - The login username. Defaults to 'admin'.
 * @property {string} [host = 'routerlogin.net'] - The url or ip address of the router. Leave undefined to try autodiscovery.
 * @property {number} [port = 80] - The SOAP port of the router. Leave undefined to try autodiscovery.
-* @property {number} [timeout = 19000] - http(s) timeout in milliseconds. Defaults to 19000ms.
+* @property {number} [timeout = 18000] - http(s) timeout in milliseconds. Defaults to 18000ms.
 * @property {boolean} [tls = false] - Use TLS/SSL (HTTPS) for SOAP calls. Defaults to false.
 * @example // router options
 { password: 'mySecretPassword',
@@ -1728,4 +1858,11 @@ module.exports = NetgearRouter;
   NewBlockSiteName: '0',
   NewTimeZone: '+2',
   NewDaylightSaving: '1' }
+*/
+
+/**
+* @typedef channels
+* @description channels is an array with the available wifi channels.
+* @example // channels
+[ 'Auto', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12', '13' ]
 */

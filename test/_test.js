@@ -47,11 +47,18 @@ async function setupSession(opts) {
 	}
 }
 
-function logError(error) {
+async function logError(error) {
+	errorCount += 1;
 	log.push(error.message);
+	if (error.message === '404 Not Found. The requested function/page is not available') {
+		return {};
+	}
 	const lastResponse = { lastResponse: router.lastResponse };
 	log.push(lastResponse);
-	errorCount += 1;
+	if (!router.loggedIn) {
+		log.push('trying to login again...');
+		await router.login();
+	}
 	return {};
 }
 
@@ -153,6 +160,35 @@ async function getRouterInfo() {
 		log.push(`First attached device: ${JSON.stringify(attachedDevices2[0])}`);
 		log.push(`t = ${(Date.now() - t0) / 1000}`);
 
+		// get a list of available wifi channels
+		log.push('trying to get available and selected WiFi channels...');
+		await router.getWifiChannels()
+			.then((wifiChannels24) => { log.push(`Available channels 2.4G-1: ${wifiChannels24}`); })
+			.catch(() => { log.push('2.4G-1 channels are not available');	});
+		await router.getChannelInfo()
+			.then((channel24) => { log.push(`selected channel 2.4G-1: ${channel24}`); })
+			.catch(() => { log.push('2.4G-1 channel is not available');	});
+		await router.getWifiChannels('5G')
+			.then((wifiChannels5) => { log.push(`Available channels 5.0G-1: ${wifiChannels5}`); })
+			.catch(() => { log.push('5.0G-1 channels are not available');	});
+		await router.get5GChannelInfo()
+			.then((channel5) => { log.push(`selected channel 5.0G-1: ${channel5}`); })
+			.catch(() => { log.push('5.0G-1 channel is not available');	});
+		await router.getWifiChannels('5G1')
+			.then((wifiChannels51) => { log.push(`Available channels 5.0G-2: ${wifiChannels51}`); })
+			.catch(() => { log.push('5.0G-2 channels are not available');	});
+		await router.get5G1ChannelInfo()
+			.then((channel51) => { log.push(`selected channel  5.0G-2: ${channel51}`); })
+			.catch(() => { log.push('5.0G-2 channel is not available');	});
+		log.push(`t = ${(Date.now() - t0) / 1000}`);
+
+		// Get the smartConnectEnableStatus.
+		log.push('trying to get Smart Connect Status...');
+		const smartConnectEnabled = await router.getSmartConnectEnabled()
+			.catch(error => logError(error));
+		log.push(`Smart Connect Enabled: ${smartConnectEnabled}`);
+		log.push(`t = ${(Date.now() - t0) / 1000}`);
+
 		// get guest wifi status
 		log.push('trying to get Guest Wifi Status...');
 		await router.getGuestWifiEnabled()
@@ -164,13 +200,6 @@ async function getRouterInfo() {
 		await router.get5GGuestWifi2Enabled()
 			.then((enabled) => { log.push(`5.0G-2 Guest wifi enabled: ${enabled}`); })
 			.catch(() => { log.push('5.0G-2 Guest wifi is not available');	});
-		log.push(`t = ${(Date.now() - t0) / 1000}`);
-
-		// Get the smartConnectEnableStatus.
-		log.push('trying to get Smart Connect Status...');
-		const smartConnectEnabled = await router.getSmartConnectEnabled()
-			.catch(error => logError(error));
-		log.push(`Smart Connect Enabled: ${smartConnectEnabled}`);
 		log.push(`t = ${(Date.now() - t0) / 1000}`);
 
 		// Get the trafficMeterEnabled status.
@@ -256,6 +285,9 @@ async function doWifiStuff() {
 		// enable Smart Connect
 		await router.setSmartConnectEnabled(true);
 		log.push('Smart Connect Enabled');
+		// set 5GHz-1 wifi to channel 40
+		await router.setWifiChannel('40', '5G');
+		log.push('5-1 channel set to 40');
 	}	catch (error) {
 		log.push(error);
 		router.password = '*****';
@@ -318,6 +350,19 @@ async function updateNewFirmware() {
 		await router.login();
 		log.push('trying to update router firmware');
 		await router.updateNewFirmware();
+	}	catch (error) {
+		log.push(error);
+		router.password = '*****';
+		log.push(router);
+	}
+}
+
+// function to change router name
+async function setNetgearDeviceName() {
+	try {
+		await router.login();
+		log.push('trying to set router name to TEST...');
+		await router.setNetgearDeviceName('TEST');
 	}	catch (error) {
 		log.push(error);
 		router.password = '*****';
