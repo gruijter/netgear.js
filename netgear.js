@@ -36,6 +36,9 @@ const regexNewVersion = new RegExp(/<NewVersion>(.*)<\/NewVersion>/);
 const regexReleaseNote = new RegExp(/<ReleaseNote>(.*)<\/ReleaseNote>/);
 const regexNewUplinkBandwidth = new RegExp(/<NewUplinkBandwidth>(.*)<\/NewUplinkBandwidth>/);
 const regexNewDownlinkBandwidth = new RegExp(/<NewDownlinkBandwidth>(.*)<\/NewDownlinkBandwidth>/);
+const regexCurrentDeviceBandwidth = new RegExp(/<NewCurrentDeviceBandwidth>(.*)<\/NewCurrentDeviceBandwidth>/);
+const regexCurrentDeviceUpBandwidth = new RegExp(/<NewCurrentDeviceUpBandwidth>(.*)<\/NewCurrentDeviceUpBandwidth>/);
+const regexCurrentDeviceDownBandwidth = new RegExp(/<NewCurrentDeviceDownBandwidth>(.*)<\/NewCurrentDeviceDownBandwidth>/);
 const regexNewSettingMethod = new RegExp(/<NewSettingMethod>(.*)<\/NewSettingMethod>/);
 const regexUplinkBandwidth = new RegExp(/<NewOOKLAUplinkBandwidth>(.*)<\/NewOOKLAUplinkBandwidth>/);
 const regexDownlinkBandwidth = new RegExp(/<NewOOKLADownlinkBandwidth>(.*)<\/NewOOKLADownlinkBandwidth>/);
@@ -287,12 +290,12 @@ class NetgearRouter {
 		try {
 			const message = soap.getInfo(this.sessionId);
 			const result = await this._makeRequest(soap.action.getInfo,	message);
-			const patchedBody = patchBody(result.body);
+			// const patchedBody = patchBody(result.body);
 			// parse xml to json object
 			const parseOptions = {
 				compact: true, ignoreDeclaration: true, ignoreAttributes: true, spaces: 2,
 			};
-			const rawJson = parseXml.xml2js(patchedBody, parseOptions);
+			const rawJson = parseXml.xml2js(result.body, parseOptions);
 			const entries = rawJson['v:Envelope']['v:Body']['m:GetInfoResponse'];
 			const info = {};
 			Object.keys(entries).forEach((property) => {
@@ -314,12 +317,12 @@ class NetgearRouter {
 		try {
 			const message = soap.getSupportFeatureListXML(this.sessionId);
 			const result = await this._makeRequest(soap.action.getSupportFeatureListXML, message);
-			const patchedBody = patchBody(result.body);
+			// const patchedBody = patchBody(result.body);
 			// parse xml to json object
 			const parseOptions = {
 				compact: true, ignoreDeclaration: true, ignoreAttributes: true, spaces: 2,
 			};
-			const rawJson = parseXml.xml2js(patchedBody, parseOptions);
+			const rawJson = parseXml.xml2js(result.body, parseOptions);
 			const entries = rawJson['v:Envelope']['v:Body']['m:GetSupportFeatureListXMLResponse'].newFeatureList.features;
 			const supportFeatureList = {};
 			Object.keys(entries).forEach((property) => {
@@ -341,12 +344,12 @@ class NetgearRouter {
 		try {
 			const message = soap.getDeviceConfig(this.sessionId);
 			const result = await this._makeRequest(soap.action.getDeviceConfig, message);
-			const patchedBody = patchBody(result.body);
+			// const patchedBody = patchBody(result.body);
 			// parse xml to json object
 			const parseOptions = {
 				compact: true, ignoreDeclaration: true, ignoreAttributes: true, spaces: 2,
 			};
-			const rawJson = parseXml.xml2js(patchedBody, parseOptions);
+			const rawJson = parseXml.xml2js(result.body, parseOptions);
 			const entries = rawJson['v:Envelope']['v:Body']['m:GetInfoResponse'];
 			const deviceConfig = {};
 			Object.keys(entries).forEach((property) => {
@@ -369,12 +372,12 @@ class NetgearRouter {
 		try {
 			const message = soap.getLANConfig(this.sessionId);
 			const result = await this._makeRequest(soap.action.getLANConfig, message);
-			const patchedBody = patchBody(result.body);
+			// const patchedBody = patchBody(result.body);
 			// parse xml to json object
 			const parseOptions = {
 				compact: true, ignoreDeclaration: true, ignoreAttributes: true, spaces: 2,
 			};
-			const rawJson = parseXml.xml2js(patchedBody, parseOptions);
+			const rawJson = parseXml.xml2js(result.body, parseOptions);
 			const entries = rawJson['v:Envelope']['v:Body']['m:GetInfoResponse'];
 			const LANConfig = {};
 			Object.keys(entries).forEach((property) => {
@@ -396,12 +399,12 @@ class NetgearRouter {
 		try {
 			const message = soap.getWANIPConnection(this.sessionId);
 			const result = await this._makeRequest(soap.action.getWANIPConnection, message);
-			const patchedBody = patchBody(result.body);
+			// const patchedBody = patchBody(result.body);
 			// parse xml to json object
 			const parseOptions = {
 				compact: true, ignoreDeclaration: true, ignoreAttributes: true, spaces: 2,
 			};
-			const rawJson = parseXml.xml2js(patchedBody, parseOptions);
+			const rawJson = parseXml.xml2js(result.body, parseOptions);
 			const entries = rawJson['v:Envelope']['v:Body']['m:GetInfoResponse'];
 			const WANConfig = {};
 			Object.keys(entries).forEach((property) => {
@@ -420,15 +423,19 @@ class NetgearRouter {
 	* @returns {Promise.<AttachedDevice[]>}
 	*/
 	async getAttachedDevices() {
-		this.getAttachedDevicesMethod = 2;
-		const devices = await this._getAttachedDevices2()
-			.catch(() => {
-				// console.log('trying old method');
-				this.getAttachedDevicesMethod = 1;
-				return this._getAttachedDevices()
-					.catch(err => Promise.reject(err));
-			});
-		return Promise.resolve(devices);
+		try {
+			this.getAttachedDevicesMethod = 2;
+			const devices = await this._getAttachedDevices2()
+				.catch(() => {
+					// console.log('trying old method');
+					this.getAttachedDevicesMethod = 1;
+					return this._getAttachedDevices();
+					// .catch(err => Promise.reject(err));
+				});
+			return Promise.resolve(devices);
+		} catch (error) {
+			return Promise.reject(error);
+		}
 	}
 
 	/**
@@ -515,15 +522,50 @@ class NetgearRouter {
 	*/
 	async getQoSEnableStatus() {
 		try {
-			await this._configurationStarted();
 			const message = soap.getQoSEnableStatus(this.sessionId);
 			const result = await this._makeRequest(soap.action.getQoSEnableStatus, message);
-			await this._configurationFinished()
-				.catch(() => {
-					// console.log(`finished with warning`);
-				});
 			const qosEnabled = regexNewQoSEnableStatus.exec(result.body)[1] === '1';
 			return Promise.resolve(qosEnabled);
+		} catch (error) {
+			return Promise.reject(error);
+		}
+	}
+
+	/**
+	* Get QOS Device bandwith. Only works on R7000
+	* @returns {Promise.<currentDeviceBandwidth>}
+	*/
+	async getCurrentDeviceBandwidth() {
+		try {
+			const message = soap.getCurrentDeviceBandwidth(this.sessionId);
+			const result = await this._makeRequest(soap.action.getCurrentDeviceBandwidth, message);
+			const currentDeviceBandwidth = regexCurrentDeviceBandwidth.exec(result.body)[1];
+			// response:
+			// <m:GetCurrentDeviceBandwidthResponse xmlns:m="urn:NETGEAR-ROUTER:service:AdvancedQoS:1">
+			// 	<NewCurrentDeviceBandwidth>0</NewCurrentDeviceBandwidth>
+			// </m:GetCurrentDeviceBandwidthResponse>
+			return Promise.resolve(currentDeviceBandwidth);
+		} catch (error) {
+			return Promise.reject(error);
+		}
+	}
+
+	/**
+	* Get QOS getCurrentAppBandwidthByMAC. Only works on R7000
+	* @returns {Promise.<{ currentDeviceUpBandwidth, currentDeviceDownBandwidth }>}
+	*/
+	async getCurrentBandwidthByMAC(mac) {
+		try {
+			const message = soap.getCurrentBandwidthByMAC(this.sessionId, mac);
+			const result = await this._makeRequest(soap.action.getCurrentBandwidthByMAC, message);
+			const currentDeviceUpBandwidth = regexCurrentDeviceUpBandwidth.exec(result.body)[1];
+			const currentDeviceDownBandwidth = regexCurrentDeviceDownBandwidth.exec(result.body)[1];
+			// response:
+			// <m:GetCurrentBandwidthByMACResponse	xmlns:m="urn:NETGEAR-ROUTER:service:AdvancedQoS:1">
+			// 		<NewCurrentDeviceUpBandwidth>0</NewCurrentDeviceUpBandwidth>
+			// 		<NewCurrentDeviceDownBandwidth>0</NewCurrentDeviceDownBandwidth>
+			// 	</m:GetCurrentBandwidthByMACResponse>
+			return Promise.resolve({ currentDeviceUpBandwidth, currentDeviceDownBandwidth });
 		} catch (error) {
 			return Promise.reject(error);
 		}
@@ -1104,10 +1146,10 @@ class NetgearRouter {
 			const message = soap.attachedDevices(this.sessionId);
 			const result = await this._makeRequest(soap.action.getAttachedDevices, message);
 			const devices = [];
-			const patchedBody = patchBody(result.body)
+			const body = result.body
 				.replace(/&lt;/gi, '')
 				.replace(/&gt;/gi, '');
-			const raw = regexAttachedDevices.exec(patchedBody)[1];
+			const raw = regexAttachedDevices.exec(body)[1];
 			const entries = raw.split('@');
 			if (entries.length < 1) {
 				throw Error('Error parsing device-list (soap v2)');
@@ -1151,30 +1193,18 @@ class NetgearRouter {
 		try {
 			const message = soap.attachedDevices2(this.sessionId);
 			const result = await this._makeRequest(soap.action.getAttachedDevices2, message);
-			const patchedBody = patchBody(result.body);
+			// const patchedBody = patchBody(result.body);
 			// parse xml to json object
 			const parseOptions = {
 				compact: true, nativeType: true, ignoreDeclaration: true, ignoreAttributes: true,
 			};
-			const rawJson = parseXml.xml2js(patchedBody, parseOptions);
+			const rawJson = parseXml.xml2js(result.body, parseOptions);
 			let entries;
 			try {
 				entries = rawJson['v:Envelope']['v:Body']['m:GetAttachDevice2Response'].NewAttachDevice.Device;
+				if (!Array.isArray(entries)) throw Error('Error parsing device-list');
 			} catch (err) {
-				// console.log(err);
 				throw err;
-			}
-			const info = {};
-			Object.keys(entries).forEach((property) => {
-				if (Object.prototype.hasOwnProperty.call(entries, property)) {
-					info[property] = entries[property]._text;
-				}
-			});
-			if (entries === undefined) {
-				throw Error(`Error parsing device-list (entries undefined) ${rawJson}`);
-			}
-			if (entries.length < 1) {
-				throw Error('Error parsing device-list');
 			}
 			const devices = entries.map((entry) => {
 				const device = {};
@@ -1455,6 +1485,8 @@ class NetgearRouter {
 			}
 			const responseCode = Number(responseCodeRegex[1]);
 			if (responseCode === 0) {
+				result.body = patchBody(result.body);
+				if (!result.body.includes('</v:Envelope>')) throw Error('Incomplete soap response received');
 				return Promise.resolve(result);
 			}
 			// request failed
@@ -1517,6 +1549,9 @@ class NetgearRouter {
 					resBody += chunk;
 				});
 				res.once('end', () => {
+					if (!res.complete) {
+						return reject(Error('The connection was terminated while the message was still being sent'));
+					}
 					res.body = resBody;
 					return resolve(res); // resolve the request
 				});
@@ -1525,6 +1560,7 @@ class NetgearRouter {
 				req.abort();
 			});
 			req.once('error', (e) => {
+				req.abort();
 				this.lastResponse = e;	// e.g. ECONNREFUSED on wrong soap port or wrong IP // ECONNRESET on wrong IP
 				return reject(e);
 			});
@@ -1541,6 +1577,9 @@ class NetgearRouter {
 					resBody += chunk;
 				});
 				res.once('end', () => {
+					if (!res.complete) {
+						return reject(Error('The connection was terminated while the message was still being sent'));
+					}
 					res.body = resBody;
 					return resolve(res); // resolve the request
 				});
@@ -1549,6 +1588,7 @@ class NetgearRouter {
 				req.abort();
 			});
 			req.once('error', (e) => {
+				req.abort();
 				this.lastResponse = e;	// e.g. ECONNREFUSED on wrong soap port or wrong IP // ECONNRESET on wrong IP
 				return reject(e);
 			});

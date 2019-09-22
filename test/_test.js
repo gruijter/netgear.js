@@ -309,6 +309,14 @@ async function doQosStuff() {
 		log.push('trying to get Qos Bandwidth options...');
 		const bandwidthControlOptions = await router.getBandwidthControlOptions();
 		log.push(bandwidthControlOptions);
+		// not really sure what this does. Does not work on R7800
+		log.push('trying to get Qos getCurrentDeviceBandwidth...');
+		const currentDeviceBandwidth = await router.getCurrentDeviceBandwidth();
+		log.push(currentDeviceBandwidth);
+		// not really sure what this does. Does not work on R7800
+		log.push('trying to get Qos getCurrentBandwidthByMAC...');
+		const currentBandwidthByMAC = await router.getCurrentBandwidthByMAC('AA:BB:CC:DD:EE:FF');
+		log.push(currentBandwidthByMAC);
 	}	catch (error) {
 		log.push(error);
 		router.password = '*****';
@@ -432,6 +440,20 @@ async function getAttachedDevices() {
 	}
 }
 
+// special testing ongoing...
+async function doSpecialTest() {
+	try {
+		await router.login();
+		log.push('performing special test');
+		const result = await router.getAttachedDevices();
+		log.push(result);
+	}	catch (error) {
+		log.push(error);
+		router.password = '*****';
+		log.push(router);
+	}
+}
+
 exports.discover = () => {
 	try {
 		return Promise.resolve(router.discover());
@@ -445,6 +467,7 @@ exports.test = async (opts) => {
 	try {
 		await setupSession(opts);
 		await getRouterInfo();
+		// await doSpecialTest();
 		// await getAttachedDevices();
 		// await blockOrAllow('AA:BB:CC:DD:EE:FF', 'Block');
 		// await blockOrAllow('AA:BB:CC:DD:EE:FF', 'Allow');

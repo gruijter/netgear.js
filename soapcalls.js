@@ -75,9 +75,12 @@ exports.action = {
 	set5G1Channel: 'urn:NETGEAR-ROUTER:service:WLANConfiguration:1#Set5G1Channel',	// ***NEW***
 
 	// Potentially NEW STUFF > still needs to be implemented in soapcalls.js
-	// urn:NETGEAR-ROUTER:service:AdvancedQoS:1#GetCurrentAppBandwidth
-	// urn:NETGEAR-ROUTER:service:AdvancedQoS:1#GetCurrentDeviceBandwidth
-	// urn:NETGEAR-ROUTER:service:AdvancedQoS:1#GetCurrentAppBandwidthByMAC
+
+	// http://<IP>/cgi-bin/ozker/api/flows?ts=156836450966	// bandwidth info via webinterface?
+	// getCurrentAppBandwidth: 'urn:NETGEAR-ROUTER:service:AdvancedQoS:1#GetCurrentAppBandwidth',	// cannot get this to work yet...
+	getCurrentDeviceBandwidth: 'urn:NETGEAR-ROUTER:service:AdvancedQoS:1#GetCurrentDeviceBandwidth',	// ***NEW*** response on R7000, not R7800
+	// getCurrentAppBandwidthByMAC: 'urn:NETGEAR-ROUTER:service:AdvancedQoS:1#GetCurrentAppBandwidthByMAC', // cannot get this to work yet...
+	getCurrentBandwidthByMAC: 'urn:NETGEAR-ROUTER:service:AdvancedQoS:1#GetCurrentBandwidthByMAC', // ***NEW*** response on R7000, not R7800
 	// urn:NETGEAR-ROUTER:service:WLANConfiguration:1#GetWPASecurityKeys
 	// urn:NETGEAR-ROUTER:service:WLANConfiguration:1#Get5GWPASecurityKeys
 	// urn:NETGEAR-ROUTER:service:WLANConfiguration:1#Get5GInfo
@@ -201,6 +204,23 @@ exports.enableParentalControl = (sessionId, enabled) => {
 exports.getQoSEnableStatus = (sessionId) => {
 	const soapBody = `<v:Body>
 		<M1:GetQoSEnableStatus xmlns:M1="urn:NETGEAR-ROUTER:service:AdvancedQoS:1" />
+	</v:Body>`;
+	return soapEnvelope(sessionId, soapBody);
+};
+
+exports.getCurrentDeviceBandwidth = (sessionId) => {
+	const soapBody = `<v:Body>
+		<M1:GetCurrentDeviceBandwidth xmlns:M1="urn:NETGEAR-ROUTER:service:AdvancedQoS:1">
+		</M1:GetCurrentDeviceBandwidth>
+	</v:Body>`;
+	return soapEnvelope(sessionId, soapBody);
+};
+
+exports.getCurrentBandwidthByMAC = (sessionId, mac) => {
+	const soapBody = `<v:Body>
+		<M1:GetCurrentBandwidthByMAC xmlns:M1="urn:NETGEAR-ROUTER:service:AdvancedQoS:1>
+			<NewMACAddress>${mac}</NewMACAddress>
+		</M1:GetCurrentBandwidthByMAC>
 	</v:Body>`;
 	return soapEnvelope(sessionId, soapBody);
 };
