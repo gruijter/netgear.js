@@ -6,6 +6,7 @@
 
 /* eslint-disable no-await-in-loop */
 /* eslint-disable prefer-destructuring */
+/* eslint-disable max-classes-per-file */
 
 'use strict';
 
@@ -57,6 +58,7 @@ const regexNewAvailableChannel = new RegExp(/<NewAvailableChannel>(.*)<\/NewAvai
 const regexNewChannel = new RegExp(/<NewChannel>(.*)<\/NewChannel>/);
 const regexNew5GChannel = new RegExp(/<New5GChannel>(.*)<\/New5GChannel>/);
 const regexNew5G1Channel = new RegExp(/<New5G1Channel>(.*)<\/New5G1Channel>/);
+const regexLogs = new RegExp(/>\[(.*)<\/textarea>/s);
 
 const defaultHost = 'routerlogin.net';
 const defaultUser = 'admin';
@@ -112,7 +114,7 @@ const xml10pattern = '[^'
 // 						+ '\ud800\udc00-\udbff\udfff'
 // 						+ ']+';
 
-const patchBody = body => body
+const patchBody = (body) => body
 	.replace(xml10pattern, '')
 	.replace(/soap-env:envelope/gi, 'v:Envelope')
 	.replace(/soap-env:body/gi, 'v:Body');
@@ -277,6 +279,61 @@ class NetgearRouter {
 				throw Error('This is not a valid Netgear router');
 			}
 			throw Error('Unknow error');
+		} catch (error) {
+			return Promise.reject(error);
+		}
+	}
+
+	/**
+	* Get router logs. Note: not via SOAP
+	* @param {boolean} [parse = false] - will parse the results to json if true
+	* @returns {Promise.<logs>}
+	*/
+	async getLogs(parse) {
+		try {
+			const headers = {
+				'User-Agent': 'netgear.js',
+				Connection: 'keep-alive',
+				// Cookie: ['XSRF_TOKEN=1201279486; Path=/'],
+				// Authorization: 'Basic ' + Buffer.from(this.username + ":" + this.password).toString('base64'),
+			};
+			const options = {
+				hostname: this.host,
+				port: 80,
+				path: '/FW_log.htm',
+				headers,
+				auth: `${this.username}:${this.password}`,
+				method: 'GET',
+			};
+			let result = await this._makeHttpRequest(options, '');
+			if (result.statusCode !== 200) {
+				if (result.headers['set-cookie']) headers.cookie = result.headers['set-cookie'];
+				result = await this._makeHttpRequest(options, '');
+			}
+			this.lastResponse = result.body;
+			if (result.statusCode !== 200) {
+				throw Error(`HTTP request Failed. Status Code: ${result.statusCode}`);
+			}
+			if (!result.body.includes('</textarea>')) throw Error('Incorrect response received');
+			const logsRaw = `[${regexLogs.exec(result.body.trim())[1]}`;
+			const entries = logsRaw
+				.split(/[\r\n]+/gm)
+				.filter((entry) => entry.length > 0);
+			if (!parse) {
+				return Promise.resolve(entries);
+			}
+			// start parsing stuff
+			const logs = entries
+				.map((entry) => {
+					const items = entry.split(',');
+					return {
+						string: entry,
+						event: `${entry.split(']')[0]}]`,
+						info: items[0].split(']')[1] ? items[0].split(']')[1].trim() : undefined,
+						ts: new Date(`${items[items.length]}, ${items[items.length - 1]}`),
+					};
+				});
+			return Promise.resolve(logs);
 		} catch (error) {
 			return Promise.reject(error);
 		}
@@ -788,7 +845,7 @@ class NetgearRouter {
 				// console.log('trying method 2');
 				this.guestWifiMethod.set24_1 = 2;
 				return this._setGuestAccessEnabled2(enable)
-					.catch(err => Promise.reject(err));
+					.catch((err) => Promise.reject(err));
 			});
 		return Promise.resolve(method);
 	}
@@ -827,7 +884,7 @@ class NetgearRouter {
 				// console.log('trying method 2');
 				this.guestWifiMethod.set50_1 = 1;
 				return this._set5G1GuestAccessEnabled(enable)
-					.catch(err => Promise.reject(err));
+					.catch((err) => Promise.reject(err));
 			});
 		return Promise.resolve(method);
 	}
@@ -1199,13 +1256,8 @@ class NetgearRouter {
 				compact: true, nativeType: true, ignoreDeclaration: true, ignoreAttributes: true,
 			};
 			const rawJson = parseXml.xml2js(result.body, parseOptions);
-			let entries;
-			try {
-				entries = rawJson['v:Envelope']['v:Body']['m:GetAttachDevice2Response'].NewAttachDevice.Device;
-				if (!Array.isArray(entries)) throw Error('Error parsing device-list');
-			} catch (err) {
-				throw err;
-			}
+			const entries = rawJson['v:Envelope']['v:Body']['m:GetAttachDevice2Response'].NewAttachDevice.Device;
+			if (!Array.isArray(entries)) throw Error('Error parsing device-list');
 			const devices = entries.map((entry) => {
 				const device = {};
 				Object.keys(entry).forEach((key) => {
@@ -1372,7 +1424,7 @@ class NetgearRouter {
 				return result;
 			});
 			const allHosts = await Promise.all(allHostsPromise);
-			const discoveredHosts = allHosts.filter(host => host);
+			const discoveredHosts = allHosts.filter((host) => host);
 			if (!discoveredHosts[0]) {
 				throw Error('No Netgear router could be discovered');
 			}
@@ -1906,3 +1958,21 @@ module.exports = NetgearRouter;
 * @example // channels
 [ 'Auto', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12', '13' ]
 */
+
+/**
+* @typedef logs
+* @description logs is an array with the log events.
+* @example // parsed logs
+[	{	string: '[admin login] from source 10.0.0.2, Wednesday, October 02, 2019 20:00:41',
+		event: '[admin login]',
+		info: 'from source 10.0.0.2',
+		ts: 2019-01-01T19:00:41.000Z },
+	{	string: '[DHCP IP: 10.0.0.3] to MAC address e1:4f:25:68:34:ba, Wednesday, October 02, 2019 20:00:39',
+		event: '[DHCP IP: 10.0.0.3]',
+		info: 'to MAC address e1:4f:25:68:34:ba',
+		ts: 2019-01-01T19:00:39.000Z },
+	{	string: '[LAN access from remote] from 77.247.108.110:55413 to 10.0.0.5:443, Wednesday, October 02, 2019 19:59:39',
+		event: '[LAN access from remote]',
+		info: 'from 77.247.108.110:55413 to 10.0.0.5:443',
+		ts: 2019-01-01T18:59:39.000Z } ]
+ */

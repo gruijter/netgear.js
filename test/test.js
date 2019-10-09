@@ -51,4 +51,4 @@ _test.test(options)
 			console.log(log[i]);
 		}
 	})
-	.catch(error => console.log(error));
+	.catch((error) => console.log(error));

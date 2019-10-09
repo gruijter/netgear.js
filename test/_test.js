@@ -83,7 +83,7 @@ async function getRouterInfo() {
 		// Get router type, serial number, hardware version, firmware version, soap version, firewall version, etc.
 		log.push('trying to getInfo...');
 		const info = await router.getInfo()
-			.catch(error => logError(error));
+			.catch((error) => logError(error));
 		info.SerialNumber = '**********';
 		log.push(info);
 		log.push(`t = ${(Date.now() - t0) / 1000}`);
@@ -91,63 +91,63 @@ async function getRouterInfo() {
 		// Get the support features.
 		log.push('trying to get supportFeatures...');
 		const supportFeatures = await router.getSupportFeatureListXML()
-			.catch(error => logError(error));
+			.catch((error) => logError(error));
 		log.push(supportFeatures);
 		log.push(`t = ${(Date.now() - t0) / 1000}`);
 
 		// Get the Device config.
 		log.push('trying to get the Device configuration...');
 		const DeviceConfig = await router.getDeviceConfig()
-			.catch(error => logError(error));
+			.catch((error) => logError(error));
 		log.push(DeviceConfig);
 		log.push(`t = ${(Date.now() - t0) / 1000}`);
 
 		// Get the LAN config.
 		log.push('trying to get the LAN configuration...');
 		const LANConfig = await router.getLANConfig()
-			.catch(error => logError(error));
+			.catch((error) => logError(error));
 		log.push(LANConfig);
 		log.push(`t = ${(Date.now() - t0) / 1000}`);
 
 		// Get the WAN config.
 		log.push('trying to get the WAN configuration...');
 		const WANConfig = await router.getWANConfig()
-			.catch(error => logError(error));
+			.catch((error) => logError(error));
 		log.push(WANConfig);
 		log.push(`t = ${(Date.now() - t0) / 1000}`);
 
 		// Get the parentalControlEnableStatus.
 		log.push('trying to get Parental Control Status...');
 		const parentalControlEnabled = await router.getParentalControlEnableStatus()
-			.catch(error => logError(error));
+			.catch((error) => logError(error));
 		log.push(`Parental Control Enabled: ${parentalControlEnabled}`);
 		log.push(`t = ${(Date.now() - t0) / 1000}`);
 
 		// Get the qosEnableStatus.
 		log.push('trying to get Qos Status...');
 		const qosEnabled = await router.getQoSEnableStatus()
-			.catch(error => logError(error));
+			.catch((error) => logError(error));
 		log.push(`Qos Enabled: ${qosEnabled}`);
 		log.push(`t = ${(Date.now() - t0) / 1000}`);
 
 		// Get the getBandwidthControlOptions.
 		log.push('trying to get Qos Bandwidth options...');
 		const bandwidthControlOptions = await router.getBandwidthControlOptions()
-			.catch(error => logError(error));
+			.catch((error) => logError(error));
 		log.push(bandwidthControlOptions);
 		log.push(`t = ${(Date.now() - t0) / 1000}`);
 
 		// Get the blockDeviceEnabledStatus.
 		log.push('trying to get Device Access Control Status...');
 		const blockDeviceEnabled = await router.getBlockDeviceEnableStatus()
-			.catch(error => logError(error));
+			.catch((error) => logError(error));
 		log.push(`Block Device Enabled: ${blockDeviceEnabled}`);
 		log.push(`t = ${(Date.now() - t0) / 1000}`);
 
 		// get a list of attached devices
 		log.push('trying to get attachedDevices method 1...');
 		const attachedDevices = await router._getAttachedDevices()
-			.catch(error => logError(error));
+			.catch((error) => logError(error));
 		log.push(`Number of attached devices: ${attachedDevices.length}`);
 		log.push(`First attached device: ${JSON.stringify(attachedDevices[0])}`);
 		log.push(`t = ${(Date.now() - t0) / 1000}`);
@@ -155,7 +155,7 @@ async function getRouterInfo() {
 		// get a list of attached devices
 		log.push('trying to get attachedDevices method 2...');
 		const attachedDevices2 = await router._getAttachedDevices2()
-			.catch(error => logError(error));
+			.catch((error) => logError(error));
 		log.push(`Number of attached devices: ${attachedDevices2.length}`);
 		log.push(`First attached device: ${JSON.stringify(attachedDevices2[0])}`);
 		log.push(`t = ${(Date.now() - t0) / 1000}`);
@@ -185,7 +185,7 @@ async function getRouterInfo() {
 		// Get the smartConnectEnableStatus.
 		log.push('trying to get Smart Connect Status...');
 		const smartConnectEnabled = await router.getSmartConnectEnabled()
-			.catch(error => logError(error));
+			.catch((error) => logError(error));
 		log.push(`Smart Connect Enabled: ${smartConnectEnabled}`);
 		log.push(`t = ${(Date.now() - t0) / 1000}`);
 
@@ -205,36 +205,43 @@ async function getRouterInfo() {
 		// Get the trafficMeterEnabled status.
 		log.push('trying to get the Traffic Meter Enabled Status...');
 		const trafficMeterEnabled = await router.getTrafficMeterEnabled()
-			.catch(error => logError(error));
+			.catch((error) => logError(error));
 		log.push(`Traffic Meter Enabled: ${trafficMeterEnabled}`);
 		log.push(`t = ${(Date.now() - t0) / 1000}`);
 
 		// Get the trafficMeter Options
 		log.push('trying to get the Traffic Meter Options...');
 		const getTrafficMeterOptions = await router.getTrafficMeterOptions()
-			.catch(error => logError(error));
+			.catch((error) => logError(error));
 		log.push(getTrafficMeterOptions);
 		log.push(`t = ${(Date.now() - t0) / 1000}`);
 
 		// get traffic statistics for this day and this month. Note: traffic monitoring must be enabled in router
 		log.push('trying to get trafficMeter...');
 		const traffic = await router.getTrafficMeter()
-			.catch(error => logError(error));
+			.catch((error) => logError(error));
 		log.push(traffic);
 		log.push(`t = ${(Date.now() - t0) / 1000}`);
 
 		// check for new router firmware and release note
 		log.push('trying to check newFirmware...');
 		const firmware = await router.checkNewFirmware()
-			.catch(error => logError(error));
+			.catch((error) => logError(error));
 		log.push(`check newFirmware method: ${router.checkNewFirmwareMethod}`);
 		log.push(firmware);
+		log.push(`t = ${(Date.now() - t0) / 1000}`);
+
+		// check for new router firmware and release note
+		log.push('trying to get router logs...');
+		const logs = await router.getLogs()
+			.catch((error) => logError(error));
+		log.push(`last log: ${logs[0]}`);
 		log.push(`t = ${(Date.now() - t0) / 1000}`);
 
 		// logout
 		log.push('trying to logout...');
 		await router.logout()
-			.catch(error => logError(error));
+			.catch((error) => logError(error));
 
 		// finish test
 		router.password = '*****';
@@ -430,7 +437,7 @@ async function getAttachedDevices() {
 		// get a list of attached devices
 		log.push('trying to get attachedDevices method 2...');
 		const attachedDevices2 = await router._getAttachedDevices2()
-			.catch(error => logError(error));
+			.catch((error) => logError(error));
 		log.push(`Number of attached devices: ${attachedDevices2.length}`);
 		log.push(attachedDevices2);
 	}	catch (error) {
@@ -443,9 +450,10 @@ async function getAttachedDevices() {
 // special testing ongoing...
 async function doSpecialTest() {
 	try {
-		await router.login();
+		// await router.login();
+		// await router.logout();
 		log.push('performing special test');
-		const result = await router.getAttachedDevices();
+		const result = await router.getLogs(true);
 		log.push(result);
 	}	catch (error) {
 		log.push(error);
