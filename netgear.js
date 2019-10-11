@@ -328,7 +328,7 @@ class NetgearRouter {
 					const items = entry.split(',');
 					return {
 						string: entry,
-						event: `${entry.split(']')[0]}]`,
+						event: `${entry.split(']')[0]}`.replace(/[[\]]/g, ''),
 						info: items[0].split(']')[1] ? items[0].split(']')[1].trim() : undefined,
 						ts: new Date(`${items[items.length]}, ${items[items.length - 1]}`),
 					};
@@ -1964,15 +1964,15 @@ module.exports = NetgearRouter;
 * @description logs is an array with the log events.
 * @example // parsed logs
 [	{	string: '[admin login] from source 10.0.0.2, Wednesday, October 02, 2019 20:00:41',
-		event: '[admin login]',
+		event: 'admin login',
 		info: 'from source 10.0.0.2',
 		ts: 2019-01-01T19:00:41.000Z },
 	{	string: '[DHCP IP: 10.0.0.3] to MAC address e1:4f:25:68:34:ba, Wednesday, October 02, 2019 20:00:39',
-		event: '[DHCP IP: 10.0.0.3]',
+		event: 'DHCP IP: 10.0.0.3',
 		info: 'to MAC address e1:4f:25:68:34:ba',
 		ts: 2019-01-01T19:00:39.000Z },
 	{	string: '[LAN access from remote] from 77.247.108.110:55413 to 10.0.0.5:443, Wednesday, October 02, 2019 19:59:39',
-		event: '[LAN access from remote]',
+		event: 'LAN access from remote',
 		info: 'from 77.247.108.110:55413 to 10.0.0.5:443',
 		ts: 2019-01-01T18:59:39.000Z } ]
  */

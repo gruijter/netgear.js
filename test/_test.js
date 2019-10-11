@@ -233,7 +233,7 @@ async function getRouterInfo() {
 
 		// check for new router firmware and release note
 		log.push('trying to get router logs...');
-		const logs = await router.getLogs()
+		const logs = await router.getLogs(false)
 			.catch((error) => logError(error));
 		log.push(`last log: ${logs[0]}`);
 		log.push(`t = ${(Date.now() - t0) / 1000}`);

@@ -1,6 +1,6 @@
 {
   "name": "netgear",
-  "version": "3.9.1",
+  "version": "3.9.2",
   "description": "Node module to interact with Netgear routers via SOAP",
   "main": "netgear.js",
   "scripts": {
