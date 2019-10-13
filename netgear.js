@@ -60,6 +60,8 @@ const regexNew5GChannel = new RegExp(/<New5GChannel>(.*)<\/New5GChannel>/);
 const regexNew5G1Channel = new RegExp(/<New5G1Channel>(.*)<\/New5G1Channel>/);
 const regexNewLogDetails = new RegExp(/<NewLogDetails>(.*)<\/NewLogDetails>/s);
 const regexSysUpTime = new RegExp(/<SysUpTime>(.*)<\/SysUpTime>/);
+const regexNewEthernetLinkStatus = new RegExp(/<NewEthernetLinkStatus>(.*)<\/NewEthernetLinkStatus>/);
+
 
 const defaultHost = 'routerlogin.net';
 const defaultUser = 'admin';
@@ -472,6 +474,23 @@ class NetgearRouter {
 				}
 			});
 			return Promise.resolve(LANConfig);
+		} catch (error) {
+			return Promise.reject(error);
+		}
+	}
+
+
+	/**
+	* Get Internet connection status, e.g. 'Up'
+	* @returns {Promise.<ethernetLinkStatus>}
+	*/
+	async getEthernetLinkStatus() {
+		try {
+			const message = soap.getEthernetLinkStatus(this.sessionId);
+			const result = await this._makeRequest(soap.action.getEthernetLinkStatus, message);
+			if (!result.body.includes('</NewEthernetLinkStatus>')) throw Error('Incorrect or incomplete response from router');
+			const ethernetLinkStatus = regexNewEthernetLinkStatus.exec(result.body)[1];
+			return Promise.resolve(ethernetLinkStatus);
 		} catch (error) {
 			return Promise.reject(error);
 		}

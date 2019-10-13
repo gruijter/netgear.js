@@ -1,3 +1,4 @@
+3.9.5 - 13-10-2019 Added SOAP action for getEthernetLinkStatus.
 3.9.4 - 13-10-2019 Log retrieval via SOAP. Added SOAP actions for deviceInfo.
 3.9.2 - 11-10-2019 Small change in log retrieval (experimental, no soap).
 3.9.1 - 29-09-2019 Small refactoring changes. Added retrieve logs (experimental, no soap).

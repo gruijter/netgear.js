@@ -34,6 +34,7 @@ exports.action = {
 	// device config, LAN/WAN related
 	getLANConfig: 'urn:NETGEAR-ROUTER:service:LANConfigSecurity:1#GetInfo',
 	getWANIPConnection: 'urn:NETGEAR-ROUTER:service:WANIPConnection:1#GetInfo',
+	getEthernetLinkStatus: 'urn:NETGEAR-ROUTER:service:WANEthernetLinkConfig:1#GetEthernetLinkStatus', // ***NEW***
 
 	// parental control
 	getParentalControlEnableStatus: 'urn:NETGEAR-ROUTER:service:ParentalControl:1#GetEnableStatus',
@@ -98,7 +99,7 @@ exports.action = {
 	// urn:NETGEAR-ROUTER:service:WANIPConnection:1#GetDNSLookUpStatus
 	// urn:NETGEAR-ROUTER:service:WANIPConnection:1#GetPPPConnStatus
 	// urn:NETGEAR-ROUTER:service:WANIPConnection:1#GetPortMappingInfo
-	// urn:NETGEAR-ROUTER:service:WANEthernetLinkConfig:1#GetEthernetLinkStatus > Up or down
+
 
 	// urn:NETGEAR-ROUTER:service:WLANConfiguration:1#GetWEPSecurityKeys
 	// urn:NETGEAR-ROUTER:service:WLANConfiguration:1#Get5GWEPSecurityKeys
@@ -226,6 +227,13 @@ exports.getSystemLogs = (sessionId) => {
 exports.getLANConfig = (sessionId) => {
 	const soapBody = `<v:Body>
 		<n0:GetInfo xmlns:n0="urn:NETGEAR-ROUTER:service:LANConfigSecurity:1" />
+	</v:Body>`;
+	return soapEnvelope(sessionId, soapBody);
+};
+
+exports.getEthernetLinkStatus = (sessionId) => {
+	const soapBody = `<v:Body>
+		<M1:GetEthernetLinkStatus xsi:nil="true" />
 	</v:Body>`;
 	return soapEnvelope(sessionId, soapBody);
 };
