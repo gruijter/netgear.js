@@ -88,6 +88,22 @@ async function getRouterInfo() {
 		log.push(info);
 		log.push(`t = ${(Date.now() - t0) / 1000}`);
 
+		// Get router CPU and Memory utilization
+		log.push('trying to get System Uptime (hh:mm:ss)...');
+		const sysUpTime = await router.getSysUpTime()
+			.catch((error) => logError(error));
+		info.SerialNumber = '**********';
+		log.push(sysUpTime);
+		log.push(`t = ${(Date.now() - t0) / 1000}`);
+
+		// Get router uptime
+		log.push('trying to getSystemInfo...');
+		const systemInfo = await router.getSystemInfo()
+			.catch((error) => logError(error));
+		info.SerialNumber = '**********';
+		log.push(systemInfo);
+		log.push(`t = ${(Date.now() - t0) / 1000}`);
+
 		// Get the support features.
 		log.push('trying to get supportFeatures...');
 		const supportFeatures = await router.getSupportFeatureListXML()
@@ -233,7 +249,7 @@ async function getRouterInfo() {
 
 		// check for new router firmware and release note
 		log.push('trying to get router logs...');
-		const logs = await router.getLogs(false)
+		const logs = await router.getSystemLogs(false)
 			.catch((error) => logError(error));
 		log.push(`last log: ${logs[0]}`);
 		log.push(`t = ${(Date.now() - t0) / 1000}`);
@@ -450,11 +466,12 @@ async function getAttachedDevices() {
 // special testing ongoing...
 async function doSpecialTest() {
 	try {
-		// await router.login();
+		await router.login();
 		// await router.logout();
 		log.push('performing special test');
-		const result = await router.getLogs(true);
-		log.push(result);
+		const info = await router.getSysUpTime();
+		// console.log(info);
+		log.push(info);
 	}	catch (error) {
 		log.push(error);
 		router.password = '*****';

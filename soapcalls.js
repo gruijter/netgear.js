@@ -44,7 +44,10 @@ exports.action = {
 	getSupportFeatureListXML: 'urn:NETGEAR-ROUTER:service:DeviceInfo:1#GetSupportFeatureListXML',
 	getAttachedDevices: 'urn:NETGEAR-ROUTER:service:DeviceInfo:1#GetAttachDevice',
 	getAttachedDevices2: 'urn:NETGEAR-ROUTER:service:DeviceInfo:1#GetAttachDevice2',
-	setNetgearDeviceName: 'urn:NETGEAR-ROUTER:service:DeviceInfo:1#SetNetgearDeviceName', // ***NEW***
+	setNetgearDeviceName: 'urn:NETGEAR-ROUTER:service:DeviceInfo:1#SetNetgearDeviceName',
+	getSystemLogs: 'urn:NETGEAR-ROUTER:service:DeviceInfo:1#GetSystemLogs', // ***NEW***
+	getSystemInfo: 'urn:NETGEAR-ROUTER:service:DeviceInfo:1#GetSystemInfo', // ***NEW***
+	getSysUpTime: 'urn:NETGEAR-ROUTER:service:DeviceInfo:1#GetSysUpTime',	// ***NEW***
 
 	// AdvancedQoS
 	speedTestStart: 'urn:NETGEAR-ROUTER:service:AdvancedQoS:1#SetOOKLASpeedTestStart',
@@ -66,37 +69,83 @@ exports.action = {
 	set5GGuestAccessEnabled2: 'urn:NETGEAR-ROUTER:service:WLANConfiguration:1#Set5GGuestAccessEnabled2',	// 5G-2 R8000
 	getSmartConnectEnabled: 'urn:NETGEAR-ROUTER:service:WLANConfiguration:1#IsSmartConnectEnabled',
 	setSmartConnectEnabled: 'urn:NETGEAR-ROUTER:service:WLANConfiguration:1#SetSmartConnectEnable',
-	getAvailableChannel: 'urn:NETGEAR-ROUTER:service:WLANConfiguration:1#GetAvailableChannel',	// ***NEW***
-	getChannelInfo: 'urn:NETGEAR-ROUTER:service:WLANConfiguration:1#GetChannelInfo',	// ***NEW***
-	get5GChannelInfo: 'urn:NETGEAR-ROUTER:service:WLANConfiguration:1#Get5GChannelInfo',	// ***NEW***
-	get5G1ChannelInfo: 'urn:NETGEAR-ROUTER:service:WLANConfiguration:1#Get5G1ChannelInfo',	// ***NEW***
-	setChannel: 'urn:NETGEAR-ROUTER:service:WLANConfiguration:1#SetChannel',	// ***NEW***
-	set5GChannel: 'urn:NETGEAR-ROUTER:service:WLANConfiguration:1#Set5GChannel',	// ***NEW***
-	set5G1Channel: 'urn:NETGEAR-ROUTER:service:WLANConfiguration:1#Set5G1Channel',	// ***NEW***
+	getAvailableChannel: 'urn:NETGEAR-ROUTER:service:WLANConfiguration:1#GetAvailableChannel',
+	getChannelInfo: 'urn:NETGEAR-ROUTER:service:WLANConfiguration:1#GetChannelInfo',
+	get5GChannelInfo: 'urn:NETGEAR-ROUTER:service:WLANConfiguration:1#Get5GChannelInfo',
+	get5G1ChannelInfo: 'urn:NETGEAR-ROUTER:service:WLANConfiguration:1#Get5G1ChannelInfo',
+	setChannel: 'urn:NETGEAR-ROUTER:service:WLANConfiguration:1#SetChannel',
+	set5GChannel: 'urn:NETGEAR-ROUTER:service:WLANConfiguration:1#Set5GChannel',
+	set5G1Channel: 'urn:NETGEAR-ROUTER:service:WLANConfiguration:1#Set5G1Channel',
+
+	// NEW STUFF, untested or unkown what it does
+	getCurrentDeviceBandwidth: 'urn:NETGEAR-ROUTER:service:AdvancedQoS:1#GetCurrentDeviceBandwidth',	// ***NEW*** response on R7000, not R7800
+	getCurrentBandwidthByMAC: 'urn:NETGEAR-ROUTER:service:AdvancedQoS:1#GetCurrentBandwidthByMAC', // ***NEW*** response on R7000, not R7800
+
+	// NEW STUFF > still needs to be implemented in netger.js
+	setUserOptionsTC: 'urn:NETGEAR-ROUTER:service:UserOptionsTC:1#SetUserOptionsTC',	// ***NEW***
+	getBandwidthControlEnableStatus: 'urn:NETGEAR-ROUTER:service:DeviceConfig:1#GetBandwidthControlEnableStatus', // ***NEW***
 
 	// Potentially NEW STUFF > still needs to be implemented in soapcalls.js
 
-	// http://<IP>/cgi-bin/ozker/api/flows?ts=156836450966	// bandwidth info via webinterface?
 	// getCurrentAppBandwidth: 'urn:NETGEAR-ROUTER:service:AdvancedQoS:1#GetCurrentAppBandwidth',	// cannot get this to work yet...
-	getCurrentDeviceBandwidth: 'urn:NETGEAR-ROUTER:service:AdvancedQoS:1#GetCurrentDeviceBandwidth',	// ***NEW*** response on R7000, not R7800
 	// getCurrentAppBandwidthByMAC: 'urn:NETGEAR-ROUTER:service:AdvancedQoS:1#GetCurrentAppBandwidthByMAC', // cannot get this to work yet...
-	getCurrentBandwidthByMAC: 'urn:NETGEAR-ROUTER:service:AdvancedQoS:1#GetCurrentBandwidthByMAC', // ***NEW*** response on R7000, not R7800
+	// urn:NETGEAR-ROUTER:service:AdvancedQOS:1#GetDevicePriorityByMAC
+
+	// urn:NETGEAR-ROUTER:service:WANIPConnection:1#GetConnectionTypeInfo > e.g. DHCP
+	// urn:NETGEAR-ROUTER:service:WANIPConnection:1#GetInfo > external IP, gateway, MAC, MTU, DNS
+	// urn:NETGEAR-ROUTER:service:WANIPConnection:1#GetInternetPortInfo
+	// urn:NETGEAR-ROUTER:service:WANIPConnection:1#GetRemoteManagementEnableStatus
+	// urn:NETGEAR-ROUTER:service:WANIPConnection:1#GetDNSLookUpStatus
+	// urn:NETGEAR-ROUTER:service:WANIPConnection:1#GetPPPConnStatus
+	// urn:NETGEAR-ROUTER:service:WANIPConnection:1#GetPortMappingInfo
+	// urn:NETGEAR-ROUTER:service:WANEthernetLinkConfig:1#GetEthernetLinkStatus > Up or down
+
+	// urn:NETGEAR-ROUTER:service:WLANConfiguration:1#GetWEPSecurityKeys
+	// urn:NETGEAR-ROUTER:service:WLANConfiguration:1#Get5GWEPSecurityKeys
 	// urn:NETGEAR-ROUTER:service:WLANConfiguration:1#GetWPASecurityKeys
 	// urn:NETGEAR-ROUTER:service:WLANConfiguration:1#Get5GWPASecurityKeys
-	// urn:NETGEAR-ROUTER:service:WLANConfiguration:1#Get5GInfo
+	// urn:NETGEAR-ROUTER:service:WLANConfiguration:1#Get5G1WPASecurityKeys
 	// urn:NETGEAR-ROUTER:service:WLANConfiguration:1#Set5GWLANWPAPSKByPassphrase
 	// urn:NETGEAR-ROUTER:service:WLANConfiguration:1#GetGuestAccessNetworkInfo
 	// urn:NETGEAR-ROUTER:service:WLANConfiguration:1#SetGuestAccessNetwork
 	// urn:NETGEAR-ROUTER:service:WLANConfiguration:1#Get5GGuestAccessNetworkInfo
+	// urn:NETGEAR-ROUTER:service:WLANConfiguration:1#Get5G1GuestAccessNetworkInfo
+	// urn:NETGEAR-ROUTER:service:WLANConfiguration:1#GetInfo
+	// urn:NETGEAR-ROUTER:service:WLANConfiguration:1#Get5GInfo
+	// urn:NETGEAR-ROUTER:service:WLANConfiguration:1#Get5G1Info
+	// urn:NETGEAR-ROUTER:service:WLANConfiguration:1#Get5GSSID
+	// urn:NETGEAR-ROUTER:service:WLANConfiguration:1#GetRegion
+	// urn:NETGEAR-ROUTER:service:WLANConfiguration:1#GetSSID
+	// urn:NETGEAR-ROUTER:service:WLANConfiguration:1#GetSSIDBroadcast
+	// urn:NETGEAR-ROUTER:service:WLANConfiguration:1#GetWirelessMode > e.g. 600Mbps
+	// urn:NETGEAR-ROUTER:service:WLANConfiguration:1#Get5GWirelessMode > e.g 1300Mbps
+	// urn:NETGEAR-ROUTER:service:WLANConfiguration:1#GetWPSMode
+	// urn:NETGEAR-ROUTER:service:WLANConfiguration:1#GetWPSPINInfo
+	// urn:NETGEAR-ROUTER:service:WLANConfiguration:1#Is5GSupported
+	// urn:NETGEAR-ROUTER:service:WLANConfiguration:1#Is60GSupported
+	// urn:NETGEAR-ROUTER:service:WLANConfiguration:1#Get5GBandChannelInfo
+	// urn:NETGEAR-ROUTER:service:WLANConfiguration:1#GetSupportMode
+
 	// urn:NETGEAR-ROUTER:service:ParentalControl:1#GetAllMACAddresses
 	// urn:NETGEAR-ROUTER:service:ParentalControl:1#GetDNSMasqDeviceID
-	// urn:NETGEAR-ROUTER:service:ParentalControl:1#SetDNSMasqDeviceID
 	// urn:NETGEAR-ROUTER:service:ParentalControl:1#DeleteMACAddress
+
 	// urn:NETGEAR-ROUTER:service:DeviceConfig:1#SetTrafficMeterOptions
+	// urn:NETGEAR-ROUTER:service:DeviceConfig:1#GetBlockDeviceStateByDefault
+	// urn:NETGEAR-ROUTER:service:DeviceConfig:1#GetBlockSiteInfo
+	// urn:NETGEAR-ROUTER:service:DeviceConfig:1#GetDeviceListAll	> gives list allowed or blocked per device
+	// urn:NETGEAR-ROUTER:service:DeviceConfig:1#GetDeviceListByMode
+	// urn:NETGEAR-ROUTER:service:DeviceConfig:1#GetQoSRules
+	// urn:NETGEAR-ROUTER:service:DeviceConfig:1#GetStaticRouteTbl
+	// urn:NETGEAR-ROUTER:service:DeviceConfig:1#GetTimeZoneInfo
+	// urn:NETGEAR-ROUTER:service:DeviceConfig:1#IsDLNAEnabled
+	// urn:NETGEAR-ROUTER:service:DeviceConfig:1#IsDLNASupported
+	// urn:NETGEAR-ROUTER:service:DeviceConfig:1#GetConfigInfo	> gives config file in Base64-encoded string
+
 	// urn:NETGEAR-ROUTER:service:DeviceInfo:1#SetDeviceNameIconByMAC
 
-	// NEW STUFF > still needs to be implemented in netger.js
-	setUserOptionsTC: 'urn:NETGEAR-ROUTER:service:UserOptionsTC:1#SetUserOptionsTC',	// ***NEW***
+	// urn:NETGEAR-ROUTER:service:Time:1#GetInfo
+
 
 };
 
@@ -149,6 +198,27 @@ exports.getInfo = (sessionId) => {
 exports.getSupportFeatureListXML = (sessionId) => {
 	const soapBody = `<v:Body>
 		<M1:GetSupportFeatureListXML xmlns:M1="urn:NETGEAR-ROUTER:service:DeviceInfo:1" />
+	</v:Body>`;
+	return soapEnvelope(sessionId, soapBody);
+};
+
+exports.getSysUpTime = (sessionId) => {
+	const soapBody = `<v:Body>
+		<M1:GetSysUpTime xsi:nil="true" />
+	</v:Body>`;
+	return soapEnvelope(sessionId, soapBody);
+};
+
+exports.getSystemInfo = (sessionId) => {
+	const soapBody = `<v:Body>
+		<M1:GetSystemInfo xsi:nil="true" />
+	</v:Body>`;
+	return soapEnvelope(sessionId, soapBody);
+};
+
+exports.getSystemLogs = (sessionId) => {
+	const soapBody = `<v:Body>
+		<M1:GetSystemLogs xsi:nil="true" />
 	</v:Body>`;
 	return soapEnvelope(sessionId, soapBody);
 };
@@ -258,6 +328,13 @@ exports.getTrafficMeterOptions = (sessionId) => {
 exports.getBandwidthControlOptions = (sessionId) => {
 	const soapBody = `<v:Body>
 		<M1:GetBandwidthControlOptions xmlns:M1="urn:NETGEAR-ROUTER:service:AdvancedQoS:1" />
+	</v:Body>`;
+	return soapEnvelope(sessionId, soapBody);
+};
+
+exports.getBandwidthControlEnableStatus = (sessionId) => {
+	const soapBody = `<v:Body>
+		<M1:GetBandwidthControlEnableStatus xsi:nil="true" />
 	</v:Body>`;
 	return soapEnvelope(sessionId, soapBody);
 };

@@ -58,7 +58,8 @@ const regexNewAvailableChannel = new RegExp(/<NewAvailableChannel>(.*)<\/NewAvai
 const regexNewChannel = new RegExp(/<NewChannel>(.*)<\/NewChannel>/);
 const regexNew5GChannel = new RegExp(/<New5GChannel>(.*)<\/New5GChannel>/);
 const regexNew5G1Channel = new RegExp(/<New5G1Channel>(.*)<\/New5G1Channel>/);
-const regexLogs = new RegExp(/>\[(.*)<\/textarea>/s);
+const regexNewLogDetails = new RegExp(/<NewLogDetails>(.*)<\/NewLogDetails>/s);
+const regexSysUpTime = new RegExp(/<SysUpTime>(.*)<\/SysUpTime>/);
 
 const defaultHost = 'routerlogin.net';
 const defaultUser = 'admin';
@@ -284,41 +285,51 @@ class NetgearRouter {
 		}
 	}
 
+
 	/**
-	* Get router logs. Note: not via SOAP
+	* Get system Info.
+	* @returns {Promise.<systemInfo>}
+	*/
+	async getSystemInfo() {
+		try {
+			const message = soap.getSystemInfo(this.sessionId);
+			const result = await this._makeRequest(soap.action.getSystemInfo, message);
+			// parse xml to json object
+			const parseOptions = {
+				compact: true, nativeType: true, ignoreDeclaration: true, ignoreAttributes: true, spaces: 2,
+			};
+			const rawJson = parseXml.xml2js(result.body, parseOptions);
+			const entries = rawJson['v:Envelope']['v:Body']['m:GetSystemInfoResponse'];
+			const systemInfo = {};
+			Object.keys(entries).forEach((property) => {
+				if (Object.prototype.hasOwnProperty.call(entries, property)) {
+					systemInfo[property] = entries[property]._text;
+				}
+			});
+			return Promise.resolve(systemInfo);
+		} catch (error) {
+			return Promise.reject(error);
+		}
+	}
+
+
+	/**
+	* Get router logs.
 	* @param {boolean} [parse = false] - will parse the results to json if true
 	* @returns {Promise.<logs>}
 	*/
-	async getLogs(parse) {
+	async getSystemLogs(parse) {
 		try {
-			const headers = {
-				'User-Agent': 'netgear.js',
-				Connection: 'keep-alive',
-				// Cookie: ['XSRF_TOKEN=1201279486; Path=/'],
-				// Authorization: 'Basic ' + Buffer.from(this.username + ":" + this.password).toString('base64'),
-			};
-			const options = {
-				hostname: this.host,
-				port: 80,
-				path: '/FW_log.htm',
-				headers,
-				auth: `${this.username}:${this.password}`,
-				method: 'GET',
-			};
-			let result = await this._makeHttpRequest(options, '');
-			if (result.statusCode !== 200) {
-				if (result.headers['set-cookie']) headers.cookie = result.headers['set-cookie'];
-				result = await this._makeHttpRequest(options, '');
-			}
-			this.lastResponse = result.body;
-			if (result.statusCode !== 200) {
-				throw Error(`HTTP request Failed. Status Code: ${result.statusCode}`);
-			}
-			if (!result.body.includes('</textarea>')) throw Error('Incorrect response received');
-			const logsRaw = `[${regexLogs.exec(result.body.trim())[1]}`;
-			const entries = logsRaw
+			const message = soap.getSystemLogs(this.sessionId);
+			const result = await this._makeRequest(soap.action.getSystemLogs, message);
+			if (!result.body.includes('</NewLogDetails>')) throw Error('Incorrect or incomplete response from router');
+			const raw = regexNewLogDetails.exec(result.body)[1];
+			const entries = raw
 				.split(/[\r\n]+/gm)
 				.filter((entry) => entry.length > 0);
+			if (entries.length < 1) {
+				throw Error('No log entries found');
+			}
 			if (!parse) {
 				return Promise.resolve(entries);
 			}
@@ -333,11 +344,29 @@ class NetgearRouter {
 						ts: new Date(`${items[items.length]}, ${items[items.length - 1]}`),
 					};
 				});
-			return Promise.resolve(logs);
+			return Promise.all(logs);
 		} catch (error) {
 			return Promise.reject(error);
 		}
 	}
+
+
+	/**
+	* Get router uptime since last boot.
+	* @returns {Promise.<hh:mm:ss>}
+	*/
+	async getSysUpTime() {
+		try {
+			const message = soap.getSysUpTime(this.sessionId);
+			const result = await this._makeRequest(soap.action.getSysUpTime, message);
+			if (!result.body.includes('</SysUpTime>')) throw Error('Incorrect or incomplete response from router');
+			const sysUpTime = regexSysUpTime.exec(result.body)[1];
+			return Promise.resolve(sysUpTime);
+		} catch (error) {
+			return Promise.reject(error);
+		}
+	}
+
 
 	/**
 	* Get router information.
@@ -1888,8 +1917,24 @@ module.exports = NetgearRouter;
 * @property {string} currentVersion e.g. 'V1.0.2.60'
 * @property {string} newVersion e.g. ''
 * @property {string} releaseNote e.g. ''
-* @example // trafficStatitics
+* @example // newFirmwareInfo
 { currentVersion: 'V1.0.2.60', newVersion: '', releaseNote: '' }
+*/
+
+/**
+* @typedef systemInfo
+* @description systemInfo is an object with these properties.
+* @property {number} NewCPUUtilization e.g. 21
+* @property {number} NewPhysicalMemory e.g. 256
+* @property {number} NewMemoryUtilization e.g. 72
+* @property {number} NewPhysicalFlash e.g. 128
+* @property {number} NewAvailableFlash e.g. 128
+* @example // systemInfo
+{ NewCPUUtilization: 21,
+  NewPhysicalMemory: 256,
+  NewMemoryUtilization: 72,
+  NewPhysicalFlash: 128,
+  NewAvailableFlash: 128 }
 */
 
 /**
@@ -1962,6 +2007,10 @@ module.exports = NetgearRouter;
 /**
 * @typedef logs
 * @description logs is an array with the log events.
+* @property {string} string the logentry as string
+* @property {string} event the event type
+* @property {string} info event information
+* @property {object} ts timestamp of the event
 * @example // parsed logs
 [	{	string: '[admin login] from source 10.0.0.2, Wednesday, October 02, 2019 20:00:41',
 		event: 'admin login',
