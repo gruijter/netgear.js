@@ -491,8 +491,8 @@ exports.test = async (opts) => {
 	log = [];	// empty the log
 	try {
 		await setupSession(opts);
-		// await getRouterInfo();
-		await doSpecialTest();
+		await getRouterInfo();
+		// await doSpecialTest();
 		// await getAttachedDevices();
 		// await blockOrAllow('AA:BB:CC:DD:EE:FF', 'Block');
 		// await blockOrAllow('AA:BB:CC:DD:EE:FF', 'Allow');
