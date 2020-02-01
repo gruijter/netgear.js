@@ -1,8 +1,8 @@
 ## Nodejs package to communicate with Netgear routers via its SOAP interface.
-Can do (almost) everything the Netgear Nighthawk, Orbi or Genie app can do.
+Can do more than the Netgear Nighthawk, Orbi or Genie app can do.
 
 ## Supported routers
-In general: If you can use the Nighthawk Orbi or Genie app to manage the router, then this node package will most likely work. Some functionality, like blocking/unblocking an attached device, only work on certain router types. MAKE SURE YOU ARE ON THE LATEST ROUTER FIRMWARE!
+In general: If you can use the Nighthawk Orbi or Nighthawk app to manage the router, then this node package will most likely work. Some functionality, like blocking/unblocking an attached device, only work on certain router types. MAKE SURE YOU ARE ON THE LATEST ROUTER FIRMWARE!
 
 You can check your router version by browsing to [routerlogin.net](http://routerlogin.net/currentsetting.htm). According to the Genie and NETGEAR Nighthawk app description, at least the following routers or extenders should work:
 

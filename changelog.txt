@@ -1,3 +1,4 @@
+3.9.8 - 01-02-2020 Fix firmware update error on R7000.
 3.9.7 - 15-10-2019 Fix timestamp systemLog.
 3.9.5 - 13-10-2019 Added SOAP action for getEthernetLinkStatus.
 3.9.4 - 13-10-2019 Log retrieval via SOAP. Added SOAP actions for deviceInfo.

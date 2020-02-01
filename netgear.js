@@ -2,7 +2,7 @@
 	License, v. 2.0. If a copy of the MPL was not distributed with this
 	file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-	Copyright 2017 - 2019, Robin de Gruijter <gruijter@hotmail.com> */
+	Copyright 2017 - 2020, Robin de Gruijter <gruijter@hotmail.com> */
 
 /* eslint-disable no-await-in-loop */
 /* eslint-disable prefer-destructuring */
@@ -1161,7 +1161,7 @@ class NetgearRouter {
 	async updateNewFirmware() {
 		try {
 			const message = soap.updateNewFirmware(this.sessionId);
-			await this._makeRequest(soap.action.updateNewFirmware,	message);
+			await this._makeRequest(soap.action.updateNewFirmware,	message).catch(() => false);
 			return Promise.resolve(true); // firmware update request successfull
 		} catch (error) {
 			return Promise.reject(error);
