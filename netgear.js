@@ -137,7 +137,7 @@ class NetgearRouter {
 		this.loggedIn = false;
 		this.configStarted = false;
 		this.soapVersion = undefined;	// 2 or 3
-		this.loginMethod = undefined;	// 2.0 for newer models, 1 for old model, 2.2.2 for weird success
+		this.loginMethod = undefined;	// 2 for newer models, 1 for old models
 		this.getAttachedDevicesMethod = undefined;	// 2 or 1
 		this.checkNewFirmwareMethod = undefined;	// 2 or 1
 		this.guestWifiMethod = {
@@ -172,11 +172,13 @@ class NetgearRouter {
 	async login(opts, username, host, port) {
 		try {
 			const options = opts || {};
+			if (typeof opts === 'string') {
+				this.password = opts;
+			}
 			this.host = options.host || host || await this.host;
 			this.port = options.port || port || await this.port;
 			this.tls = options.tls || this.tls;
 			this.username = options.username || username || this.username;
-			this.password = options.password || opts || this.password;
 			this.timeout = options.timeout || this.timeout;
 			if (!this.host || this.host === '') {
 				await this.discover()
@@ -184,33 +186,39 @@ class NetgearRouter {
 						throw Error('Cannot login: host IP and/or SOAP port not set');
 					});
 			}
+			// discover soap port and login method supported by router
 			if (!this.loginMethod || !this.port) {
 				const currentSetting = await this.getCurrentSetting();
 				this.port = currentSetting.port;
 			}
 			let loggedIn = false;
-			// use new method first if loginMethod = '2.0'
-			if (this.loginMethod >= 2) {
-				const message = soap.login(this.sessionId, this.username, this.password);
-				loggedIn = await this._makeRequest(soap.action.login, message)
+			const messageNew = soap.login(this.sessionId, this.username, this.password);
+			const messageOld = soap.loginOld(this.sessionId, this.username, this.password);
+			// use old method if opts method 1 selected, or auto method selected and loginMethod < 2
+			if (options.method === 1 || (!options.method && this.loginMethod < 2)) {
+				this.cookie = undefined; // reset the cookie
+				loggedIn = await this._makeRequest(soap.action.loginOld, messageOld)
+					.then(() => true)
+					.catch(() => false);
+			}
+			// use new method if opts method 2 selected, or auto method selected and loginMethod = 2
+			if (options.method === 2 || (!options.method && this.loginMethod >= 2)) {
+				loggedIn = await this._makeRequest(soap.action.login, messageNew)
 					.then(() => true)
 					.catch(() => {
 						this.cookie = undefined; // reset the cookie
 						return false;
 					});
 			}
-			// use old method as fallback
-			if (!loggedIn) {
-				const messageOld = soap.loginOld(this.sessionId, this.username, this.password);
+			// use old login method as first fallback, only if auto method selected
+			if (!options.method && !loggedIn) {
 				loggedIn = await this._makeRequest(soap.action.loginOld, messageOld)
 					.then(() => true)
 					.catch(() => false);
 			}
-			// use new login method as second fallback
-			if (!loggedIn) {
-				this.loginMethod = 2.22;
-				const message = soap.login(this.sessionId, this.username, this.password);
-				loggedIn = await this._makeRequest(soap.action.login, message)
+			// use new login method as second fallback, only if auto method selected
+			if (!options.method && !loggedIn) {
+				loggedIn = await this._makeRequest(soap.action.login, messageNew)
 					.catch(() => {
 						this.cookie = undefined; // reset the cookie
 						return false;
@@ -525,18 +533,22 @@ class NetgearRouter {
 
 	/**
 	* Get array of attached devices.
+	* @param {number} [method = 0] - 0: auto, 1: v1 (old), 2: v2 (new)
 	* @returns {Promise.<AttachedDevice[]>}
 	*/
-	async getAttachedDevices() {
+	async getAttachedDevices(method) {
 		try {
-			this.getAttachedDevicesMethod = 2;
-			const devices = await this._getAttachedDevices2()
-				.catch(() => {
-					// console.log('trying old method');
-					this.getAttachedDevicesMethod = 1;
-					return this._getAttachedDevices();
-					// .catch(err => Promise.reject(err));
-				});
+			let devices;
+			this.getAttachedDevicesMethod = method;
+			if (method === 1) {
+				devices = await this._getAttachedDevices();
+			} else if (method === 2) {
+				devices = await this._getAttachedDevices2();
+			} else {
+				this.getAttachedDevicesMethod = 0;
+				devices = await this._getAttachedDevices()
+					.catch(() => this._getAttachedDevices2());
+			}
 			return Promise.resolve(devices);
 		} catch (error) {
 			return Promise.reject(error);
@@ -1252,6 +1264,7 @@ class NetgearRouter {
 			const result = await this._makeRequest(soap.action.getAttachedDevices, message);
 			const devices = [];
 			const body = result.body
+				.replace(/&amp;/gi, '&')
 				.replace(/&lt;/gi, '')
 				.replace(/&gt;/gi, '');
 			const raw = regexAttachedDevices.exec(body)[1];
@@ -1580,10 +1593,10 @@ class NetgearRouter {
 				throw Error(`HTTP request Failed. Status Code: ${result.statusCode}`);
 			}
 			const responseCodeRegex = regexResponseCode.exec(result.body);
-			if (responseCodeRegex === null) {
+			const responseCode = responseCodeRegex ? Number(responseCodeRegex[1]) : null;
+			if (responseCode === null) {
 				throw Error('no response code from router');
 			}
-			const responseCode = Number(responseCodeRegex[1]);
 			if (responseCode === 0) {
 				result.body = patchBody(result.body);
 				if (!result.body.includes('</v:Envelope>')) throw Error('Incomplete soap response received');
@@ -1759,6 +1772,7 @@ module.exports = NetgearRouter;
 * @property {string} [username = 'admin'] - The login username. Defaults to 'admin'.
 * @property {string} [host = 'routerlogin.net'] - The url or ip address of the router. Leave undefined to try autodiscovery.
 * @property {number} [port = 80] - The SOAP port of the router. Leave undefined to try autodiscovery.
+* @property {number} [method = 0] - 0: auto, 1: v1 (old), 2: v2 (new)
 * @property {number} [timeout = 18000] - http(s) timeout in milliseconds. Defaults to 18000ms.
 * @property {boolean} [tls = false] - Use TLS/SSL (HTTPS) for SOAP calls. Defaults to false.
 * @example // router options

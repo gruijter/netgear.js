@@ -75,9 +75,18 @@ async function getRouterInfo() {
 		log.push(`t = ${(Date.now() - t0) / 1000}`);
 
 		// for other methods you first need to be logged in.
-		log.push('trying to login...');
-		await router.login(); // [password], [username], [host], [port] will override previous settings
-		log.push(`login method: ${router.loginMethod}`);
+		log.push('trying to login with method 1...');
+		await router.login({ method: 1 })
+			.then(() => log.push('method 1 ok.'))
+			.catch((error) => log.push('method 1 failed.'));
+		log.push('trying to login with method 2...');
+		await router.login({ method: 2 })
+			.then(() => log.push('method 2 ok.'))
+			.catch((error) => log.push('method 2 failed.'));
+		await router.logout().catch((error) => logError(error));
+		log.push('trying to login with auto method...');
+		await router.login();
+		log.push(`reported login method: ${router.loginMethod}`);
 		log.push(`t = ${(Date.now() - t0) / 1000}`);
 
 		// Get router type, serial number, hardware version, firmware version, soap version, firewall version, etc.
@@ -162,7 +171,7 @@ async function getRouterInfo() {
 
 		// get a list of attached devices
 		log.push('trying to get attachedDevices method 1...');
-		const attachedDevices = await router._getAttachedDevices()
+		const attachedDevices = await router.getAttachedDevices(1)
 			.catch((error) => logError(error));
 		log.push(`Number of attached devices: ${attachedDevices.length}`);
 		log.push(`First attached device: ${JSON.stringify(attachedDevices[0])}`);
@@ -170,7 +179,7 @@ async function getRouterInfo() {
 
 		// get a list of attached devices
 		log.push('trying to get attachedDevices method 2...');
-		const attachedDevices2 = await router._getAttachedDevices2()
+		const attachedDevices2 = await router.getAttachedDevices(2)
 			.catch((error) => logError(error));
 		log.push(`Number of attached devices: ${attachedDevices2.length}`);
 		log.push(`First attached device: ${JSON.stringify(attachedDevices2[0])}`);
@@ -469,7 +478,7 @@ async function doSpecialTest() {
 		await router.login();
 		// await router.logout();
 		log.push('performing special test');
-		const info = await router.getSystemLogs(true);
+		const info = await router.login({ method: 2 });
 		// console.log(info);
 		log.push(info);
 	}	catch (error) {
