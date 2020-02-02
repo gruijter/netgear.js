@@ -9,7 +9,7 @@
 // INSTRUCTIONS FOR TESTING FROM DESKTOP:
 // install node (https://nodejs.org)
 // install this package: > npm i netgear
-// run the test (from the test folder): > node test password
+// run the test (from the package folder): > npm test password
 
 'use strict';
 
@@ -43,6 +43,10 @@ if (options.tls) {
 
 if (options.timeout) {
 	options.timeout = Number(options.timeout);
+}
+
+if (options.shorttest) {
+	options.shorttest = options.shorttest.toLowerCase() === 'true';
 }
 
 _test.test(options)

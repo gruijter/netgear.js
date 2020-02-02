@@ -21,6 +21,7 @@ const { version } = require('../package.json');
 let log = [];
 let errorCount = 0;
 let t0 = Date.now();
+let shorttest = false;
 const router = new NetgearRouter();
 
 // function to setup the router session
@@ -33,6 +34,13 @@ async function setupSession(opts) {
 		Object.keys(opts).forEach((opt) => {
 			if (opt === 'info') {
 				log.push(`Info: ${opts[opt]}`);
+				return;
+			}
+			if (opt === 'shorttest') {
+				if (opts.shorttest) {
+					log.push('Doing a short test');
+					shorttest = true;
+				}
 				return;
 			}
 			router[opt] = opts[opt];
@@ -65,26 +73,28 @@ async function logError(error) {
 // function to get various information
 async function getRouterInfo() {
 	try {
-		// // Get router type, soap version, firmware version and internet connection status without login
-		// log.push('getting currentSetting...');
-		// const currentSetting = await router.getCurrentSetting();
-		// log.push(currentSetting);
+		if (shorttest) {
+			log.push('trying to get Netgear router basic info...');
+			log.push(await router.getCurrentSetting());
+			log.push(`t = ${(Date.now() - t0) / 1000}`);
+		}
 
-		log.push('trying to auto discover Netgear routers...');
-		log.push(await router._discoverAllHostsInfo());
-		log.push(`t = ${(Date.now() - t0) / 1000}`);
+		if (!shorttest) {
+			log.push('trying to auto discover Netgear routers...');
+			log.push(await router._discoverAllHostsInfo());
+			log.push(`t = ${(Date.now() - t0) / 1000}`);
+		}
 
 		// for other methods you first need to be logged in.
-		log.push('trying to login with method 1...');
+		log.push('trying to login using method 1...');
 		await router.login({ method: 1 })
 			.then(() => log.push('method 1 ok.'))
 			.catch((error) => log.push('method 1 failed.'));
-		log.push('trying to login with method 2...');
+		log.push('trying to login using method 2...');
 		await router.login({ method: 2 })
 			.then(() => log.push('method 2 ok.'))
 			.catch((error) => log.push('method 2 failed.'));
-		await router.logout().catch((error) => logError(error));
-		log.push('trying to login with auto method...');
+		log.push('trying to login using auto method...');
 		await router.login();
 		log.push(`reported login method: ${router.loginMethod}`);
 		log.push(`t = ${(Date.now() - t0) / 1000}`);
@@ -98,14 +108,6 @@ async function getRouterInfo() {
 		log.push(`t = ${(Date.now() - t0) / 1000}`);
 
 		// Get router CPU and Memory utilization
-		log.push('trying to get System Uptime (hh:mm:ss)...');
-		const sysUpTime = await router.getSysUpTime()
-			.catch((error) => logError(error));
-		info.SerialNumber = '**********';
-		log.push(sysUpTime);
-		log.push(`t = ${(Date.now() - t0) / 1000}`);
-
-		// Get router uptime
 		log.push('trying to getSystemInfo...');
 		const systemInfo = await router.getSystemInfo()
 			.catch((error) => logError(error));
@@ -118,13 +120,6 @@ async function getRouterInfo() {
 		const supportFeatures = await router.getSupportFeatureListXML()
 			.catch((error) => logError(error));
 		log.push(supportFeatures);
-		log.push(`t = ${(Date.now() - t0) / 1000}`);
-
-		// Get the Device config.
-		log.push('trying to get the Device configuration...');
-		const DeviceConfig = await router.getDeviceConfig()
-			.catch((error) => logError(error));
-		log.push(DeviceConfig);
 		log.push(`t = ${(Date.now() - t0) / 1000}`);
 
 		// Get the LAN config.
@@ -141,25 +136,105 @@ async function getRouterInfo() {
 		log.push(WANConfig);
 		log.push(`t = ${(Date.now() - t0) / 1000}`);
 
-		// Get the parentalControlEnableStatus.
-		log.push('trying to get Parental Control Status...');
-		const parentalControlEnabled = await router.getParentalControlEnableStatus()
+		// Get the trafficMeterEnabled status.
+		log.push('trying to get the Traffic Meter Enabled Status...');
+		const trafficMeterEnabled = await router.getTrafficMeterEnabled()
 			.catch((error) => logError(error));
-		log.push(`Parental Control Enabled: ${parentalControlEnabled}`);
+		log.push(`Traffic Meter Enabled: ${trafficMeterEnabled}`);
 		log.push(`t = ${(Date.now() - t0) / 1000}`);
 
-		// Get the qosEnableStatus.
-		log.push('trying to get Qos Status...');
-		const qosEnabled = await router.getQoSEnableStatus()
+		// get traffic statistics for this day and this month. Note: traffic monitoring must be enabled in router
+		log.push('trying to get trafficMeter...');
+		const traffic = await router.getTrafficMeter()
 			.catch((error) => logError(error));
-		log.push(`Qos Enabled: ${qosEnabled}`);
+		log.push(traffic);
 		log.push(`t = ${(Date.now() - t0) / 1000}`);
 
-		// Get the getBandwidthControlOptions.
-		log.push('trying to get Qos Bandwidth options...');
-		const bandwidthControlOptions = await router.getBandwidthControlOptions()
-			.catch((error) => logError(error));
-		log.push(bandwidthControlOptions);
+		if (!shorttest) {
+			// Get the trafficMeter Options
+			log.push('trying to get the Traffic Meter Options...');
+			const getTrafficMeterOptions = await router.getTrafficMeterOptions()
+				.catch((error) => logError(error));
+			log.push(getTrafficMeterOptions);
+			log.push(`t = ${(Date.now() - t0) / 1000}`);
+
+			// Get router uptime
+			log.push('trying to get System Uptime (hh:mm:ss)...');
+			const sysUpTime = await router.getSysUpTime()
+				.catch((error) => logError(error));
+			info.SerialNumber = '**********';
+			log.push(sysUpTime);
+			log.push(`t = ${(Date.now() - t0) / 1000}`);
+
+			// Get the Device config.
+			log.push('trying to get the Device configuration...');
+			const DeviceConfig = await router.getDeviceConfig()
+				.catch((error) => logError(error));
+			log.push(DeviceConfig);
+			log.push(`t = ${(Date.now() - t0) / 1000}`);
+
+			// Get the parentalControlEnableStatus.
+			log.push('trying to get Parental Control Status...');
+			const parentalControlEnabled = await router.getParentalControlEnableStatus()
+				.catch((error) => logError(error));
+			log.push(`Parental Control Enabled: ${parentalControlEnabled}`);
+			log.push(`t = ${(Date.now() - t0) / 1000}`);
+
+			// Get the qosEnableStatus.
+			log.push('trying to get Qos Status...');
+			const qosEnabled = await router.getQoSEnableStatus()
+				.catch((error) => logError(error));
+			log.push(`Qos Enabled: ${qosEnabled}`);
+			log.push(`t = ${(Date.now() - t0) / 1000}`);
+
+			// Get the getBandwidthControlOptions.
+			log.push('trying to get Qos Bandwidth options...');
+			const bandwidthControlOptions = await router.getBandwidthControlOptions()
+				.catch((error) => logError(error));
+			log.push(bandwidthControlOptions);
+			log.push(`t = ${(Date.now() - t0) / 1000}`);
+
+			// get a list of available wifi channels
+			log.push('trying to get available and selected WiFi channels...');
+			await router.getWifiChannels()
+				.then((wifiChannels24) => { log.push(`Available channels 2.4G-1: ${wifiChannels24}`); })
+				.catch(() => { log.push('2.4G-1 channels are not available');	});
+			await router.getChannelInfo()
+				.then((channel24) => { log.push(`selected channel 2.4G-1: ${channel24}`); })
+				.catch(() => { log.push('2.4G-1 channel is not available');	});
+			await router.getWifiChannels('5G')
+				.then((wifiChannels5) => { log.push(`Available channels 5.0G-1: ${wifiChannels5}`); })
+				.catch(() => { log.push('5.0G-1 channels are not available');	});
+			await router.get5GChannelInfo()
+				.then((channel5) => { log.push(`selected channel 5.0G-1: ${channel5}`); })
+				.catch(() => { log.push('5.0G-1 channel is not available');	});
+			await router.getWifiChannels('5G1')
+				.then((wifiChannels51) => { log.push(`Available channels 5.0G-2: ${wifiChannels51}`); })
+				.catch(() => { log.push('5.0G-2 channels are not available');	});
+			await router.get5G1ChannelInfo()
+				.then((channel51) => { log.push(`selected channel  5.0G-2: ${channel51}`); })
+				.catch(() => { log.push('5.0G-2 channel is not available');	});
+			log.push(`t = ${(Date.now() - t0) / 1000}`);
+
+			// Get the smartConnectEnableStatus.
+			log.push('trying to get Smart Connect Status...');
+			const smartConnectEnabled = await router.getSmartConnectEnabled()
+				.catch((error) => logError(error));
+			log.push(`Smart Connect Enabled: ${smartConnectEnabled}`);
+			log.push(`t = ${(Date.now() - t0) / 1000}`);
+		}
+
+		// get guest wifi status
+		log.push('trying to get Guest Wifi Status...');
+		await router.getGuestWifiEnabled()
+			.then((enabled) => { log.push(`2.4G-1 Guest wifi enabled: ${enabled}`); })
+			.catch(() => { log.push('2.4G-1 Guest wifi is not available');	});
+		await router.get5GGuestWifiEnabled()
+			.then((enabled) => { log.push(`5.0G-1 Guest wifi enabled: ${enabled}, method: ${router.guestWifiMethod.get50_1}`); })
+			.catch(() => { log.push(`5.0G-1 Guest wifi is not available, method: ${router.guestWifiMethod.get50_1}`); });
+		await router.get5GGuestWifi2Enabled()
+			.then((enabled) => { log.push(`5.0G-2 Guest wifi enabled: ${enabled}`); })
+			.catch(() => { log.push('5.0G-2 Guest wifi is not available');	});
 		log.push(`t = ${(Date.now() - t0) / 1000}`);
 
 		// Get the blockDeviceEnabledStatus.
@@ -185,69 +260,6 @@ async function getRouterInfo() {
 		log.push(`First attached device: ${JSON.stringify(attachedDevices2[0])}`);
 		log.push(`t = ${(Date.now() - t0) / 1000}`);
 
-		// get a list of available wifi channels
-		log.push('trying to get available and selected WiFi channels...');
-		await router.getWifiChannels()
-			.then((wifiChannels24) => { log.push(`Available channels 2.4G-1: ${wifiChannels24}`); })
-			.catch(() => { log.push('2.4G-1 channels are not available');	});
-		await router.getChannelInfo()
-			.then((channel24) => { log.push(`selected channel 2.4G-1: ${channel24}`); })
-			.catch(() => { log.push('2.4G-1 channel is not available');	});
-		await router.getWifiChannels('5G')
-			.then((wifiChannels5) => { log.push(`Available channels 5.0G-1: ${wifiChannels5}`); })
-			.catch(() => { log.push('5.0G-1 channels are not available');	});
-		await router.get5GChannelInfo()
-			.then((channel5) => { log.push(`selected channel 5.0G-1: ${channel5}`); })
-			.catch(() => { log.push('5.0G-1 channel is not available');	});
-		await router.getWifiChannels('5G1')
-			.then((wifiChannels51) => { log.push(`Available channels 5.0G-2: ${wifiChannels51}`); })
-			.catch(() => { log.push('5.0G-2 channels are not available');	});
-		await router.get5G1ChannelInfo()
-			.then((channel51) => { log.push(`selected channel  5.0G-2: ${channel51}`); })
-			.catch(() => { log.push('5.0G-2 channel is not available');	});
-		log.push(`t = ${(Date.now() - t0) / 1000}`);
-
-		// Get the smartConnectEnableStatus.
-		log.push('trying to get Smart Connect Status...');
-		const smartConnectEnabled = await router.getSmartConnectEnabled()
-			.catch((error) => logError(error));
-		log.push(`Smart Connect Enabled: ${smartConnectEnabled}`);
-		log.push(`t = ${(Date.now() - t0) / 1000}`);
-
-		// get guest wifi status
-		log.push('trying to get Guest Wifi Status...');
-		await router.getGuestWifiEnabled()
-			.then((enabled) => { log.push(`2.4G-1 Guest wifi enabled: ${enabled}`); })
-			.catch(() => { log.push('2.4G-1 Guest wifi is not available');	});
-		await router.get5GGuestWifiEnabled()
-			.then((enabled) => { log.push(`5.0G-1 Guest wifi enabled: ${enabled}, method: ${router.guestWifiMethod.get50_1}`); })
-			.catch(() => { log.push(`5.0G-1 Guest wifi is not available, method: ${router.guestWifiMethod.get50_1}`); });
-		await router.get5GGuestWifi2Enabled()
-			.then((enabled) => { log.push(`5.0G-2 Guest wifi enabled: ${enabled}`); })
-			.catch(() => { log.push('5.0G-2 Guest wifi is not available');	});
-		log.push(`t = ${(Date.now() - t0) / 1000}`);
-
-		// Get the trafficMeterEnabled status.
-		log.push('trying to get the Traffic Meter Enabled Status...');
-		const trafficMeterEnabled = await router.getTrafficMeterEnabled()
-			.catch((error) => logError(error));
-		log.push(`Traffic Meter Enabled: ${trafficMeterEnabled}`);
-		log.push(`t = ${(Date.now() - t0) / 1000}`);
-
-		// Get the trafficMeter Options
-		log.push('trying to get the Traffic Meter Options...');
-		const getTrafficMeterOptions = await router.getTrafficMeterOptions()
-			.catch((error) => logError(error));
-		log.push(getTrafficMeterOptions);
-		log.push(`t = ${(Date.now() - t0) / 1000}`);
-
-		// get traffic statistics for this day and this month. Note: traffic monitoring must be enabled in router
-		log.push('trying to get trafficMeter...');
-		const traffic = await router.getTrafficMeter()
-			.catch((error) => logError(error));
-		log.push(traffic);
-		log.push(`t = ${(Date.now() - t0) / 1000}`);
-
 		// check for new router firmware and release note
 		log.push('trying to check newFirmware...');
 		const firmware = await router.checkNewFirmware()
@@ -256,7 +268,7 @@ async function getRouterInfo() {
 		log.push(firmware);
 		log.push(`t = ${(Date.now() - t0) / 1000}`);
 
-		// check for new router firmware and release note
+		// check for router logs
 		log.push('trying to get router logs...');
 		const logs = await router.getSystemLogs(false)
 			.catch((error) => logError(error));

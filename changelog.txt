@@ -1,3 +1,4 @@
+4.0.0 - 02-02-2020 Parse getAattachedDevices MAC validity check. Short test option added.
 3.9.9 - 01-02-2020 Fix parsing of <unknown> getAttachedDevices. Selectable getAttachedDevices method. Selectable login method.
 3.9.8 - 01-02-2020 Fix firmware update error on R7000.
 3.9.7 - 15-10-2019 Fix timestamp systemLog.

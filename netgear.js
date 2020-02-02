@@ -1277,6 +1277,8 @@ class NetgearRouter {
 				if (info.length === 0) {
 					throw Error('Error parsing device-list (soap v2)');
 				}
+				// throw error on invalid mac format
+				if ((info.length > 1) && (info[3].length !== 17)) throw Error('Error parsing device-list (soap v2)');
 				if (info.length >= 5) { // Ignore first element if it is the total device count (info.length == 1)
 					const device = new AttachedDevice();
 					device.IP = info[1];		// e.g. '10.0.0.10'
@@ -1324,6 +1326,8 @@ class NetgearRouter {
 				Object.keys(entry).forEach((key) => {
 					device[key] = entry[key]._text;
 				});
+				// throw error on invalid mac format
+				if (device.MAC.length !== 17) throw Error('Error parsing device-list');
 				return device;
 			});
 			return Promise.resolve(devices);
