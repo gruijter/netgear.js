@@ -40,6 +40,7 @@ async function setupSession(opts) {
 				if (opts.shorttest) {
 					log.push('Doing a short test');
 					shorttest = true;
+					router.timeout = 5000;
 				}
 				return;
 			}
@@ -83,17 +84,19 @@ async function getRouterInfo() {
 			log.push('trying to auto discover Netgear routers...');
 			log.push(await router._discoverAllHostsInfo());
 			log.push(`t = ${(Date.now() - t0) / 1000}`);
+
+			// test both login methods
+			log.push('trying to login using method 1...');
+			await router.login({ method: 1 })
+				.then(() => log.push('method 1 ok.'))
+				.catch((error) => log.push('method 1 failed.'));
+			log.push('trying to login using method 2...');
+			await router.login({ method: 2 })
+				.then(() => log.push('method 2 ok.'))
+				.catch((error) => log.push('method 2 failed.'));
 		}
 
 		// for other methods you first need to be logged in.
-		log.push('trying to login using method 1...');
-		await router.login({ method: 1 })
-			.then(() => log.push('method 1 ok.'))
-			.catch((error) => log.push('method 1 failed.'));
-		log.push('trying to login using method 2...');
-		await router.login({ method: 2 })
-			.then(() => log.push('method 2 ok.'))
-			.catch((error) => log.push('method 2 failed.'));
 		log.push('trying to login using auto method...');
 		await router.login();
 		log.push(`reported login method: ${router.loginMethod}`);
@@ -222,6 +225,13 @@ async function getRouterInfo() {
 				.catch((error) => logError(error));
 			log.push(`Smart Connect Enabled: ${smartConnectEnabled}`);
 			log.push(`t = ${(Date.now() - t0) / 1000}`);
+
+			// check for router logs
+			log.push('trying to get router logs...');
+			const logs = await router.getSystemLogs(false)
+				.catch((error) => logError(error));
+			log.push(`last log: ${logs[0]}`);
+			log.push(`t = ${(Date.now() - t0) / 1000}`);
 		}
 
 		// get guest wifi status
@@ -243,6 +253,9 @@ async function getRouterInfo() {
 			.catch((error) => logError(error));
 		log.push(`Block Device Enabled: ${blockDeviceEnabled}`);
 		log.push(`t = ${(Date.now() - t0) / 1000}`);
+
+		// set longer timeout for following actions on shorttest
+		if (shorttest) router.timeout = 10000;
 
 		// get a list of attached devices
 		log.push('trying to get attachedDevices method 1...');
@@ -268,17 +281,12 @@ async function getRouterInfo() {
 		log.push(firmware);
 		log.push(`t = ${(Date.now() - t0) / 1000}`);
 
-		// check for router logs
-		log.push('trying to get router logs...');
-		const logs = await router.getSystemLogs(false)
-			.catch((error) => logError(error));
-		log.push(`last log: ${logs[0]}`);
-		log.push(`t = ${(Date.now() - t0) / 1000}`);
-
-		// logout
-		log.push('trying to logout...');
-		await router.logout()
-			.catch((error) => logError(error));
+		if (!shorttest) {
+			// logout
+			log.push('trying to logout...');
+			await router.logout()
+				.catch((error) => logError(error));
+		}
 
 		// finish test
 		router.password = '*****';
