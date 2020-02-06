@@ -174,6 +174,8 @@ class NetgearRouter {
 			const options = opts || {};
 			if (typeof opts === 'string') {
 				this.password = opts;
+			} else {
+				this.password = options.password || this.password;
 			}
 			this.host = options.host || host || await this.host;
 			this.port = options.port || port || await this.port;
