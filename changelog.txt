@@ -1,3 +1,4 @@
+4.0.2 - 06-02-2020 Test output modified.
 4.0.1 - 06-02-2020 Short test timeout reduced.
 4.0.0 - 02-02-2020 Parse getAattachedDevices MAC validity check. Short test option added.
 3.9.9 - 01-02-2020 Fix parsing of <unknown> getAttachedDevices. Selectable getAttachedDevices method. Selectable login method.

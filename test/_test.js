@@ -262,7 +262,7 @@ async function getRouterInfo() {
 		const attachedDevices = await router.getAttachedDevices(1)
 			.catch((error) => logError(error));
 		log.push(`Number of attached devices: ${attachedDevices.length}`);
-		log.push(`First attached device: ${JSON.stringify(attachedDevices[0])}`);
+		log.push('First attached device:', attachedDevices[0]);
 		log.push(`t = ${(Date.now() - t0) / 1000}`);
 
 		// get a list of attached devices
@@ -270,7 +270,7 @@ async function getRouterInfo() {
 		const attachedDevices2 = await router.getAttachedDevices(2)
 			.catch((error) => logError(error));
 		log.push(`Number of attached devices: ${attachedDevices2.length}`);
-		log.push(`First attached device: ${JSON.stringify(attachedDevices2[0])}`);
+		log.push('First attached device:', attachedDevices2[0]);
 		log.push(`t = ${(Date.now() - t0) / 1000}`);
 
 		// check for new router firmware and release note

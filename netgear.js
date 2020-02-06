@@ -1150,7 +1150,7 @@ class NetgearRouter {
 			this.checkNewFirmwareMethod = 2;
 			const message = soap.checkAppNewFirmware(this.sessionId);
 			let result = await this._makeRequest(soap.action.checkAppNewFirmware, message)
-				.catch((error) => { console.log(error); return false; });
+				.catch(() => false);
 			// try old method on fail
 			if (!result) {
 				this.checkNewFirmwareMethod = 1;
