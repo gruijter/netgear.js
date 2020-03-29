@@ -20,6 +20,7 @@ exports.action = {
 	getDeviceConfig: 'urn:NETGEAR-ROUTER:service:DeviceConfig:1#GetInfo',
 
 	// device config, block/allow device related
+	getDeviceListAll: 'urn:NETGEAR-ROUTER:service:DeviceConfig:1#GetDeviceListAll', // ***NEW*** gives list of all allowed devices
 	getBlockDeviceEnableStatus: 'urn:NETGEAR-ROUTER:service:DeviceConfig:1#GetBlockDeviceEnableStatus',
 	setBlockDeviceEnable: 'urn:NETGEAR-ROUTER:service:DeviceConfig:1#SetBlockDeviceEnable',
 	enableBlockDeviceForAll: 'urn:NETGEAR-ROUTER:service:DeviceConfig:1#EnableBlockDeviceForAll', // deprecated?
@@ -33,8 +34,9 @@ exports.action = {
 
 	// device config, LAN/WAN related
 	getLANConfig: 'urn:NETGEAR-ROUTER:service:LANConfigSecurity:1#GetInfo',
-	getWANIPConnection: 'urn:NETGEAR-ROUTER:service:WANIPConnection:1#GetInfo',
+	getWANIPConnection: 'urn:NETGEAR-ROUTER:service:WANIPConnection:1#GetInfo',	// external IP, gateway, MAC, MTU, DNS
 	getEthernetLinkStatus: 'urn:NETGEAR-ROUTER:service:WANEthernetLinkConfig:1#GetEthernetLinkStatus', // ***NEW***
+	getPortMappingInfo: 'urn:NETGEAR-ROUTER:service:WANIPConnection:1#GetPortMappingInfo', // ***NEW***
 
 	// parental control
 	getParentalControlEnableStatus: 'urn:NETGEAR-ROUTER:service:ParentalControl:1#GetEnableStatus',
@@ -86,6 +88,7 @@ exports.action = {
 	setUserOptionsTC: 'urn:NETGEAR-ROUTER:service:UserOptionsTC:1#SetUserOptionsTC',	// ***NEW***
 	getBandwidthControlEnableStatus: 'urn:NETGEAR-ROUTER:service:DeviceConfig:1#GetBandwidthControlEnableStatus', // ***NEW***
 
+
 	// Potentially NEW STUFF > still needs to be implemented in soapcalls.js
 
 	// getCurrentAppBandwidth: 'urn:NETGEAR-ROUTER:service:AdvancedQoS:1#GetCurrentAppBandwidth',	// cannot get this to work yet...
@@ -93,13 +96,10 @@ exports.action = {
 	// urn:NETGEAR-ROUTER:service:AdvancedQOS:1#GetDevicePriorityByMAC
 
 	// urn:NETGEAR-ROUTER:service:WANIPConnection:1#GetConnectionTypeInfo > e.g. DHCP
-	// urn:NETGEAR-ROUTER:service:WANIPConnection:1#GetInfo > external IP, gateway, MAC, MTU, DNS
 	// urn:NETGEAR-ROUTER:service:WANIPConnection:1#GetInternetPortInfo
 	// urn:NETGEAR-ROUTER:service:WANIPConnection:1#GetRemoteManagementEnableStatus
 	// urn:NETGEAR-ROUTER:service:WANIPConnection:1#GetDNSLookUpStatus
 	// urn:NETGEAR-ROUTER:service:WANIPConnection:1#GetPPPConnStatus
-	// urn:NETGEAR-ROUTER:service:WANIPConnection:1#GetPortMappingInfo
-
 
 	// urn:NETGEAR-ROUTER:service:WLANConfiguration:1#GetWEPSecurityKeys
 	// urn:NETGEAR-ROUTER:service:WLANConfiguration:1#Get5GWEPSecurityKeys
@@ -134,7 +134,6 @@ exports.action = {
 	// urn:NETGEAR-ROUTER:service:DeviceConfig:1#SetTrafficMeterOptions
 	// urn:NETGEAR-ROUTER:service:DeviceConfig:1#GetBlockDeviceStateByDefault
 	// urn:NETGEAR-ROUTER:service:DeviceConfig:1#GetBlockSiteInfo
-	// urn:NETGEAR-ROUTER:service:DeviceConfig:1#GetDeviceListAll	> gives list allowed or blocked per device
 	// urn:NETGEAR-ROUTER:service:DeviceConfig:1#GetDeviceListByMode
 	// urn:NETGEAR-ROUTER:service:DeviceConfig:1#GetQoSRules
 	// urn:NETGEAR-ROUTER:service:DeviceConfig:1#GetStaticRouteTbl
@@ -245,9 +244,23 @@ exports.getWANIPConnection = (sessionId) => {
 	return soapEnvelope(sessionId, soapBody);
 };
 
+exports.getPortMappingInfo = (sessionId) => {
+	const soapBody = `<v:Body>
+		<n0:GetPortMappingInfo xmlns:n0="urn:NETGEAR-ROUTER:service:WANIPConnection:1" />
+	</v:Body>`;
+	return soapEnvelope(sessionId, soapBody);
+};
+
 exports.getDeviceConfig = (sessionId) => {
 	const soapBody = `<v:Body>
 		<n0:GetInfo xmlns:n0="urn:NETGEAR-ROUTER:service:DeviceConfig:1" />
+	</v:Body>`;
+	return soapEnvelope(sessionId, soapBody);
+};
+
+exports.getDeviceListAll = (sessionId) => {
+	const soapBody = `<v:Body>
+		<n0:GetDeviceListAll xmlns:n0="urn:NETGEAR-ROUTER:service:DeviceConfig:1" />
 	</v:Body>`;
 	return soapEnvelope(sessionId, soapBody);
 };

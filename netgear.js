@@ -28,6 +28,7 @@ const dnsLookupPromise = util.promisify(dns.lookup);
 
 const regexResponseCode = new RegExp(/<ResponseCode>(.*)<\/ResponseCode>/);
 const regexAttachedDevices = new RegExp(/<NewAttachDevice>(.*)<\/NewAttachDevice>/s);
+const regexAllowedDevices = new RegExp(/<NewAllowDeviceList>(.*)<\/NewAllowDeviceList>/s);
 const regexNewTodayUpload = new RegExp(/<NewTodayUpload>(.*)<\/NewTodayUpload>/);
 const regexNewTodayDownload = new RegExp(/<NewTodayDownload>(.*)<\/NewTodayDownload>/);
 const regexNewMonthUpload = new RegExp(/<NewMonthUpload>(.*)<\/NewMonthUpload>/);
@@ -461,6 +462,48 @@ class NetgearRouter {
 		}
 	}
 
+	/**
+	* Get Allowed Device list.
+	* @returns {Promise.<allowedDevice[]>}
+	*/
+	async getDeviceListAll() {
+		try {
+			const message = soap.getDeviceListAll(this.sessionId);
+			const result = await this._makeRequest(soap.action.getDeviceListAll, message);
+			const devices = [];
+			const body = result.body
+				.replace(/&amp;/gi, '&')
+				.replace(/&lt;/gi, '<')
+				.replace(/&gt;/gi, '>');
+			const raw = regexAllowedDevices.exec(body)[1];
+			const entries = raw.split('@');
+			entries.forEach((entry, index) => {
+				const info = entry.split(';');
+				// info must be larger then 0 chars
+				if (info.length === 0) {
+					throw Error('Error parsing device-list');
+				}
+				// check if first entry is number of entries
+				if (index === 0 && info.length === 1) {
+					if (Number(entry) !== entries.length - 1) throw Error('Error parsing device-list - number mismatch');
+					return;
+				}
+				// error when not enough info elements
+				if (info.length < 4) throw Error('Error parsing device-list - not enough elements');
+				// throw error on invalid mac format
+				if (info[1].length !== 17) throw Error('Error parsing device-list - invalid mac format');
+				const device = {
+					MAC: info[1],		// e.g. '61:56:FA:1B:E1:21'
+					Name: info[2],	// '--' for unknown
+					ConnectionType: info[3],	// 'wired' or 'wireless'
+				};
+				devices.push(device);
+			});
+			return Promise.all(devices);
+		} catch (error) {
+			return Promise.reject(error);
+		}
+	}
 
 	/**
 	* Get LAN config
@@ -534,6 +577,33 @@ class NetgearRouter {
 	}
 
 	/**
+	* Get Port Mapping Info
+	* @returns {Promise.<portMapping>}
+	*/
+	async getPortMappingInfo() {
+		try {
+			const message = soap.getPortMappingInfo(this.sessionId);
+			const result = await this._makeRequest(soap.action.getPortMappingInfo, message);
+			const patchedBody = patchBody(result.body);
+			// parse xml to json object
+			const parseOptions = {
+				compact: true, ignoreDeclaration: true, ignoreAttributes: true, spaces: 2,
+			};
+			const rawJson = parseXml.xml2js(patchedBody, parseOptions);
+			const entries = rawJson['v:Envelope']['v:Body']['m:GetPortMappingInfoResponse'];
+			const portMapping = {};
+			Object.keys(entries).forEach((property) => {
+				if (Object.prototype.hasOwnProperty.call(entries, property)) {
+					portMapping[property] = entries[property]._text;
+				}
+			});
+			return Promise.resolve(portMapping);
+		} catch (error) {
+			return Promise.reject(error);
+		}
+	}
+
+	/**
 	* Get array of attached devices.
 	* @param {number} [method = 0] - 0: auto, 1: v1 (old), 2: v2 (new)
 	* @returns {Promise.<AttachedDevice[]>}
@@ -551,7 +621,7 @@ class NetgearRouter {
 				devices = await this._getAttachedDevices()
 					.catch(() => this._getAttachedDevices2());
 			}
-			return Promise.resolve(devices);
+			return Promise.all(devices);
 		} catch (error) {
 			return Promise.reject(error);
 		}
@@ -990,7 +1060,7 @@ class NetgearRouter {
 			const result = await this._makeRequest(soap.action.getAvailableChannel, message);
 			const availableChannels = regexNewAvailableChannel.exec(result.body)[1];
 			const availableChannelsArray = availableChannels.split(',');
-			return Promise.resolve(availableChannelsArray);
+			return Promise.all(availableChannelsArray);
 		} catch (error) {
 			return Promise.reject(error);
 		}
@@ -1260,50 +1330,52 @@ class NetgearRouter {
 
 	async _getAttachedDevices() {
 		// Resolves promise list of connected devices to the router. Rejects if error occurred.
-		// console.log('Get attached devices');
 		try {
 			const message = soap.attachedDevices(this.sessionId);
 			const result = await this._makeRequest(soap.action.getAttachedDevices, message);
-			const devices = [];
 			const body = result.body
 				.replace(/&amp;/gi, '&')
-				.replace(/&lt;/gi, '')
-				.replace(/&gt;/gi, '');
+				.replace(/&lt;/gi, '<')
+				.replace(/&gt;/gi, '>');
 			const raw = regexAttachedDevices.exec(body)[1];
 			const entries = raw.split('@');
-			if (entries.length < 1) {
-				throw Error('Error parsing device-list (soap v2)');
-			}
-			Object.keys(entries).forEach((entry) => {
-				const info = entries[entry].split(';');
+			const devices = [];
+			entries.forEach((entry, index) => {
+				// console.log(index);
+				const info = entry.split(';');
+				// info must be larger then 0 chars
 				if (info.length === 0) {
-					throw Error('Error parsing device-list (soap v2)');
+					throw Error('Error parsing device-list (method 1)');
 				}
+				// check if first entry is number of entries
+				if (index === 0 && info.length === 1) {
+					if (Number(entry) !== entries.length - 1) throw Error('Error parsing device-list - number mismatch (method 1)');
+					return;
+				}
+				// error when not enough info elements
+				if (info.length < 5) throw Error('Error parsing device-list - not enough elements (method 1)');
 				// throw error on invalid mac format
-				if ((info.length > 1) && (info[3].length !== 17)) throw Error('Error parsing device-list (soap v2)');
-				if (info.length >= 5) { // Ignore first element if it is the total device count (info.length == 1)
-					const device = new AttachedDevice();
-					device.IP = info[1];		// e.g. '10.0.0.10'
-					device.Name = info[2];	// '--' for unknown
-					device.MAC = info[3];		// e.g. '61:56:FA:1B:E1:21'
-					device.ConnectionType = 'unknown';	// 'wired' or 'wireless'
-					device.Linkspeed = 0;		// number >= 0, or NaN for wired linktype
-					device.SignalStrength = 0;	// number <= 100
-					device.AllowOrBlock = 'unknown';		// 'Allow' or 'Block'
-					// Not all routers will report link type and rate
-					if (info.length >= 7) {
-						device.ConnectionType = info[4];
-						device.Linkspeed = parseInt(info[5], 10);
-						device.SignalStrength = parseInt(info[6], 10);
-					}
-					if (info.length >= 8) {
-						device.AllowOrBlock = info[7];
-					}
-					devices.push(device);
+				if (info[3].length !== 17) throw Error('Error parsing device-list - invalid mac format (method 1)');
+				const device = new AttachedDevice();
+				device.IP = info[1];		// e.g. '10.0.0.10'
+				device.Name = info[2];	// '--' for unknown
+				device.MAC = info[3];		// e.g. '61:56:FA:1B:E1:21'
+				device.ConnectionType = 'unknown';	// 'wired' or 'wireless'
+				device.Linkspeed = 0;		// number >= 0, or NaN for wired linktype
+				device.SignalStrength = 0;	// number <= 100
+				device.AllowOrBlock = 'unknown';		// 'Allow' or 'Block'
+				// Not all routers will report link type and rate
+				if (info.length >= 7) {
+					device.ConnectionType = info[4];
+					device.Linkspeed = parseInt(info[5], 10);
+					device.SignalStrength = parseInt(info[6], 10);
 				}
-				return devices;
+				if (info.length >= 8) {
+					device.AllowOrBlock = info[7];
+				}
+				devices.push(device);
 			});
-			return Promise.resolve(devices);
+			return Promise.all(devices);
 		} catch (error) {
 			return Promise.reject(error);
 		}
@@ -1332,7 +1404,7 @@ class NetgearRouter {
 				if (device.MAC.length !== 17) throw Error('Error parsing device-list');
 				return device;
 			});
-			return Promise.resolve(devices);
+			return Promise.all(devices);
 		} catch (error) {
 			return Promise.reject(error);
 		}
@@ -1837,6 +1909,18 @@ module.exports = NetgearRouter;
 */
 
 /**
+* @typedef allowedDevice
+* @description allowedDevice is an object with these properties.
+* @property {string} MAC - e.g. '61:56:FA:1B:E1:21'
+* @property {string} Name - '--' for unknown
+* @property {string} ConnectionType - e.g. 'wired', '2.4GHz', 'Guest Wireless 2.4G'
+* @example // allowedDevice
+{ MAC: '6F:A1:F8:04:9F:E2',
+  Name: 'OPENELEC',
+  ConnectionType: 'wireless' }
+*/
+
+/**
 * @typedef currentSetting
 * @description currentSetting is an object with properties similar to this.
 * @property {string} Firmware: e.g. 'V1.0.2.60WW'
@@ -2018,6 +2102,16 @@ module.exports = NetgearRouter;
   NewMaxMTUSize: '1500',
   NewDNSEnabled: '1',
   NewDNSServers: '66.220.144.254' }
+*/
+
+/**
+* @typedef portMapping
+* @description portMapping is an object with properties similar to this.
+* @property {number} NewPortMappingNumberOfEntries e.g. 0
+* @property {object} NewPortMappingInfo e.g. undefined
+* @example // portMapping
+{ NewPortMappingNumberOfEntries: '0',
+  NewPortMappingInfo: undefined }
 */
 
 /**

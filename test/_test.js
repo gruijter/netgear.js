@@ -257,6 +257,14 @@ async function getRouterInfo() {
 		// set longer timeout for following actions on shorttest
 		if (shorttest) router.timeout = 10000;
 
+		// get a list of allowed devices
+		// log.push('trying to get allowed devices...');
+		// const allowedDevices = await router.getDeviceListAll()
+		// 	.catch((error) => logError(error));
+		// log.push(`Number of allowed devices: ${allowedDevices.length}`);
+		// log.push('First allowed device:', allowedDevices[0]);
+		// log.push(`t = ${(Date.now() - t0) / 1000}`);
+
 		// get a list of attached devices
 		log.push('trying to get attachedDevices method 1...');
 		const attachedDevices = await router.getAttachedDevices(1)
@@ -498,7 +506,7 @@ async function doSpecialTest() {
 		await router.login();
 		// await router.logout();
 		log.push('performing special test');
-		const info = await router.login({ method: 2 });
+		const info = await router.getAttachedDevices(1);
 		// console.log(info);
 		log.push(info);
 	}	catch (error) {
