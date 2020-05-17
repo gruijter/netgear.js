@@ -506,7 +506,7 @@ async function doSpecialTest() {
 		await router.login();
 		// await router.logout();
 		log.push('performing special test');
-		const info = await router.getAttachedDevices(1);
+		const info = await router.speedTest();
 		// console.log(info);
 		log.push(info);
 	}	catch (error) {

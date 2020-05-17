@@ -15,6 +15,7 @@
 const http = require('http');
 const https = require('https');
 const parseXml = require('xml-js');
+const Queue = require('smart-request-balancer');
 const util = require('util');
 const dns = require('dns');
 const dgram = require('dgram');
@@ -147,6 +148,7 @@ class NetgearRouter {
 			set50_1: undefined,
 		};
 		this.lastResponse = undefined;
+		this._initQueue();
 	}
 
 	/**
@@ -200,13 +202,13 @@ class NetgearRouter {
 			// use old method if opts method 1 selected, or auto method selected and loginMethod < 2
 			if (options.method === 1 || (!options.method && this.loginMethod < 2)) {
 				this.cookie = undefined; // reset the cookie
-				loggedIn = await this._makeRequest(soap.action.loginOld, messageOld)
+				loggedIn = await this._queueMessage(soap.action.loginOld, messageOld)
 					.then(() => true)
 					.catch(() => false);
 			}
 			// use new method if opts method 2 selected, or auto method selected and loginMethod = 2
 			if (options.method === 2 || (!options.method && this.loginMethod >= 2)) {
-				loggedIn = await this._makeRequest(soap.action.login, messageNew)
+				loggedIn = await this._queueMessage(soap.action.login, messageNew)
 					.then(() => true)
 					.catch(() => {
 						this.cookie = undefined; // reset the cookie
@@ -215,13 +217,13 @@ class NetgearRouter {
 			}
 			// use old login method as first fallback, only if auto method selected
 			if (!options.method && !loggedIn) {
-				loggedIn = await this._makeRequest(soap.action.loginOld, messageOld)
+				loggedIn = await this._queueMessage(soap.action.loginOld, messageOld)
 					.then(() => true)
 					.catch(() => false);
 			}
 			// use new login method as second fallback, only if auto method selected
 			if (!options.method && !loggedIn) {
-				loggedIn = await this._makeRequest(soap.action.login, messageNew)
+				loggedIn = await this._queueMessage(soap.action.login, messageNew)
 					.catch(() => {
 						this.cookie = undefined; // reset the cookie
 						return false;
@@ -242,7 +244,7 @@ class NetgearRouter {
 	async logout() {
 		try {
 			const message = soap.logout(this.sessionId);
-			await this._makeRequest(soap.action.logout, message);
+			await this._queueMessage(soap.action.logout, message);
 			this.loggedIn = false;
 			return Promise.resolve(this.loggedIn);
 		} catch (error) {
@@ -269,22 +271,6 @@ class NetgearRouter {
 			};
 			const result = await this._makeHttpRequest(options, '', timeout);
 			this.lastResponse = result.body;
-			// request successfull
-			if (result.statusCode === 200 && result.body.includes('Model=')) {
-				const currentSetting = {};
-				const entries = result.body.split(/[\r\n\t\s]+/gm);
-				Object.keys(entries).forEach((entry) => {
-					const info = entries[entry].split('=');
-					if (info.length === 2) {
-						currentSetting[info[0]] = info[1];
-					}
-				});
-				currentSetting.host = host1; // add the host address to the information
-				currentSetting.port = await this._getSoapPort(host1); // add port address to the information
-				this.loginMethod = Number(currentSetting.LoginMethod) || 1;
-				this.soapVersion = parseInt(currentSetting.SOAPVersion, 10) || 2;
-				return Promise.resolve(currentSetting);
-			}
 			// request failed
 			if (result.statusCode !== 200) {
 				throw Error(`HTTP request Failed. Status Code: ${result.statusCode}`);
@@ -292,7 +278,20 @@ class NetgearRouter {
 			if (!result.body.includes('Model=')) {
 				throw Error('This is not a valid Netgear router');
 			}
-			throw Error('Unknow error');
+			// request successfull
+			const currentSetting = {};
+			const entries = result.body.split(/[\r\n\t\s]+/gm);
+			Object.keys(entries).forEach((entry) => {
+				const info = entries[entry].split('=');
+				if (info.length === 2) {
+					currentSetting[info[0]] = info[1];
+				}
+			});
+			currentSetting.host = host1; // add the host address to the information
+			currentSetting.port = await this._getSoapPort(host1); // add port address to the information
+			this.loginMethod = Number(currentSetting.LoginMethod) || 1;
+			this.soapVersion = parseInt(currentSetting.SOAPVersion, 10) || 2;
+			return Promise.resolve(currentSetting);
 		} catch (error) {
 			return Promise.reject(error);
 		}
@@ -306,7 +305,7 @@ class NetgearRouter {
 	async getSystemInfo() {
 		try {
 			const message = soap.getSystemInfo(this.sessionId);
-			const result = await this._makeRequest(soap.action.getSystemInfo, message);
+			const result = await this._queueMessage(soap.action.getSystemInfo, message);
 			// parse xml to json object
 			const parseOptions = {
 				compact: true, nativeType: true, ignoreDeclaration: true, ignoreAttributes: true, spaces: 2,
@@ -334,7 +333,7 @@ class NetgearRouter {
 	async getSystemLogs(parse) {
 		try {
 			const message = soap.getSystemLogs(this.sessionId);
-			const result = await this._makeRequest(soap.action.getSystemLogs, message);
+			const result = await this._queueMessage(soap.action.getSystemLogs, message);
 			if (!result.body.includes('</NewLogDetails>')) throw Error('Incorrect or incomplete response from router');
 			const raw = regexNewLogDetails.exec(result.body)[1];
 			const entries = raw
@@ -371,7 +370,7 @@ class NetgearRouter {
 	async getSysUpTime() {
 		try {
 			const message = soap.getSysUpTime(this.sessionId);
-			const result = await this._makeRequest(soap.action.getSysUpTime, message);
+			const result = await this._queueMessage(soap.action.getSysUpTime, message);
 			if (!result.body.includes('</SysUpTime>')) throw Error('Incorrect or incomplete response from router');
 			const sysUpTime = regexSysUpTime.exec(result.body)[1];
 			return Promise.resolve(sysUpTime);
@@ -388,7 +387,7 @@ class NetgearRouter {
 	async getInfo() {
 		try {
 			const message = soap.getInfo(this.sessionId);
-			const result = await this._makeRequest(soap.action.getInfo,	message);
+			const result = await this._queueMessage(soap.action.getInfo,	message);
 			// const patchedBody = patchBody(result.body);
 			// parse xml to json object
 			const parseOptions = {
@@ -415,7 +414,7 @@ class NetgearRouter {
 	async getSupportFeatureListXML() {
 		try {
 			const message = soap.getSupportFeatureListXML(this.sessionId);
-			const result = await this._makeRequest(soap.action.getSupportFeatureListXML, message);
+			const result = await this._queueMessage(soap.action.getSupportFeatureListXML, message);
 			// const patchedBody = patchBody(result.body);
 			// parse xml to json object
 			const parseOptions = {
@@ -442,7 +441,7 @@ class NetgearRouter {
 	async getDeviceConfig() {
 		try {
 			const message = soap.getDeviceConfig(this.sessionId);
-			const result = await this._makeRequest(soap.action.getDeviceConfig, message);
+			const result = await this._queueMessage(soap.action.getDeviceConfig, message);
 			// const patchedBody = patchBody(result.body);
 			// parse xml to json object
 			const parseOptions = {
@@ -469,7 +468,7 @@ class NetgearRouter {
 	async getDeviceListAll() {
 		try {
 			const message = soap.getDeviceListAll(this.sessionId);
-			const result = await this._makeRequest(soap.action.getDeviceListAll, message);
+			const result = await this._queueMessage(soap.action.getDeviceListAll, message);
 			const devices = [];
 			const body = result.body
 				.replace(/&amp;/gi, '&')
@@ -512,7 +511,7 @@ class NetgearRouter {
 	async getLANConfig() {
 		try {
 			const message = soap.getLANConfig(this.sessionId);
-			const result = await this._makeRequest(soap.action.getLANConfig, message);
+			const result = await this._queueMessage(soap.action.getLANConfig, message);
 			// const patchedBody = patchBody(result.body);
 			// parse xml to json object
 			const parseOptions = {
@@ -540,7 +539,7 @@ class NetgearRouter {
 	async getEthernetLinkStatus() {
 		try {
 			const message = soap.getEthernetLinkStatus(this.sessionId);
-			const result = await this._makeRequest(soap.action.getEthernetLinkStatus, message);
+			const result = await this._queueMessage(soap.action.getEthernetLinkStatus, message);
 			if (!result.body.includes('</NewEthernetLinkStatus>')) throw Error('Incorrect or incomplete response from router');
 			const ethernetLinkStatus = regexNewEthernetLinkStatus.exec(result.body)[1];
 			return Promise.resolve(ethernetLinkStatus);
@@ -556,7 +555,7 @@ class NetgearRouter {
 	async getWANConfig() {
 		try {
 			const message = soap.getWANIPConnection(this.sessionId);
-			const result = await this._makeRequest(soap.action.getWANIPConnection, message);
+			const result = await this._queueMessage(soap.action.getWANIPConnection, message);
 			// const patchedBody = patchBody(result.body);
 			// parse xml to json object
 			const parseOptions = {
@@ -583,7 +582,7 @@ class NetgearRouter {
 	async getPortMappingInfo() {
 		try {
 			const message = soap.getPortMappingInfo(this.sessionId);
-			const result = await this._makeRequest(soap.action.getPortMappingInfo, message);
+			const result = await this._queueMessage(soap.action.getPortMappingInfo, message);
 			const patchedBody = patchBody(result.body);
 			// parse xml to json object
 			const parseOptions = {
@@ -634,7 +633,7 @@ class NetgearRouter {
 	async getTrafficMeter() {
 		try {
 			const message = soap.trafficMeter(this.sessionId);
-			const result = await this._makeRequest(soap.action.getTrafficMeter,	message);
+			const result = await this._queueMessage(soap.action.getTrafficMeter,	message);
 			const newTodayUpload = Number(regexNewTodayUpload.exec(result.body)[1].replace(',', ''));
 			const newTodayDownload = Number(regexNewTodayDownload.exec(result.body)[1].replace(',', ''));
 			const newMonthUpload = Number(regexNewMonthUpload.exec(result.body)[1].split('/')[0].replace(',', ''));
@@ -656,7 +655,7 @@ class NetgearRouter {
 		try {
 			await this._configurationStarted();
 			const message = soap.getParentalControlEnableStatus(this.sessionId);
-			const result = await this._makeRequest(soap.action.getParentalControlEnableStatus, message);
+			const result = await this._queueMessage(soap.action.getParentalControlEnableStatus, message);
 			await this._configurationFinished()
 				.catch(() => {
 					// console.log(`finished with warning`);
@@ -678,7 +677,7 @@ class NetgearRouter {
 			const lanConfig = await this.getLANConfig();
 			const MAC = lanConfig.NewLANMACAddress;
 			const message = soap.setNetgearDeviceName(this.sessionId, MAC, name);
-			await this._makeRequest(soap.action.setNetgearDeviceName, message);
+			await this._queueMessage(soap.action.setNetgearDeviceName, message);
 			return Promise.resolve(true);
 		} catch (error) {
 			return Promise.reject(error);
@@ -694,7 +693,7 @@ class NetgearRouter {
 		try {
 			await this._configurationStarted();
 			const message = soap.enableParentalControl(this.sessionId, enable);
-			await this._makeRequest(soap.action.enableParentalControl, message);
+			await this._queueMessage(soap.action.enableParentalControl, message);
 			await this._configurationFinished()
 				.catch(() => {
 					// console.log(`finished with warning`);
@@ -712,7 +711,7 @@ class NetgearRouter {
 	async getQoSEnableStatus() {
 		try {
 			const message = soap.getQoSEnableStatus(this.sessionId);
-			const result = await this._makeRequest(soap.action.getQoSEnableStatus, message);
+			const result = await this._queueMessage(soap.action.getQoSEnableStatus, message);
 			const qosEnabled = regexNewQoSEnableStatus.exec(result.body)[1] === '1';
 			return Promise.resolve(qosEnabled);
 		} catch (error) {
@@ -727,7 +726,7 @@ class NetgearRouter {
 	async getCurrentDeviceBandwidth() {
 		try {
 			const message = soap.getCurrentDeviceBandwidth(this.sessionId);
-			const result = await this._makeRequest(soap.action.getCurrentDeviceBandwidth, message);
+			const result = await this._queueMessage(soap.action.getCurrentDeviceBandwidth, message);
 			const currentDeviceBandwidth = regexCurrentDeviceBandwidth.exec(result.body)[1];
 			// response:
 			// <m:GetCurrentDeviceBandwidthResponse xmlns:m="urn:NETGEAR-ROUTER:service:AdvancedQoS:1">
@@ -746,7 +745,7 @@ class NetgearRouter {
 	async getCurrentBandwidthByMAC(mac) {
 		try {
 			const message = soap.getCurrentBandwidthByMAC(this.sessionId, mac);
-			const result = await this._makeRequest(soap.action.getCurrentBandwidthByMAC, message);
+			const result = await this._queueMessage(soap.action.getCurrentBandwidthByMAC, message);
 			const currentDeviceUpBandwidth = regexCurrentDeviceUpBandwidth.exec(result.body)[1];
 			const currentDeviceDownBandwidth = regexCurrentDeviceDownBandwidth.exec(result.body)[1];
 			// response:
@@ -769,7 +768,7 @@ class NetgearRouter {
 		try {
 			await this._configurationStarted();
 			const message = soap.setQoSEnableStatus(this.sessionId, enable);
-			await this._makeRequest(soap.action.setQoSEnableStatus, message);
+			await this._queueMessage(soap.action.setQoSEnableStatus, message);
 			await this._configurationFinished()
 				.catch(() => {
 					// console.log(`finished with warning`);
@@ -787,7 +786,7 @@ class NetgearRouter {
 	async getTrafficMeterEnabled() {
 		try {
 			const message = soap.getTrafficMeterEnabled(this.sessionId);
-			const result = await this._makeRequest(soap.action.getTrafficMeterEnabled, message);
+			const result = await this._queueMessage(soap.action.getTrafficMeterEnabled, message);
 			const trafficMeterEnabled = regexNewTrafficMeterEnable.exec(result.body)[1] === '1';
 			return Promise.resolve(trafficMeterEnabled);
 		} catch (error) {
@@ -802,7 +801,7 @@ class NetgearRouter {
 	async getTrafficMeterOptions() {
 		try {
 			const message = soap.getTrafficMeterOptions(this.sessionId);
-			const result = await this._makeRequest(soap.action.getTrafficMeterOptions, message);
+			const result = await this._queueMessage(soap.action.getTrafficMeterOptions, message);
 			const newControlOption = regexNewControlOption.exec(result.body)[1];
 			const newNewMonthlyLimit = Number(regexNewMonthlyLimit.exec(result.body)[1].replace(',', ''));
 			const restartHour = Number(regexRestartHour.exec(result.body)[1]);
@@ -826,7 +825,7 @@ class NetgearRouter {
 		try {
 			await this._configurationStarted();
 			const message = soap.enableTrafficMeter(this.sessionId, enabled);
-			await this._makeRequest(soap.action.enableTrafficMeter, message);
+			await this._queueMessage(soap.action.enableTrafficMeter, message);
 			await this._configurationFinished()
 				.catch(() => {
 					// console.log(`finished with warning.`);
@@ -844,7 +843,7 @@ class NetgearRouter {
 	async getBandwidthControlOptions() {
 		try {
 			const message = soap.getBandwidthControlOptions(this.sessionId);
-			const result = await this._makeRequest(soap.action.getBandwidthControlOptions, message);
+			const result = await this._queueMessage(soap.action.getBandwidthControlOptions, message);
 			const newUplinkBandwidth = Number(regexNewUplinkBandwidth.exec(result.body)[1].replace(',', ''));
 			const newDownlinkBandwidth = Number(regexNewDownlinkBandwidth.exec(result.body)[1].replace(',', ''));
 			const enabled = Number(regexNewSettingMethod.exec(result.body)[1]);
@@ -867,7 +866,7 @@ class NetgearRouter {
 		try {
 			await this._configurationStarted();
 			const message = soap.setBandwidthControlOptions(this.sessionId, newUplinkBandwidth, newDownlinkBandwidth);
-			await this._makeRequest(soap.action.setBandwidthControlOptions, message);
+			await this._queueMessage(soap.action.setBandwidthControlOptions, message);
 			await this._configurationFinished()
 				.catch(() => {
 					// console.log(`finished with warning`);
@@ -885,7 +884,7 @@ class NetgearRouter {
 	async getBlockDeviceEnableStatus() {
 		try {
 			const message = soap.getBlockDeviceEnableStatus(this.sessionId);
-			const result = await this._makeRequest(soap.action.getBlockDeviceEnableStatus, message);
+			const result = await this._queueMessage(soap.action.getBlockDeviceEnableStatus, message);
 			const blockDeviceEnabled = regexNewBlockDeviceEnable.exec(result.body)[1] === '1';
 			return Promise.resolve(blockDeviceEnabled);
 		} catch (error) {
@@ -902,7 +901,7 @@ class NetgearRouter {
 		try {
 			await this._configurationStarted();
 			const message = soap.setBlockDeviceEnable(this.sessionId, enable);
-			await this._makeRequest(soap.action.setBlockDeviceEnable, message);
+			await this._queueMessage(soap.action.setBlockDeviceEnable, message);
 			await this._configurationFinished()
 				.catch(() => {
 					// console.log(`finished with warning`);
@@ -919,7 +918,7 @@ class NetgearRouter {
 		try {
 			await this._configurationStarted();
 			const message = soap.enableBlockDeviceForAll(this.sessionId);
-			await this._makeRequest(soap.action.enableBlockDeviceForAll, message);
+			await this._queueMessage(soap.action.enableBlockDeviceForAll, message);
 			await this._configurationFinished()
 				.catch(() => {
 					// console.log(`finished with warning`);
@@ -940,7 +939,7 @@ class NetgearRouter {
 		try {
 			await this._configurationStarted();
 			const message = soap.setBlockDevice(this.sessionId, MAC, AllowOrBlock);
-			await this._makeRequest(soap.action.setBlockDevice, message); // response code 1 = unknown MAC?, 2= device not connected?
+			await this._queueMessage(soap.action.setBlockDevice, message); // response code 1 = unknown MAC?, 2= device not connected?
 			await this._configurationFinished()
 				.catch(() => {
 					// console.log(`Block/Allow finished with warning for ${MAC}`);
@@ -958,7 +957,7 @@ class NetgearRouter {
 	async getGuestWifiEnabled() {
 		try {
 			const message = soap.getGuestAccessEnabled(this.sessionId);
-			const result = await this._makeRequest(soap.action.getGuestAccessEnabled,	message);
+			const result = await this._queueMessage(soap.action.getGuestAccessEnabled,	message);
 			return Promise.resolve(result.body.includes('<NewGuestAccessEnabled>1</NewGuestAccessEnabled>'));
 		} catch (error) {
 			return Promise.reject(error);
@@ -992,11 +991,11 @@ class NetgearRouter {
 			// try method R8000
 			this.guestWifiMethod.get50_1 = 2;
 			const message = soap.get5G1GuestAccessEnabled(this.sessionId);
-			const result = await this._makeRequest(soap.action.get5G1GuestAccessEnabled2, message)
+			const result = await this._queueMessage(soap.action.get5G1GuestAccessEnabled2, message)
 				.catch(() => {
 					// console.log('trying alternative method');	// try method R7800
 					this.guestWifiMethod.get50_1 = 1;
-					return Promise.resolve(this._makeRequest(soap.action.get5G1GuestAccessEnabled, message));
+					return Promise.resolve(this._queueMessage(soap.action.get5G1GuestAccessEnabled, message));
 				});
 			return Promise.resolve(result.body.includes('<NewGuestAccessEnabled>1</NewGuestAccessEnabled>'));
 		} catch (error) {
@@ -1030,7 +1029,7 @@ class NetgearRouter {
 		try {
 			// try method R8000
 			const message = soap.get5GGuestAccessEnabled2(this.sessionId);
-			const result = await this._makeRequest(soap.action.get5GGuestAccessEnabled2, message);
+			const result = await this._queueMessage(soap.action.get5GGuestAccessEnabled2, message);
 			return Promise.resolve(result.body.includes('<NewGuestAccessEnabled>1</NewGuestAccessEnabled>'));
 		} catch (error) {
 			return Promise.reject(error);
@@ -1057,7 +1056,7 @@ class NetgearRouter {
 		try {
 
 			const message = soap.getAvailableChannel(this.sessionId, band || '2.4G');
-			const result = await this._makeRequest(soap.action.getAvailableChannel, message);
+			const result = await this._queueMessage(soap.action.getAvailableChannel, message);
 			const availableChannels = regexNewAvailableChannel.exec(result.body)[1];
 			const availableChannelsArray = availableChannels.split(',');
 			return Promise.all(availableChannelsArray);
@@ -1081,13 +1080,13 @@ class NetgearRouter {
 			await this._configurationStarted();
 			if (band === '5G') {
 				const message = soap.set5GChannel(this.sessionId, chnl);
-				await this._makeRequest(soap.action.set5GChannel, message);
+				await this._queueMessage(soap.action.set5GChannel, message);
 			} else if (band === '5G1') {
 				const message = soap.set5G1Channel(this.sessionId, chnl);
-				await this._makeRequest(soap.action.set5G1Channel, message);
+				await this._queueMessage(soap.action.set5G1Channel, message);
 			} else {
 				const message = soap.setChannel(this.sessionId, chnl);
-				await this._makeRequest(soap.action.setChannel, message);
+				await this._queueMessage(soap.action.setChannel, message);
 			}
 			await this._configurationFinished()
 				.catch(() => {
@@ -1108,7 +1107,7 @@ class NetgearRouter {
 		try {
 
 			const message = soap.getChannelInfo(this.sessionId);
-			const result = await this._makeRequest(soap.action.getChannelInfo, message);
+			const result = await this._queueMessage(soap.action.getChannelInfo, message);
 			const channel = regexNewChannel.exec(result.body)[1];
 			return Promise.resolve(channel);
 		} catch (error) {
@@ -1125,7 +1124,7 @@ class NetgearRouter {
 		try {
 
 			const message = soap.get5GChannelInfo(this.sessionId);
-			const result = await this._makeRequest(soap.action.get5GChannelInfo, message);
+			const result = await this._queueMessage(soap.action.get5GChannelInfo, message);
 			const channel5G = regexNew5GChannel.exec(result.body)[1];
 			return Promise.resolve(channel5G);
 		} catch (error) {
@@ -1142,7 +1141,7 @@ class NetgearRouter {
 		try {
 
 			const message = soap.get5G1ChannelInfo(this.sessionId);
-			const result = await this._makeRequest(soap.action.get5G1ChannelInfo, message);
+			const result = await this._queueMessage(soap.action.get5G1ChannelInfo, message);
 			const channel5G1 = regexNew5G1Channel.exec(result.body)[1];
 			return Promise.resolve(channel5G1);
 		} catch (error) {
@@ -1158,7 +1157,7 @@ class NetgearRouter {
 		try {
 			await this._configurationStarted();
 			const message = soap.getSmartConnectEnabled(this.sessionId);
-			const result = await this._makeRequest(soap.action.getSmartConnectEnabled, message);
+			const result = await this._queueMessage(soap.action.getSmartConnectEnabled, message);
 			await this._configurationFinished()
 				.catch(() => {
 					// console.log(`finished with warning`);
@@ -1179,7 +1178,7 @@ class NetgearRouter {
 		try {
 			await this._configurationStarted();
 			const message = soap.setSmartConnectEnabled(this.sessionId, enable);
-			await this._makeRequest(soap.action.setSmartConnectEnabled, message);
+			await this._queueMessage(soap.action.setSmartConnectEnabled, message);
 			await this._configurationFinished()
 				.catch(() => {
 					// console.log(`finished with warning`);
@@ -1201,7 +1200,7 @@ class NetgearRouter {
 					throw Error(`Reboot request failed. (config started failure: ${err})`);
 				});
 			const message = soap.reboot(this.sessionId);
-			await this._makeRequest(soap.action.reboot,	message);
+			await this._queueMessage(soap.action.reboot,	message);
 			await this._configurationFinished()
 				.catch(() => {
 				// console.log(`Reboot finished with warning`);
@@ -1221,13 +1220,13 @@ class NetgearRouter {
 			// first try new method
 			this.checkNewFirmwareMethod = 2;
 			const message = soap.checkAppNewFirmware(this.sessionId);
-			let result = await this._makeRequest(soap.action.checkAppNewFirmware, message)
+			let result = await this._queueMessage(soap.action.checkAppNewFirmware, message)
 				.catch(() => false);
 			// try old method on fail
 			if (!result) {
 				this.checkNewFirmwareMethod = 1;
 				const message2 = soap.checkNewFirmware(this.sessionId);
-				result = await this._makeRequest(soap.action.checkNewFirmware, message2);
+				result = await this._queueMessage(soap.action.checkNewFirmware, message2);
 			}
 			const currentVersion = regexCurrentVersion.exec(result.body)[1];
 			const newVersion = regexNewVersion.exec(result.body)[1];
@@ -1245,7 +1244,7 @@ class NetgearRouter {
 	async updateNewFirmware() {
 		try {
 			const message = soap.updateNewFirmware(this.sessionId);
-			await this._makeRequest(soap.action.updateNewFirmware,	message).catch(() => false);
+			await this._queueMessage(soap.action.updateNewFirmware,	message).catch(() => false);
 			return Promise.resolve(true); // firmware update request successfull
 		} catch (error) {
 			return Promise.reject(error);
@@ -1301,7 +1300,7 @@ class NetgearRouter {
 		try {
 			await this._configurationStarted();
 			const message = soap.speedTestStart(this.sessionId);
-			await this._makeRequest(soap.action.speedTestStart,	message);
+			await this._queueMessage(soap.action.speedTestStart,	message);
 			await this._configurationFinished()
 				.catch(() => {
 				// console.log(`Speedtest finished with warning`);
@@ -1317,7 +1316,7 @@ class NetgearRouter {
 		// console.log('speed test results requested');
 		try {
 			const message = soap.speedTestResult(this.sessionId);
-			const result = await this._makeRequest(soap.action.speedTestResult,	message);
+			const result = await this._queueMessage(soap.action.speedTestResult,	message);
 			const uplinkBandwidth = Number(regexUplinkBandwidth.exec(result.body)[1]);
 			const downlinkBandwidth = Number(regexDownlinkBandwidth.exec(result.body)[1]);
 			const averagePing = Number(regexAveragePing.exec(result.body)[1]);
@@ -1332,7 +1331,7 @@ class NetgearRouter {
 		// Resolves promise list of connected devices to the router. Rejects if error occurred.
 		try {
 			const message = soap.attachedDevices(this.sessionId);
-			const result = await this._makeRequest(soap.action.getAttachedDevices, message);
+			const result = await this._queueMessage(soap.action.getAttachedDevices, message);
 			const body = result.body
 				.replace(/&amp;/gi, '&')
 				.replace(/&lt;/gi, '<')
@@ -1386,7 +1385,7 @@ class NetgearRouter {
 		// console.log('Get attached devices2');
 		try {
 			const message = soap.attachedDevices2(this.sessionId);
-			const result = await this._makeRequest(soap.action.getAttachedDevices2, message);
+			const result = await this._queueMessage(soap.action.getAttachedDevices2, message);
 			// const patchedBody = patchBody(result.body);
 			// parse xml to json object
 			const parseOptions = {
@@ -1416,7 +1415,7 @@ class NetgearRouter {
 		try {
 			await this._configurationStarted();
 			const message = soap.setGuestAccessEnabled(this.sessionId, enabled);
-			await this._makeRequest(soap.action.setGuestAccessEnabled, message);
+			await this._queueMessage(soap.action.setGuestAccessEnabled, message);
 			await this._configurationFinished()
 				.catch(() => {
 					// console.log(`setGuestAccessEnabled finished with warning.`);
@@ -1433,7 +1432,7 @@ class NetgearRouter {
 		try {
 			await this._configurationStarted();
 			const message = soap.setGuestAccessEnabled2(this.sessionId, enabled);
-			await this._makeRequest(soap.action.setGuestAccessEnabled2, message);
+			await this._queueMessage(soap.action.setGuestAccessEnabled2, message);
 			await this._configurationFinished()
 				.catch(() => {
 					// console.log(`setGuestAccessEnabled2 finished with warning.`);
@@ -1449,7 +1448,7 @@ class NetgearRouter {
 		// console.log('setGuestAccess requested');
 		await this._configurationStarted();
 		const message = soap.set5G1GuestAccessEnabled(this.sessionId, enabled);
-		await this._makeRequest(soap.action.set5G1GuestAccessEnabled, message);
+		await this._queueMessage(soap.action.set5G1GuestAccessEnabled, message);
 		await this._configurationFinished()
 			.catch(() => {
 				// console.log(`set5G1GuestAccessEnabled finished with warning.`);
@@ -1462,7 +1461,7 @@ class NetgearRouter {
 		// console.log('setGuestAccess requested');
 		await this._configurationStarted();
 		const message = soap.set5G1GuestAccessEnabled2(this.sessionId, enabled);
-		await this._makeRequest(soap.action.set5G1GuestAccessEnabled2, message);
+		await this._queueMessage(soap.action.set5G1GuestAccessEnabled2, message);
 		await this._configurationFinished()
 			.catch(() => {
 				// console.log(`set5G1GuestAccessEnabled2 finished with warning.`);
@@ -1475,7 +1474,7 @@ class NetgearRouter {
 		// console.log('setGuestAccess requested');
 		await this._configurationStarted();
 		const message = soap.set5GGuestAccessEnabled2(this.sessionId, enabled);
-		await this._makeRequest(soap.action.set5GGuestAccessEnabled2, message);
+		await this._queueMessage(soap.action.set5GGuestAccessEnabled2, message);
 		await this._configurationFinished()
 			.catch(() => {
 				// console.log(`set5GGuestAccessEnabled2 finished with warning.`);
@@ -1488,7 +1487,7 @@ class NetgearRouter {
 		// console.log('start configuration');
 		try {
 			const message = soap.configurationStarted(this.sessionId);
-			await this._makeRequest(soap.action.configurationStarted, message);
+			await this._queueMessage(soap.action.configurationStarted, message);
 			this.configStarted = true;
 			return Promise.resolve(true);
 		} catch (error) {
@@ -1505,7 +1504,7 @@ class NetgearRouter {
 			}
 			this.configStarted = false;
 			const message = soap.configurationFinished(this.sessionId);
-			await this._makeRequest(soap.action.configurationFinished, message)
+			await this._queueMessage(soap.action.configurationFinished, message)
 				.catch((err) => {	// config finished failed...
 					this.configStarted = true;
 					throw err;
@@ -1557,11 +1556,8 @@ class NetgearRouter {
 				}
 				return hostsToTest;
 			});
-			const allHostsPromise = hostsToTest.map(async (hostToTest) => {
-				const result = await this.getCurrentSetting(hostToTest, 3000) // temporarily set http timeout to 3 seconds
-					.catch(() => undefined);
-				return result;
-			});
+			const allHostsPromise = hostsToTest.map((hostToTest) => this.getCurrentSetting(hostToTest, 2000)
+				.catch(() => undefined)); // temporarily set http timeout to 2 seconds
 			const allHosts = await Promise.all(allHostsPromise);
 			const discoveredHosts = allHosts.filter((host) => host);
 			if (!discoveredHosts[0]) {
@@ -1732,6 +1728,39 @@ class NetgearRouter {
 		}
 	}
 
+	// queue stuff
+	_initQueue() {
+		const config = {
+			rules: {				// Describing our rules by rule name
+				common: {			// Common rule. Will be used if you won't provide rule argument
+					rate: 3,		// Allow to send 3 messages
+					limit: 1,		// per 1 second
+					priority: 1,	// Rule priority. The lower priority is, the higher chance that this rule will execute faster
+				},
+			},
+			overall: {				// Overall queue rates and limits
+				rate: 10,
+				limit: 1,
+			},
+			retryTime: 2,		// Default retry time (seconds). Can be configured in retry fn
+			ignoreOverallOverheat: true,	// Should we ignore overheat of queue itself
+		};
+		this.queue = new Queue(config);
+	}
+
+	_queueMessage(action, msg) {
+		const key = Date.now(); // 'homey';
+		const requestHandler = () => this._makeRequest(action, msg)
+			.then((response) => response)
+			.catch((error) => {
+				// if (error.message && (error.message.includes('throttled') || error.message.includes('429'))) {
+				// 	return retry();
+				// }
+				throw error;
+			});
+		return this.queue.request(requestHandler, key);
+	}
+
 	_makeHttpRequest(options, postData, timeout) {
 		return new Promise((resolve, reject) => {
 			const req = http.request(options, (res) => {
@@ -1747,13 +1776,13 @@ class NetgearRouter {
 					return resolve(res); // resolve the request
 				});
 			});
-			req.setTimeout(timeout || this.timeout, () => {
-				req.abort();
-			});
-			req.once('error', (e) => {
+			req.on('error', (e) => {
 				req.abort();
 				this.lastResponse = e;	// e.g. ECONNREFUSED on wrong soap port or wrong IP // ECONNRESET on wrong IP
 				return reject(e);
+			});
+			req.setTimeout(timeout || this.timeout, () => {
+				req.abort();
 			});
 			// req.write(postData);
 			req.end(postData);
@@ -1775,13 +1804,13 @@ class NetgearRouter {
 					return resolve(res); // resolve the request
 				});
 			});
-			req.setTimeout(timeout || this.timeout, () => {
-				req.abort();
-			});
-			req.once('error', (e) => {
+			req.on('error', (e) => {
 				req.abort();
 				this.lastResponse = e;	// e.g. ECONNREFUSED on wrong soap port or wrong IP // ECONNRESET on wrong IP
 				return reject(e);
+			});
+			req.setTimeout(timeout || this.timeout, () => {
+				req.abort();
 			});
 			// req.write(postData);
 			req.end(postData);
@@ -1796,7 +1825,7 @@ class NetgearRouter {
 			client.once('listening', () => {
 				client.setBroadcast(options.address === broadcast);
 			});
-			client.once('error', (e) => {
+			client.on('error', (e) => {
 				client.close();
 				this.lastResponse = e;
 				reject(e);
