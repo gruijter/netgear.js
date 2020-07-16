@@ -398,7 +398,8 @@ class NetgearRouter {
 			const info = {};
 			Object.keys(entries).forEach((property) => {
 				if (Object.prototype.hasOwnProperty.call(entries, property)) {
-					info[property] = entries[property]._text;
+					const propname = property.replace('New', '');
+					info[propname] = entries[property]._text;
 				}
 			});
 			return Promise.resolve(info);
