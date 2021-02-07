@@ -4,7 +4,7 @@
 	License, v. 2.0. If a copy of the MPL was not distributed with this
 	file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-	Copyright 2017 - 2020, Robin de Gruijter <gruijter@hotmail.com> */
+	Copyright 2017 - 2021, Robin de Gruijter <gruijter@hotmail.com> */
 
 // INSTRUCTIONS FOR TESTING FROM DESKTOP:
 // install node (https://nodejs.org)

@@ -2,7 +2,7 @@
 	License, v. 2.0. If a copy of the MPL was not distributed with this
 	file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-	Copyright 2017 - 2020, Robin de Gruijter <gruijter@hotmail.com> */
+	Copyright 2017 - 2021, Robin de Gruijter <gruijter@hotmail.com> */
 
 'use strict';
 
@@ -18,6 +18,9 @@ exports.action = {
 	configurationStarted: 'urn:NETGEAR-ROUTER:service:DeviceConfig:1#ConfigurationStarted',
 	configurationFinished: 'urn:NETGEAR-ROUTER:service:DeviceConfig:1#ConfigurationFinished',
 	getDeviceConfig: 'urn:NETGEAR-ROUTER:service:DeviceConfig:1#GetInfo',
+	getTimeZoneInfo: 'urn:NETGEAR-ROUTER:service:DeviceConfig:1#GetTimeZoneInfo', // ***NEW***
+
+	getNTPServers: 'urn:NETGEAR-ROUTER:service:Time:1#GetInfo',	// ***NEW***
 
 	// device config, block/allow device related
 	getDeviceListAll: 'urn:NETGEAR-ROUTER:service:DeviceConfig:1#GetDeviceListAll', // ***NEW*** gives list of all allowed devices
@@ -37,6 +40,8 @@ exports.action = {
 	getWANIPConnection: 'urn:NETGEAR-ROUTER:service:WANIPConnection:1#GetInfo',	// external IP, gateway, MAC, MTU, DNS
 	getEthernetLinkStatus: 'urn:NETGEAR-ROUTER:service:WANEthernetLinkConfig:1#GetEthernetLinkStatus', // ***NEW***
 	getPortMappingInfo: 'urn:NETGEAR-ROUTER:service:WANIPConnection:1#GetPortMappingInfo', // ***NEW***
+	getWANConnectionTypeInfo: 'urn:NETGEAR-ROUTER:service:WANIPConnection:1#GetConnectionTypeInfo', // ***NEW*** > e.g. DHCP
+	getWANInternetPortInfo: 'urn:NETGEAR-ROUTER:service:WANIPConnection:1#GetInternetPortInfo', // ***NEW*** > e.g. Ethernet
 
 	// parental control
 	getParentalControlEnableStatus: 'urn:NETGEAR-ROUTER:service:ParentalControl:1#GetEnableStatus',
@@ -88,17 +93,16 @@ exports.action = {
 	setUserOptionsTC: 'urn:NETGEAR-ROUTER:service:UserOptionsTC:1#SetUserOptionsTC',	// ***NEW***
 	getBandwidthControlEnableStatus: 'urn:NETGEAR-ROUTER:service:DeviceConfig:1#GetBandwidthControlEnableStatus', // ***NEW***
 
-
 	// Potentially NEW STUFF > still needs to be implemented in soapcalls.js
 
 	// getCurrentAppBandwidth: 'urn:NETGEAR-ROUTER:service:AdvancedQoS:1#GetCurrentAppBandwidth',	// cannot get this to work yet...
 	// getCurrentAppBandwidthByMAC: 'urn:NETGEAR-ROUTER:service:AdvancedQoS:1#GetCurrentAppBandwidthByMAC', // cannot get this to work yet...
+	// getWANDNSLookUpStatus: 'urn:NETGEAR-ROUTER:service:WANIPConnection:1#GetDNSLookUpStatus', // ***NEW*** cannot get this to work on R7800
+
 	// urn:NETGEAR-ROUTER:service:AdvancedQOS:1#GetDevicePriorityByMAC
 
-	// urn:NETGEAR-ROUTER:service:WANIPConnection:1#GetConnectionTypeInfo > e.g. DHCP
-	// urn:NETGEAR-ROUTER:service:WANIPConnection:1#GetInternetPortInfo
 	// urn:NETGEAR-ROUTER:service:WANIPConnection:1#GetRemoteManagementEnableStatus
-	// urn:NETGEAR-ROUTER:service:WANIPConnection:1#GetDNSLookUpStatus
+
 	// urn:NETGEAR-ROUTER:service:WANIPConnection:1#GetPPPConnStatus
 
 	// urn:NETGEAR-ROUTER:service:WLANConfiguration:1#GetWEPSecurityKeys
@@ -137,15 +141,11 @@ exports.action = {
 	// urn:NETGEAR-ROUTER:service:DeviceConfig:1#GetDeviceListByMode
 	// urn:NETGEAR-ROUTER:service:DeviceConfig:1#GetQoSRules
 	// urn:NETGEAR-ROUTER:service:DeviceConfig:1#GetStaticRouteTbl
-	// urn:NETGEAR-ROUTER:service:DeviceConfig:1#GetTimeZoneInfo
 	// urn:NETGEAR-ROUTER:service:DeviceConfig:1#IsDLNAEnabled
 	// urn:NETGEAR-ROUTER:service:DeviceConfig:1#IsDLNASupported
 	// urn:NETGEAR-ROUTER:service:DeviceConfig:1#GetConfigInfo	> gives config file in Base64-encoded string
 
 	// urn:NETGEAR-ROUTER:service:DeviceInfo:1#SetDeviceNameIconByMAC
-
-	// urn:NETGEAR-ROUTER:service:Time:1#GetInfo
-
 
 };
 
@@ -202,6 +202,20 @@ exports.getSupportFeatureListXML = (sessionId) => {
 	return soapEnvelope(sessionId, soapBody);
 };
 
+exports.getNTPServers = (sessionId) => {
+	const soapBody = `<v:Body>
+		<M1:GetInfo xsi:nil="true" />
+	</v:Body>`;
+	return soapEnvelope(sessionId, soapBody);
+};
+
+exports.getTimeZoneInfo = (sessionId) => {
+	const soapBody = `<v:Body>
+		<M1:GetTimeZoneInfo xsi:nil="true" />
+	</v:Body>`;
+	return soapEnvelope(sessionId, soapBody);
+};
+
 exports.getSysUpTime = (sessionId) => {
 	const soapBody = `<v:Body>
 		<M1:GetSysUpTime xsi:nil="true" />
@@ -238,6 +252,27 @@ exports.getEthernetLinkStatus = (sessionId) => {
 };
 
 exports.getWANIPConnection = (sessionId) => {
+	const soapBody = `<v:Body>
+		<n0:GetInfo xmlns:n0="urn:NETGEAR-ROUTER:service:WANIPConnection:1" />
+	</v:Body>`;
+	return soapEnvelope(sessionId, soapBody);
+};
+
+exports.getWANConnectionTypeInfo = (sessionId) => {
+	const soapBody = `<v:Body>
+		<n0:GetInfo xmlns:n0="urn:NETGEAR-ROUTER:service:WANIPConnection:1" />
+	</v:Body>`;
+	return soapEnvelope(sessionId, soapBody);
+};
+
+exports.getWANDNSLookUpStatus = (sessionId) => {
+	const soapBody = `<v:Body>
+		<n0:GetInfo xmlns:n0="urn:NETGEAR-ROUTER:service:WANIPConnection:1" />
+	</v:Body>`;
+	return soapEnvelope(sessionId, soapBody);
+};
+
+exports.getWANInternetPortInfo = (sessionId) => {
 	const soapBody = `<v:Body>
 		<n0:GetInfo xmlns:n0="urn:NETGEAR-ROUTER:service:WANIPConnection:1" />
 	</v:Body>`;

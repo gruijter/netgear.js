@@ -2,7 +2,7 @@
 	License, v. 2.0. If a copy of the MPL was not distributed with this
 	file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-	Copyright 2017 - 2020, Robin de Gruijter <gruijter@hotmail.com> */
+	Copyright 2017 - 2021, Robin de Gruijter <gruijter@hotmail.com> */
 
 /* eslint-disable no-await-in-loop */
 /* eslint-disable prefer-destructuring */
@@ -23,6 +23,7 @@ const dgram = require('dgram');
 // const Buffer = require('buffer').Buffer;
 const os = require('os');
 const soap = require('./soapcalls');
+// const { hasUncaughtExceptionCaptureCallback } = require('process');
 
 const setTimeoutPromise = util.promisify(setTimeout);
 const dnsLookupPromise = util.promisify(dns.lookup);
@@ -64,13 +65,11 @@ const regexNewLogDetails = new RegExp(/<NewLogDetails>(.*)<\/NewLogDetails>/s);
 const regexSysUpTime = new RegExp(/<SysUpTime>(.*)<\/SysUpTime>/);
 const regexNewEthernetLinkStatus = new RegExp(/<NewEthernetLinkStatus>(.*)<\/NewEthernetLinkStatus>/);
 
-
 const defaultHost = 'routerlogin.net';
 const defaultUser = 'admin';
 const defaultPassword = 'password';
 // const defaultPort = 5000;	// 80 for orbi and R7800
 const defaultSessionId = 'A7D88AE69687E58D9A00';	// '10588AE69687E58D9A00'
-
 
 class AttachedDevice {
 	constructor() {
@@ -99,7 +98,6 @@ class AttachedDevice {
 		this.ConnAPMAC = undefined; // unknown, found in orbi response
 	}
 }
-
 
 // filters for illegal xml characters
 // XML 1.0
@@ -297,7 +295,6 @@ class NetgearRouter {
 		}
 	}
 
-
 	/**
 	* Get system Info.
 	* @returns {Promise.<systemInfo>}
@@ -323,7 +320,6 @@ class NetgearRouter {
 			return Promise.reject(error);
 		}
 	}
-
 
 	/**
 	* Get router logs.
@@ -362,7 +358,6 @@ class NetgearRouter {
 		}
 	}
 
-
 	/**
 	* Get router uptime since last boot.
 	* @returns {Promise.<hh:mm:ss>}
@@ -379,6 +374,99 @@ class NetgearRouter {
 		}
 	}
 
+	/**
+	* @typedef NTPservers
+	* @description TimeZoneInfo is an object with these properties.
+	* @property {string} NTPServer1 e.g. 'time-g.netgear.com'
+	* @property {string} NTPServer2 e.g. 'time-g.netgear.com'
+	* @property {string} NTPServer3 e.g. 'time-g.netgear.com'
+	* @property {string} NTPServer4 e.g. 'time-g.netgear.com'
+	* @example // NTPservers
+{
+	NTPServer1: 'time-g.netgear.com',
+	NTPServer2: 'time-g.netgear.com',
+	NTPServer3: 'time-g.netgear.com',
+	NTPServer4: 'time-g.netgear.com'
+}
+	*/
+
+	/**
+	* Get NTP servers.
+	* @returns {Promise.<NTPservers>}
+	*/
+	async getNTPServers() {
+		try {
+			const message = soap.getNTPServers(this.sessionId);
+			const result = await this._queueMessage(soap.action.getNTPServers, message);
+			if (!result.body.includes('m:GetInfoResponse')) throw Error('Incorrect or incomplete response from router');
+			// parse xml to json object
+			const parseOptions = {
+				compact: true, ignoreDeclaration: true, ignoreAttributes: true, spaces: 2,
+			};
+			const rawJson = parseXml.xml2js(result.body, parseOptions);
+			const entries = rawJson['v:Envelope']['v:Body']['m:GetInfoResponse'];
+			const info = {};
+			Object.keys(entries).forEach((property) => {
+				if (Object.prototype.hasOwnProperty.call(entries, property)) {
+					const propname = property.replace('New', '');
+					info[propname] = entries[property]._text;
+				}
+			});
+			return Promise.resolve(info);
+		} catch (error) {
+			return Promise.reject(error);
+		}
+	}
+
+	/**
+	* @typedef timeZoneInfo
+	* @description TimeZoneInfo is an object with these properties.
+	* @property {string} TimeZone e.g. '+1'
+	* @property {string} DaylightSaving e.g. '0'
+	* @property {string} IndexValue e.g. '19'
+	* @example // timeZoneInfo
+{ TimeZone: '+1', DaylightSaving: '0', IndexValue: '19' }
+	*/
+
+	/**
+	* Get TimeZone.
+	* @returns {Promise.<timeZoneInfo>}
+	*/
+	async getTimeZoneInfo() {
+		try {
+			const message = soap.getTimeZoneInfo(this.sessionId);
+			const result = await this._queueMessage(soap.action.getTimeZoneInfo, message);
+			if (!result.body.includes('m:GetTimeZoneInfoResponse')) throw Error('Incorrect or incomplete response from router');
+
+			// parse xml to json object
+			const parseOptions = {
+				compact: true, ignoreDeclaration: true, ignoreAttributes: true, spaces: 2,
+			};
+			const rawJson = parseXml.xml2js(result.body, parseOptions);
+			const entries = rawJson['v:Envelope']['v:Body']['m:GetTimeZoneInfoResponse'];
+			const info = {};
+			Object.keys(entries).forEach((property) => {
+				if (Object.prototype.hasOwnProperty.call(entries, property)) {
+					const propname = property.replace('New', '');
+					// propname = propname.charAt(0).toLowerCase() + propname.slice(1);
+					info[propname] = entries[property]._text;
+				}
+			});
+
+			// const regExTimeZone = /<NewTimeZone>(.*)<\/NewTimeZone>/;
+			// const regExDaylightSaving = /<NewDaylightSaving>(.*)<\/NewDaylightSaving>/;
+			// const regExIndexValue = /<NewIndexValue>(.*)<\/NewIndexValue>/;
+			// const info = {
+			// 	timeZone: result.body.match(regExTimeZone)[1],
+			// 	daylightSaving: result.body.match(regExDaylightSaving)[1],
+			// 	indexValue: result.body.match(regExIndexValue)[1],
+			// };
+
+			return Promise.resolve(info);
+		} catch (error) {
+			return Promise.reject(error);
+		}
+	}
 
 	/**
 	* Get router information.
@@ -532,7 +620,6 @@ class NetgearRouter {
 		}
 	}
 
-
 	/**
 	* Get Internet connection status, e.g. 'Up'
 	* @returns {Promise.<ethernetLinkStatus>}
@@ -571,6 +658,113 @@ class NetgearRouter {
 				}
 			});
 			return Promise.resolve(WANConfig);
+		} catch (error) {
+			return Promise.reject(error);
+		}
+	}
+
+	/**
+	* @typedef WANConnectionType
+	* @description WANConnectionType is an object with these properties.
+	* @property {string} ConnectionType e.g. 'DHCP'
+	* @example // WANConnectionType
+{ ConnectionType: 'DHCP' }
+	*/
+
+	/**
+	* Get WAN Connection Type
+	* @returns {Promise.<WANConnectionType>}
+	*/
+	async getWANConnectionType() {
+		try {
+			const message = soap.getWANConnectionTypeInfo(this.sessionId);
+			const result = await this._queueMessage(soap.action.getWANConnectionTypeInfo, message);
+
+			if (!result.body.includes('m:GetConnectionTypeInfoResponse')) throw Error('Incorrect or incomplete response from router');
+
+			// parse xml to json object
+			const parseOptions = {
+				compact: true, ignoreDeclaration: true, ignoreAttributes: true, spaces: 2,
+			};
+			const rawJson = parseXml.xml2js(result.body, parseOptions);
+			const entries = rawJson['v:Envelope']['v:Body']['m:GetConnectionTypeInfoResponse'];
+			const info = {};
+			Object.keys(entries).forEach((property) => {
+				if (Object.prototype.hasOwnProperty.call(entries, property)) {
+					const propname = property.replace('New', '');
+					// propname = propname.charAt(0).toLowerCase() + propname.slice(1);
+					info[propname] = entries[property]._text;
+				}
+			});
+			return Promise.resolve(info);
+		} catch (error) {
+			return Promise.reject(error);
+		}
+	}
+
+	/**
+	* @typedef WANInternetPort
+	* @description WANInternetPort is an object with these properties.
+	* @property {string} InternetPortInfo e.g. '1@1;Ethernet'
+	* @example // WANInternetPort
+{ InternetPortInfo: '1@1;Ethernet' }
+	*/
+
+	/**
+	* Get WAN Internet Port Info
+	* @returns {Promise.<WANInternetPort>}
+	*/
+	async getWANInternetPort() {
+		try {
+			const message = soap.getWANInternetPortInfo(this.sessionId);
+			const result = await this._queueMessage(soap.action.getWANInternetPortInfo, message);
+			if (!result.body.includes('m:GetInternetPortInfoResponse')) throw Error('Incorrect or incomplete response from router');
+
+			// parse xml to json object
+			const parseOptions = {
+				compact: true, ignoreDeclaration: true, ignoreAttributes: true, spaces: 2,
+			};
+			const rawJson = parseXml.xml2js(result.body, parseOptions);
+			const entries = rawJson['v:Envelope']['v:Body']['m:GetInternetPortInfoResponse'];
+			const info = {};
+			Object.keys(entries).forEach((property) => {
+				if (Object.prototype.hasOwnProperty.call(entries, property)) {
+					const propname = property.replace('New', '');
+					// propname = propname.charAt(0).toLowerCase() + propname.slice(1);
+					info[propname] = entries[property]._text;
+				}
+			});
+			return Promise.resolve(info);
+		} catch (error) {
+			return Promise.reject(error);
+		}
+	}
+
+	/**
+	* Get WAN DNS LookUpStatus
+	* @returns {Promise.<WANDNSLookUpStatus>}
+	*/
+	async getWANDNSLookUpStatus() {
+		try {
+			const message = soap.getWANDNSLookUpStatus(this.sessionId);
+			const result = await this._queueMessage(soap.action.getWANDNSLookUpStatus, message);
+			if (!result.body.includes('m:GetDNSLookUpStatusResponse')) throw Error('Incorrect or incomplete response from router');
+
+			// parse xml to json object
+			const parseOptions = {
+				compact: true, ignoreDeclaration: true, ignoreAttributes: true, spaces: 2,
+			};
+			const rawJson = parseXml.xml2js(result.body, parseOptions);
+			const entries = rawJson['v:Envelope']['v:Body']['m:GetInternetPortInfoResponse'];
+			const info = {};
+			Object.keys(entries).forEach((property) => {
+				if (Object.prototype.hasOwnProperty.call(entries, property)) {
+					const propname = property.replace('New', '');
+					// propname = propname.charAt(0).toLowerCase() + propname.slice(1);
+					info[propname] = entries[property]._text;
+				}
+			});
+			return Promise.resolve(info);
 		} catch (error) {
 			return Promise.reject(error);
 		}
@@ -1845,7 +2039,6 @@ class NetgearRouter {
 }
 
 module.exports = NetgearRouter;
-
 
 // definitions for JSDoc
 
