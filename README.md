@@ -31,7 +31,7 @@ Cable Gateway: C7000 C6300 C6250 C3700 C3000 N450
 
 
 ## Quickstart:
-```
+```js
 // create a router session, login to router, fetch attached devices
 const Netgear = require('netgear');
 
@@ -52,7 +52,7 @@ getDevices();
 ```
 
 ## Example code:
-```
+```js
 const NetgearRouter = require('netgear');
 
 // note: options can be passed in here. See login options.
