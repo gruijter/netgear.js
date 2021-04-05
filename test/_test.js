@@ -505,8 +505,8 @@ async function doSpecialTest() {
 	try {
 		await router.login();
 		// await router.logout();
-		log.push('performing special test');
-		const info = await router.getPortMappingInfo();
+		log.push('updating firmware');
+		const info = await router.updateNewFirmware();
 		// console.log(info);
 		log.push(info);
 	}	catch (error) {

@@ -1,3 +1,4 @@
+4.3.2 - 05-04-2020 Fix checkNewFormware method. Readme updated.
 4.3.1 - 13-03-2021 Fix http(s) timeout setting.
 4.3.0 - 07-02-2020 Added getNTPServers, getTimeZoneInfo, getWANConnectionType, getWANInternetPort, getWANDNSLookUpStatus.
 4.2.0 - 16-07-2020 Remove 'New' from getInfo response properties.
