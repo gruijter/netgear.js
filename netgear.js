@@ -1724,14 +1724,16 @@ class NetgearRouter {
 					return currentSetting;
 				})
 				.catch(() => undefined);
-			info = await dnsLookupPromise('orbilogin.com')
-				.then(async (netgear) => {
-					const hostToTest = netgear.address || netgear;	// weird, sometimes it doesn't have .address
-					const currentSetting = await this.getCurrentSetting(hostToTest);
-					return currentSetting;
-				})
-				.catch(() => undefined);
-			if (!info) {	// routerlogin.net is not working...
+			if (!info) { // routerlogin.net is not working...
+				info = await dnsLookupPromise('orbilogin.com')
+					.then(async (netgear) => {
+						const hostToTest = netgear.address || netgear;	// weird, sometimes it doesn't have .address
+						const currentSetting = await this.getCurrentSetting(hostToTest);
+						return currentSetting;
+					})
+					.catch(() => undefined);
+			}
+			if (!info) {	// orbilogin.com is not working...
 				[info] = await this._discoverAllHostsInfo();
 			}
 			return Promise.resolve(info);	// info.host has the ipAddress
