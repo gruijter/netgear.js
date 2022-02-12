@@ -2,7 +2,7 @@
 	License, v. 2.0. If a copy of the MPL was not distributed with this
 	file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-	Copyright 2017 - 2021, Robin de Gruijter <gruijter@hotmail.com> */
+	Copyright 2017 - 2022, Robin de Gruijter <gruijter@hotmail.com> */
 
 /* eslint-disable no-await-in-loop */
 /* eslint-disable prefer-destructuring */
@@ -127,8 +127,8 @@ class NetgearRouter {
 	constructor(opts, username, host, port) {
 		const options = opts || {};
 		this.host = options.host || host || defaultHost;
-		this.port = options.port || port;
-		this.tls = options.tls || false;
+		this.port = options.port || port;	// defaults with tls: 443, 5555. no tls: 5000, 80
+		this.tls = options.tls === undefined ? true : options.tls;
 		this.username = options.username || username || defaultUser;
 		this.password = options.password || opts || defaultPassword;
 		this.timeout = options.timeout || 18000;
@@ -158,6 +158,7 @@ class NetgearRouter {
 			const discoveredInfo = await this._discoverHostInfo();
 			this.host = discoveredInfo.host;
 			this.port = discoveredInfo.port;
+			this.tls = discoveredInfo.tls;
 			return Promise.resolve(discoveredInfo);
 		} catch (error) {
 			return Promise.reject(error);
@@ -180,7 +181,7 @@ class NetgearRouter {
 			}
 			this.host = options.host || host || await this.host;
 			this.port = options.port || port || await this.port;
-			this.tls = options.tls || this.tls;
+			this.tls = options.tls === undefined ? await this.tls : options.tls;
 			this.username = options.username || username || this.username;
 			this.timeout = options.timeout || this.timeout;
 			if (!this.host || this.host === '') {
@@ -189,10 +190,11 @@ class NetgearRouter {
 						throw Error('Cannot login: host IP and/or SOAP port not set');
 					});
 			}
-			// discover soap port and login method supported by router
+			// discover soap port, tls and login method supported by router
 			if (!this.loginMethod || !this.port) {
 				const currentSetting = await this.getCurrentSetting();
 				this.port = currentSetting.port;
+				this.tls = currentSetting.tls;
 			}
 			let loggedIn = false;
 			const messageNew = soap.login(this.sessionId, this.username, this.password);
@@ -251,7 +253,7 @@ class NetgearRouter {
 	}
 
 	/**
-	* Get router information without need for credentials.
+	* Get router information without need for credentials. Autodiscovers the SOAP port and TLS
 	* @param {string} [host] - The url or ip address of the router.
 	* @returns {Promise.<currentSetting>}
 	*/
@@ -287,6 +289,8 @@ class NetgearRouter {
 			});
 			currentSetting.host = host1; // add the host address to the information
 			currentSetting.port = await this._getSoapPort(host1); // add port address to the information
+			currentSetting.tls = false;
+			if (currentSetting.port === 443 || currentSetting.port === 5555) currentSetting.tls = true; // add tls to the information
 			this.loginMethod = Number(currentSetting.LoginMethod) || 1;
 			this.soapVersion = parseInt(currentSetting.SOAPVersion, 10) || 2;
 			return Promise.resolve(currentSetting);
@@ -1720,6 +1724,13 @@ class NetgearRouter {
 					return currentSetting;
 				})
 				.catch(() => undefined);
+			info = await dnsLookupPromise('orbilogin.com')
+				.then(async (netgear) => {
+					const hostToTest = netgear.address || netgear;	// weird, sometimes it doesn't have .address
+					const currentSetting = await this.getCurrentSetting(hostToTest);
+					return currentSetting;
+				})
+				.catch(() => undefined);
 			if (!info) {	// routerlogin.net is not working...
 				[info] = await this._discoverAllHostsInfo();
 			}
@@ -1766,29 +1777,33 @@ class NetgearRouter {
 	}
 
 	async _getSoapPort(host1) {
-		// returns a promise of the soap port (80 or 5000 or undefined), or rejects with an error
+		// returns a promise of the soap port (80, 443, 5000, 5555 or undefined), or rejects with an error
 		try {
 			if (!host1 || host1 === '') {
 				throw Error('getSoapPort failed: Host ip is not provided');
 			}
 			const message = soap.getInfo(this.sessionId);
 			const action = soap.action.getInfo;
-			// try port 443 if Https selected
-			if (this.tls) {
-				const result443 = await this._makeRequest2(action, message, host1, 443, 3000)
-					.catch(() => ({ body: null }));
-				if (JSON.stringify(result443.body).includes('<ResponseCode>')) {
-					return Promise.resolve(443);
-				}
+			// try port 443 with TLS
+			const result443 = await this._makeRequest2(action, message, host1, 443, true, 3000)
+				.catch(() => ({ body: null }));
+			if (JSON.stringify(result443.body).includes('<ResponseCode>')) {
+				return Promise.resolve(443);
 			}
-			// try port 5000 first
-			const result5000 = await this._makeRequest2(action, message, host1, 5000, 3000)
+			// try port 5555 with TLS
+			const result5555 = await this._makeRequest2(action, message, host1, 5555, true, 3000)
+				.catch(() => ({ body: null }));
+			if (JSON.stringify(result5555.body).includes('<ResponseCode>')) {
+				return Promise.resolve(5555);
+			}
+			// try port 5000 without TLS
+			const result5000 = await this._makeRequest2(action, message, host1, 5000, false, 3000)
 				.catch(() => ({ body: null }));
 			if (JSON.stringify(result5000.body).includes('<ResponseCode>')) {
 				return Promise.resolve(5000);
 			}
-			// try port 80 now
-			const result80 = await this._makeRequest2(action, message, host1, 80, 3000)
+			// try port 80 without TLS
+			const result80 = await this._makeRequest2(action, message, host1, 80, false, 3000)
 				.catch(() => ({ body: null }));
 			if (JSON.stringify(result80.body).includes('<ResponseCode>')) {
 				return Promise.resolve(80);
@@ -1890,7 +1905,7 @@ class NetgearRouter {
 
 	// soap request without login check, and without using this
 	// used for _getSoapPort
-	async _makeRequest2(action, message, host, port, timeout) {
+	async _makeRequest2(action, message, host, port, tls, timeout) {
 		try {
 			const headers = {
 				soapaction: action,
@@ -1912,7 +1927,7 @@ class NetgearRouter {
 				method: 'POST',
 			};
 			let result;
-			if (this.tls && port === 443) {
+			if (tls) {
 				result = await this._makeHttpsRequest(options, message, timeout);
 			} else {
 				result = await this._makeHttpRequest(options, message, timeout);
@@ -2162,6 +2177,7 @@ module.exports = NetgearRouter;
 * @property {string} LoginMethod e.g. '2.0'
 * @property {string} host e.g. '192.168.1.1'
 * @property {number} port e.g. 80
+* @property {boolean} TLS e.g. true
 * @example // currentSetting (depending on router type)
 { Firmware: 'V1.0.2.60WW',
   RegionTag: 'R7800_WW',
@@ -2174,7 +2190,8 @@ module.exports = NetgearRouter;
   XCloudSupported: '1',
   LoginMethod: '2.0',
   host: '192.168.1.1',
-  port: 80 }
+  port: 80
+  TLS: false }
 */
 
 /**

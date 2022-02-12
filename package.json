@@ -1,6 +1,6 @@
 {
   "name": "netgear",
-  "version": "4.3.3",
+  "version": "4.4.0",
   "description": "Node module to interact with Netgear routers via SOAP",
   "main": "netgear.js",
   "scripts": {
@@ -19,7 +19,8 @@
     "netgear",
     "router",
     "soap",
-    "genie"
+    "genie",
+    "orbi"
   ],
   "author": "Robin de Gruijter <gruijter@hotmail.com>",
   "license": "MPL-2.0",

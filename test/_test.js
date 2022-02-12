@@ -3,7 +3,7 @@
 	License, v. 2.0. If a copy of the MPL was not distributed with this
 	file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-	Copyright 2017 - 2021, Robin de Gruijter <gruijter@hotmail.com> */
+	Copyright 2017 - 2022, Robin de Gruijter <gruijter@hotmail.com> */
 
 // INSTRUCTIONS FOR TESTING FROM DESKTOP:
 // install node (https://nodejs.org)
@@ -174,13 +174,6 @@ async function getRouterInfo() {
 			const DeviceConfig = await router.getDeviceConfig()
 				.catch((error) => logError(error));
 			log.push(DeviceConfig);
-			log.push(`t = ${(Date.now() - t0) / 1000}`);
-
-			// Get the parentalControlEnableStatus.
-			log.push('trying to get Parental Control Status...');
-			const parentalControlEnabled = await router.getParentalControlEnableStatus()
-				.catch((error) => logError(error));
-			log.push(`Parental Control Enabled: ${parentalControlEnabled}`);
 			log.push(`t = ${(Date.now() - t0) / 1000}`);
 
 			// Get the qosEnableStatus.
