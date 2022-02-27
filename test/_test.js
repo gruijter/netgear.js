@@ -14,7 +14,7 @@
 
 const os = require('os');
 
-const NetgearRouter = require('../netgear.js');
+const NetgearRouter = require('../netgear');
 const { version } = require('../package.json');
 // const util = require('util');
 

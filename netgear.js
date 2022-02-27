@@ -28,42 +28,42 @@ const soap = require('./soapcalls');
 const setTimeoutPromise = util.promisify(setTimeout);
 const dnsLookupPromise = util.promisify(dns.lookup);
 
-const regexResponseCode = new RegExp(/<ResponseCode>(.*)<\/ResponseCode>/);
-const regexAttachedDevices = new RegExp(/<NewAttachDevice>(.*)<\/NewAttachDevice>/s);
-const regexAllowedDevices = new RegExp(/<NewAllowDeviceList>(.*)<\/NewAllowDeviceList>/s);
-const regexNewTodayUpload = new RegExp(/<NewTodayUpload>(.*)<\/NewTodayUpload>/);
-const regexNewTodayDownload = new RegExp(/<NewTodayDownload>(.*)<\/NewTodayDownload>/);
-const regexNewMonthUpload = new RegExp(/<NewMonthUpload>(.*)<\/NewMonthUpload>/);
-const regexNewMonthDownload = new RegExp(/<NewMonthDownload>(.*)<\/NewMonthDownload>/);
-const regexCurrentVersion = new RegExp(/<CurrentVersion>(.*)<\/CurrentVersion>/);
-const regexNewVersion = new RegExp(/<NewVersion>(.*)<\/NewVersion>/);
-const regexReleaseNote = new RegExp(/<ReleaseNote>(.*)<\/ReleaseNote>/s);
-const regexNewUplinkBandwidth = new RegExp(/<NewUplinkBandwidth>(.*)<\/NewUplinkBandwidth>/);
-const regexNewDownlinkBandwidth = new RegExp(/<NewDownlinkBandwidth>(.*)<\/NewDownlinkBandwidth>/);
-const regexCurrentDeviceBandwidth = new RegExp(/<NewCurrentDeviceBandwidth>(.*)<\/NewCurrentDeviceBandwidth>/);
-const regexCurrentDeviceUpBandwidth = new RegExp(/<NewCurrentDeviceUpBandwidth>(.*)<\/NewCurrentDeviceUpBandwidth>/);
-const regexCurrentDeviceDownBandwidth = new RegExp(/<NewCurrentDeviceDownBandwidth>(.*)<\/NewCurrentDeviceDownBandwidth>/);
-const regexNewSettingMethod = new RegExp(/<NewSettingMethod>(.*)<\/NewSettingMethod>/);
-const regexUplinkBandwidth = new RegExp(/<NewOOKLAUplinkBandwidth>(.*)<\/NewOOKLAUplinkBandwidth>/);
-const regexDownlinkBandwidth = new RegExp(/<NewOOKLADownlinkBandwidth>(.*)<\/NewOOKLADownlinkBandwidth>/);
-const regexAveragePing = new RegExp(/<AveragePing>(.*)<\/AveragePing>/);
-const regexParentalControl = new RegExp(/<ParentalControl>(.*)<\/ParentalControl>/);
-const regexNewQoSEnableStatus = new RegExp(/<NewQoSEnableStatus>(.*)<\/NewQoSEnableStatus>/);
-const regexNewSmartConnectEnable = new RegExp(/<NewSmartConnectEnable>(.*)<\/NewSmartConnectEnable>/);
-const regexNewBlockDeviceEnable = new RegExp(/<NewBlockDeviceEnable>(.*)<\/NewBlockDeviceEnable>/);
-const regexNewTrafficMeterEnable = new RegExp(/<NewTrafficMeterEnable>(.*)<\/NewTrafficMeterEnable>/);
-const regexNewControlOption = new RegExp(/<NewControlOption>(.*)<\/NewControlOption>/);
-const regexNewMonthlyLimit = new RegExp(/<NewMonthlyLimit>(.*)<\/NewMonthlyLimit>/);
-const regexRestartHour = new RegExp(/<RestartHour>(.*)<\/RestartHour>/);
-const regexRestartMinute = new RegExp(/<RestartMinute>(.*)<\/RestartMinute>/);
-const regexRestartDay = new RegExp(/<RestartDay>(.*)<\/RestartDay>/);
-const regexNewAvailableChannel = new RegExp(/<NewAvailableChannel>(.*)<\/NewAvailableChannel>/);
-const regexNewChannel = new RegExp(/<NewChannel>(.*)<\/NewChannel>/);
-const regexNew5GChannel = new RegExp(/<New5GChannel>(.*)<\/New5GChannel>/);
-const regexNew5G1Channel = new RegExp(/<New5G1Channel>(.*)<\/New5G1Channel>/);
-const regexNewLogDetails = new RegExp(/<NewLogDetails>(.*)<\/NewLogDetails>/s);
-const regexSysUpTime = new RegExp(/<SysUpTime>(.*)<\/SysUpTime>/);
-const regexNewEthernetLinkStatus = new RegExp(/<NewEthernetLinkStatus>(.*)<\/NewEthernetLinkStatus>/);
+const regexResponseCode = /<ResponseCode>(.*)<\/ResponseCode>/;
+const regexAttachedDevices = /<NewAttachDevice>(.*)<\/NewAttachDevice>/s;
+const regexAllowedDevices = /<NewAllowDeviceList>(.*)<\/NewAllowDeviceList>/s;
+const regexNewTodayUpload = /<NewTodayUpload>(.*)<\/NewTodayUpload>/;
+const regexNewTodayDownload = /<NewTodayDownload>(.*)<\/NewTodayDownload>/;
+const regexNewMonthUpload = /<NewMonthUpload>(.*)<\/NewMonthUpload>/;
+const regexNewMonthDownload = /<NewMonthDownload>(.*)<\/NewMonthDownload>/;
+const regexCurrentVersion = /<CurrentVersion>(.*)<\/CurrentVersion>/;
+const regexNewVersion = /<NewVersion>(.*)<\/NewVersion>/;
+const regexReleaseNote = /<ReleaseNote>(.*)<\/ReleaseNote>/s;
+const regexNewUplinkBandwidth = /<NewUplinkBandwidth>(.*)<\/NewUplinkBandwidth>/;
+const regexNewDownlinkBandwidth = /<NewDownlinkBandwidth>(.*)<\/NewDownlinkBandwidth>/;
+const regexCurrentDeviceBandwidth = /<NewCurrentDeviceBandwidth>(.*)<\/NewCurrentDeviceBandwidth>/;
+const regexCurrentDeviceUpBandwidth = /<NewCurrentDeviceUpBandwidth>(.*)<\/NewCurrentDeviceUpBandwidth>/;
+const regexCurrentDeviceDownBandwidth = /<NewCurrentDeviceDownBandwidth>(.*)<\/NewCurrentDeviceDownBandwidth>/;
+const regexNewSettingMethod = /<NewSettingMethod>(.*)<\/NewSettingMethod>/;
+const regexUplinkBandwidth = /<NewOOKLAUplinkBandwidth>(.*)<\/NewOOKLAUplinkBandwidth>/;
+const regexDownlinkBandwidth = /<NewOOKLADownlinkBandwidth>(.*)<\/NewOOKLADownlinkBandwidth>/;
+const regexAveragePing = /<AveragePing>(.*)<\/AveragePing>/;
+const regexParentalControl = /<ParentalControl>(.*)<\/ParentalControl>/;
+const regexNewQoSEnableStatus = /<NewQoSEnableStatus>(.*)<\/NewQoSEnableStatus>/;
+const regexNewSmartConnectEnable = /<NewSmartConnectEnable>(.*)<\/NewSmartConnectEnable>/;
+const regexNewBlockDeviceEnable = /<NewBlockDeviceEnable>(.*)<\/NewBlockDeviceEnable>/;
+const regexNewTrafficMeterEnable = /<NewTrafficMeterEnable>(.*)<\/NewTrafficMeterEnable>/;
+const regexNewControlOption = /<NewControlOption>(.*)<\/NewControlOption>/;
+const regexNewMonthlyLimit = /<NewMonthlyLimit>(.*)<\/NewMonthlyLimit>/;
+const regexRestartHour = /<RestartHour>(.*)<\/RestartHour>/;
+const regexRestartMinute = /<RestartMinute>(.*)<\/RestartMinute>/;
+const regexRestartDay = /<RestartDay>(.*)<\/RestartDay>/;
+const regexNewAvailableChannel = /<NewAvailableChannel>(.*)<\/NewAvailableChannel>/;
+const regexNewChannel = /<NewChannel>(.*)<\/NewChannel>/;
+const regexNew5GChannel = /<New5GChannel>(.*)<\/New5GChannel>/;
+const regexNew5G1Channel = /<New5G1Channel>(.*)<\/New5G1Channel>/;
+const regexNewLogDetails = /<NewLogDetails>(.*)<\/NewLogDetails>/s;
+const regexSysUpTime = /<SysUpTime>(.*)<\/SysUpTime>/;
+const regexNewEthernetLinkStatus = /<NewEthernetLinkStatus>(.*)<\/NewEthernetLinkStatus>/;
 
 const defaultHost = 'routerlogin.net';
 const defaultUser = 'admin';
@@ -128,7 +128,7 @@ class NetgearRouter {
 		const options = opts || {};
 		this.host = options.host || host || defaultHost;
 		this.port = options.port || port;	// defaults with tls: 443, 5555. no tls: 5000, 80
-		this.tls = options.tls === undefined ? true : options.tls;
+		this.tls = options.tls === undefined ? (this.port !== 80) : options.tls; // set tls true as default, except when using port 80
 		this.username = options.username || username || defaultUser;
 		this.password = options.password || opts || defaultPassword;
 		this.timeout = options.timeout || 18000;
@@ -192,9 +192,9 @@ class NetgearRouter {
 			}
 			// discover soap port, tls and login method supported by router
 			if (!this.loginMethod || !this.port) {
-				const currentSetting = await this.getCurrentSetting();
-				this.port = currentSetting.port;
-				this.tls = currentSetting.tls;
+				const currentSetting = await this.getCurrentSetting(); // will set this.loginMethod
+				if (!this.port) this.port = currentSetting.port; // keep manually set port
+				if (this.tls === undefined) this.tls = currentSetting.tls; // keep manual set tls
 			}
 			let loggedIn = false;
 			const messageNew = soap.login(this.sessionId, this.username, this.password);
@@ -1717,25 +1717,12 @@ class NetgearRouter {
 	async _discoverHostInfo() {
 		// returns a promise of the netgear router info including host IP address, or rejects with an error
 		try {
-			let info = await dnsLookupPromise('routerlogin.net')
-				.then(async (netgear) => {
-					const hostToTest = netgear.address || netgear;	// weird, sometimes it doesn't have .address
-					const currentSetting = await this.getCurrentSetting(hostToTest);
-					return currentSetting;
-				})
-				.catch(() => undefined);
-			if (!info) { // routerlogin.net is not working...
-				info = await dnsLookupPromise('orbilogin.com')
-					.then(async (netgear) => {
-						const hostToTest = netgear.address || netgear;	// weird, sometimes it doesn't have .address
-						const currentSetting = await this.getCurrentSetting(hostToTest);
-						return currentSetting;
-					})
-					.catch(() => undefined);
-			}
-			if (!info) {	// orbilogin.com is not working...
-				[info] = await this._discoverAllHostsInfo();
-			}
+			let info;
+			// first try routerlogin.net
+			const host = await dnsLookupPromise('routerlogin.net').catch(() => undefined); // orbilogin.com/net has redirects?
+			if (host) info = await this.getCurrentSetting(host.address || host).catch(() => undefined); // weird, sometimes it doesn't have .address
+			// else try ip scanning
+			if (!info) [info] = await this._discoverAllHostsInfo();
 			return Promise.resolve(info);	// info.host has the ipAddress
 		} catch (error) {
 			this.lastResponse = error;
@@ -1757,15 +1744,15 @@ class NetgearRouter {
 					}
 				});
 			});
-			networks.map((network) => {
+			networks.forEach((network) => {
 				for (let host = 1; host <= 254; host += 1) {
 					const ipToTest = network.address.replace(/\.\d+$/, `.${host}`);
 					hostsToTest.push(ipToTest);
 				}
 				return hostsToTest;
 			});
-			const allHostsPromise = hostsToTest.map((hostToTest) => this.getCurrentSetting(hostToTest, 2000)
-				.catch(() => undefined)); // temporarily set http timeout to 2 seconds
+			// temporarily set http timeout to 4 seconds
+			const allHostsPromise = hostsToTest.map((hostToTest) => Promise.resolve(this.getCurrentSetting(hostToTest, 4000).catch(() => undefined)));
 			const allHosts = await Promise.all(allHostsPromise);
 			const discoveredHosts = allHosts.filter((host) => host);
 			if (!discoveredHosts[0]) {
