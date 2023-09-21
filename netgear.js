@@ -2,7 +2,7 @@
 	License, v. 2.0. If a copy of the MPL was not distributed with this
 	file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-	Copyright 2017 - 2022, Robin de Gruijter <gruijter@hotmail.com> */
+	Copyright 2017 - 2023, Robin de Gruijter <gruijter@hotmail.com> */
 
 /* eslint-disable no-await-in-loop */
 /* eslint-disable prefer-destructuring */
@@ -151,11 +151,12 @@ class NetgearRouter {
 
 	/**
 	* Discovers a netgear router in the network. Also sets the discovered ip address and soap port for this session.
+	* @param {dnsLookupOptions} [options] - dnsLookup options, e.g. { family: 4 }
 	* @returns {Promise.<currentSetting>} The discovered router info, including host ip address and soap port.
 	*/
-	async discover() {
+	async discover(dnsLookupOptions) {
 		try {
-			const discoveredInfo = await this._discoverHostInfo();
+			const discoveredInfo = await this._discoverHostInfo(dnsLookupOptions);
 			this.host = discoveredInfo.host;
 			this.port = discoveredInfo.port;
 			this.tls = discoveredInfo.tls;
@@ -288,9 +289,10 @@ class NetgearRouter {
 				}
 			});
 			currentSetting.host = host1; // add the host address to the information
-			currentSetting.port = await this._getSoapPort(host1); // add port address to the information
-			currentSetting.tls = false;
-			if (currentSetting.port === 443 || currentSetting.port === 5555) currentSetting.tls = true; // add tls to the information
+			currentSetting.port = currentSetting.SOAP_HTTPs_Port || await this._getSoapPort(host1); // add port address to the information
+			currentSetting.tls = !!currentSetting.SOAP_HTTPs_Port;
+			if (currentSetting.port === 443 || currentSetting.port === 5555
+				|| currentSetting.port === 5043) currentSetting.tls = true; // add tls to the information
 			this.loginMethod = Number(currentSetting.LoginMethod) || 1;
 			this.soapVersion = parseInt(currentSetting.SOAPVersion, 10) || 2;
 			return Promise.resolve(currentSetting);
@@ -1714,15 +1716,16 @@ class NetgearRouter {
 		}
 	}
 
-	async _discoverHostInfo() {
+	async _discoverHostInfo(options) { // e.g. { family: 4, 6, or 0 }
 		// returns a promise of the netgear router info including host IP address, or rejects with an error
 		try {
 			let info;
 			// first try routerlogin.net
-			const host = await dnsLookupPromise('routerlogin.net').catch(() => undefined); // orbilogin.com/net has redirects?
+			const host = await dnsLookupPromise('routerlogin.net', options).catch(() => undefined); // orbilogin.com/net has redirects?
 			if (host) info = await this.getCurrentSetting(host.address || host).catch(() => undefined); // weird, sometimes it doesn't have .address
 			// else try ip scanning
 			if (!info) [info] = await this._discoverAllHostsInfo();
+
 			return Promise.resolve(info);	// info.host has the ipAddress
 		} catch (error) {
 			this.lastResponse = error;
@@ -1752,7 +1755,7 @@ class NetgearRouter {
 				return hostsToTest;
 			});
 			// temporarily set http timeout to 4 seconds
-			const allHostsPromise = hostsToTest.map((hostToTest) => Promise.resolve(this.getCurrentSetting(hostToTest, 4000).catch(() => undefined)));
+			const allHostsPromise = hostsToTest.map((hostToTest) => this.getCurrentSetting(hostToTest, 4000).catch(() => undefined));
 			const allHosts = await Promise.all(allHostsPromise);
 			const discoveredHosts = allHosts.filter((host) => host);
 			if (!discoveredHosts[0]) {
@@ -1778,6 +1781,12 @@ class NetgearRouter {
 				.catch(() => ({ body: null }));
 			if (JSON.stringify(result443.body).includes('<ResponseCode>')) {
 				return Promise.resolve(443);
+			}
+			// try port 5555 with TLS
+			const result5043 = await this._makeRequest2(action, message, host1, 5043, true, 3000)
+				.catch(() => ({ body: null }));
+			if (JSON.stringify(result5043.body).includes('<ResponseCode>')) {
+				return Promise.resolve(5043);
 			}
 			// try port 5555 with TLS
 			const result5555 = await this._makeRequest2(action, message, host1, 5555, true, 3000)

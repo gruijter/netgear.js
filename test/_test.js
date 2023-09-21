@@ -3,7 +3,7 @@
 	License, v. 2.0. If a copy of the MPL was not distributed with this
 	file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-	Copyright 2017 - 2022, Robin de Gruijter <gruijter@hotmail.com> */
+	Copyright 2017 - 2023, Robin de Gruijter <gruijter@hotmail.com> */
 
 // INSTRUCTIONS FOR TESTING FROM DESKTOP:
 // install node (https://nodejs.org)
@@ -81,7 +81,11 @@ async function getRouterInfo() {
 		}
 
 		if (!shorttest) {
-			log.push('trying to auto discover Netgear routers...');
+			log.push('trying to auto discover main Netgear router...');
+			log.push(await router._discoverHostInfo());
+			log.push(`t = ${(Date.now() - t0) / 1000}`);
+
+			log.push('trying to scan for all Netgear routers...');
 			log.push(await router._discoverAllHostsInfo());
 			log.push(`t = ${(Date.now() - t0) / 1000}`);
 

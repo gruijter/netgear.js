@@ -1,3 +1,4 @@
+4.4.3 - 21-09-2023 Added SOAP port 5043 detection. Improved autodiscovery.
 4.4.2 - 27-02-2022 Removed orbilogin.com from router discovery. Improved autodiscovery.
 4.4.1 - 12-02-2022 Fixed autodiscovery.
 4.4.0 - 12-02-2022 Added orbilogin.com and port 5555 to router discovery. Make TLS preferred method. Fix manual port/TLS override. Removed parental control test.
